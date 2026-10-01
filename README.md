@@ -1,4 +1,26 @@
-# vinext-starter
+# DTEC Virtual Office
+
+Escritório virtual interativo da DTEC, desenvolvido como projeto independente do repositório `no-topo`.
+
+## Versão atual
+
+- escritório 3D/isométrico responsivo;
+- criação e troca de avatar;
+- personagens simulados andando, parando, sentando e dançando;
+- movimentação por clique e interação com cadeiras;
+- balões de conversa e histórico local das cinco mensagens mais recentes;
+- mural de informações e quadro de aniversariantes.
+
+Esta versão é uma demonstração pública. Sincronização entre computadores, autenticação e dados compartilhados exigem a conexão de um backend público, como Supabase ou Firebase.
+
+## Desenvolvimento
+
+```bash
+npm install
+npm run dev
+```
+
+## Base técnica
 
 A clean full-stack starter running on [vinext](https://github.com/cloudflare/vinext), with optional Cloudflare D1 and Drizzle support.
 

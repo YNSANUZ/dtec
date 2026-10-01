@@ -85,6 +85,7 @@ export default function OfficeScene({
   onAvatarClick,
   onBirthdayClick,
 }: Props) {
+  const assetBase = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
   const host = useRef<HTMLDivElement>(null),
     actionRef = useRef(action),
     messageRef = useRef(message),
@@ -263,7 +264,7 @@ export default function OfficeScene({
       z: number,
       self = false,
     ) =>
-      loader.load(`/models/kenney/character-${model}.glb`, (g) => {
+      loader.load(`${assetBase}/models/kenney/character-${model}.glb`, (g) => {
         const o = clone(g.scene);
         o.scale.setScalar(0.85);
         o.position.set(x, 0, z);
@@ -294,7 +295,7 @@ export default function OfficeScene({
       });
     people.forEach((p) => add(p.m, p.n, p.x, p.z));
     add(avatar, created ? name : "Você", 0, 5, true);
-    const addRemote=(u:(typeof remoteRef.current)[number])=>loader.load(`/models/kenney/character-${u.avatar}.glb`,g=>{
+    const addRemote=(u:(typeof remoteRef.current)[number])=>loader.load(`${assetBase}/models/kenney/character-${u.avatar}.glb`,g=>{
       if(remoteAgents.has(u.userId))return;
       const o=clone(g.scene);o.scale.setScalar(.85);o.position.set(u.x,0,u.z);o.traverse(v=>{if((v as THREE.Mesh).isMesh)(v as THREE.Mesh).castShadow=true});
       const label=card(u.name);label.position.y=2.65;o.add(label);scene.add(o);
@@ -457,6 +458,6 @@ export default function OfficeScene({
       renderer.dispose();
       el.replaceChildren();
     };
-  }, [avatar, created, name, onAvatarClick, onBirthdayClick]);
+  }, [assetBase, avatar, created, name, onAvatarClick, onBirthdayClick]);
   return <div ref={host} className="office-canvas" />;
 }
