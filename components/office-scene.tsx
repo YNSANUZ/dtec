@@ -254,8 +254,8 @@ export default function OfficeScene({
       auto = true,
       seating = false,
       autoPauseUntil = 0,
-      target = new THREE.Vector3(0, 0, 5),
       clips = new Map<string, THREE.AnimationClip>();
+    const target = new THREE.Vector3(0, 0, 5);
     const add = (
       model: string,
       n: string,
