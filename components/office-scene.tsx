@@ -2,13 +2,13 @@
 import {useEffect,useRef} from "react";import * as THREE from "three";import{GLTFLoader}from"three/examples/jsm/loaders/GLTFLoader.js";import{clone}from"three/examples/jsm/utils/SkeletonUtils.js";
 type Props={name:string;avatar:string;action:"idle"|"dance"|"wave";message:string;created:boolean;onAvatarClick:()=>void;onBirthdayClick:()=>void};
 const people=[
- {n:"Helio Vianey",m:"a",x:-6,z:2},
- {n:"Herbert Alves",m:"c",x:-1,z:-1},
- {n:"Edvar Gusmão",m:"f",x:4,z:0},
- {n:"Otoniel Angelo",m:"j",x:-6,z:7},
+ {n:"Helio Vianey Carreiro Veloso Filho",m:"a",x:-6,z:2},
+ {n:"Herbert Alves Marinho",m:"c",x:-1,z:-1},
+ {n:"Edvar Gusmão Florencio",m:"f",x:4,z:0},
+ {n:"Otoniel Angelo Pereira Galvão",m:"j",x:-6,z:7},
  {n:"Tiago Salomão",m:"n",x:2,z:7},
- {n:"Gabriel Cavalcante",m:"r",x:8,z:7},
- {n:"Bruno Leão",m:"a",x:8,z:2},
+ {n:"Gabriel Cavalcante de Lima Oliveira",m:"r",x:8,z:7},
+ {n:"Bruno Leão Dias",m:"a",x:8,z:2},
 ];
 function card(text:string,bubble=false){const c=document.createElement("canvas");c.width=bubble?700:512;c.height=bubble?180:128;const x=c.getContext("2d")!;x.fillStyle=bubble?"white":"#1b2945";x.roundRect(7,7,c.width-14,c.height-(bubble?38:14),bubble?38:34);x.fill();x.fillStyle=bubble?"#17264a":"white";x.font=`${bubble?600:700} ${bubble?42:45}px Arial`;x.textAlign="center";x.textBaseline="middle";x.fillText(text,c.width/2,bubble?78:64,c.width-70);const s=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(c),transparent:true,depthTest:false}));s.scale.set(bubble?4.5:2.6,bubble?1.15:.65,1);return s}
 export default function OfficeScene({name,avatar,action,message,created,onAvatarClick,onBirthdayClick}:Props){const host=useRef<HTMLDivElement>(null);useEffect(()=>{if(!host.current)return;const el=host.current,scene=new THREE.Scene();scene.background=new THREE.Color(0xbcc7d3);const camera=new THREE.OrthographicCamera(-15,15,9,-9,.1,100);camera.position.set(18,21,22);camera.lookAt(0,0,2);const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:"high-performance"});renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));renderer.shadowMap.enabled=true;renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.setSize(el.clientWidth,el.clientHeight);el.appendChild(renderer.domElement);scene.add(new THREE.HemisphereLight(0xfff8e8,0x66758b,2.7));const sun=new THREE.DirectionalLight(0xfff2d7,4.8);sun.position.set(-10,22,15);sun.castShadow=true;scene.add(sun);
