@@ -9,6 +9,8 @@ type Props = {
   action: "idle" | "dance" | "wave";
   message: string;
   created: boolean;
+  remoteUsers: Array<{userId:string;name:string;avatar:string;x:number;z:number;action:string;message:string;lastSeen:number}>;
+  onStateChange: (x:number,z:number,action:string) => void;
   onAvatarClick: () => void;
   onBirthdayClick: () => void;
 };
@@ -78,18 +80,24 @@ export default function OfficeScene({
   action,
   message,
   created,
+  remoteUsers,
+  onStateChange,
   onAvatarClick,
   onBirthdayClick,
 }: Props) {
   const host = useRef<HTMLDivElement>(null),
     actionRef = useRef(action),
-    messageRef = useRef(message);
+    messageRef = useRef(message),
+    remoteRef = useRef(remoteUsers),
+    stateCallbackRef = useRef(onStateChange);
   useEffect(() => {
     actionRef.current = action;
   }, [action]);
   useEffect(() => {
     messageRef.current = message;
   }, [message]);
+  useEffect(() => { remoteRef.current = remoteUsers; }, [remoteUsers]);
+  useEffect(() => { stateCallbackRef.current = onStateChange; }, [onStateChange]);
   useEffect(() => {
     if (!host.current) return;
     const el = host.current,
@@ -233,9 +241,11 @@ export default function OfficeScene({
       nextAt: number;
       seat?: THREE.Mesh;
     };
+    type RemoteAgent = {object:THREE.Object3D;mixer:THREE.AnimationMixer;clips:Map<string,THREE.AnimationClip>;action:THREE.AnimationAction|null;target:THREE.Vector3;bubble:THREE.Sprite|null;message:string};
     const loader = new GLTFLoader(),
       mixers: THREE.AnimationMixer[] = [],
-      agents: Agent[] = [];
+      agents: Agent[] = [],
+      remoteAgents = new Map<string,RemoteAgent>();
     let mine: THREE.Object3D | null = null,
       mineMixer: THREE.AnimationMixer | null = null,
       current: THREE.AnimationAction | null = null,
@@ -284,6 +294,12 @@ export default function OfficeScene({
       });
     people.forEach((p) => add(p.m, p.n, p.x, p.z));
     add(avatar, created ? name : "Você", 0, 5, true);
+    const addRemote=(u:(typeof remoteRef.current)[number])=>loader.load(`/models/kenney/character-${u.avatar}.glb`,g=>{
+      if(remoteAgents.has(u.userId))return;
+      const o=clone(g.scene);o.scale.setScalar(.85);o.position.set(u.x,0,u.z);o.traverse(v=>{if((v as THREE.Mesh).isMesh)(v as THREE.Mesh).castShadow=true});
+      const label=card(u.name);label.position.y=2.65;o.add(label);scene.add(o);
+      const mixer=new THREE.AnimationMixer(o);mixers.push(mixer);remoteAgents.set(u.userId,{object:o,mixer,clips:new Map(g.animations.map(c=>[c.name.toLowerCase(),c])),action:null,target:new THREE.Vector3(u.x,0,u.z),bubble:null,message:""});
+    });
     const ray = new THREE.Raycaster(),
       pointer = new THREE.Vector2(),
       floor = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0),
@@ -342,8 +358,11 @@ export default function OfficeScene({
       a.action = a.mixer.clipAction(clip);
       a.action.reset().fadeIn(0.18).play();
     };
+    const playRemote=(a:RemoteAgent,key:string)=>{const clip=a.clips.get(key)||a.clips.get(key==="dance"?"emote-yes":"idle")||a.clips.get("idle");if(!clip)return;if(a.action?.getClip()===clip)return;a.action?.fadeOut(.15);a.action=a.mixer.clipAction(clip);a.action.reset().fadeIn(.15).play()};
     const clock = new THREE.Clock(),
-      frame = () => {
+      started=performance.now()/1000;
+    let lastPresencePush=0,lastRemoteRefresh=0;
+    const frame = () => {
         frameId = requestAnimationFrame(frame);
         const dt = Math.min(clock.getDelta(), 0.04),
           now = performance.now() / 1000;
@@ -382,6 +401,8 @@ export default function OfficeScene({
             playAgent(a, "walk");
           }
         });
+        if(now-lastRemoteRefresh>1){lastRemoteRefresh=now;const ids=new Set(remoteRef.current.map(u=>u.userId));remoteAgents.forEach((a,id)=>{if(!ids.has(id)){scene.remove(a.object);remoteAgents.delete(id)}});remoteRef.current.forEach(u=>{const a=remoteAgents.get(u.userId);if(!a)addRemote(u);else{a.target.set(u.x,0,u.z);if(u.message!==a.message){if(a.bubble)a.object.remove(a.bubble);a.message=u.message;a.bubble=u.message?card(u.message,true):null;if(a.bubble){a.bubble.position.y=3.65;a.object.add(a.bubble)}}}})}
+        remoteAgents.forEach(a=>{const d=a.target.clone().sub(a.object.position);if(d.length()>.08){playRemote(a,"walk");d.normalize();a.object.position.addScaledVector(d,dt*2.4);a.object.rotation.y=Math.atan2(d.x,d.z)}else playRemote(a,"idle")});
         if (mine && mineMixer) {
           if (messageRef.current !== shownMessage) {
             if (bubble) mine.remove(bubble);
@@ -412,6 +433,7 @@ export default function OfficeScene({
               mine.rotation.y = Math.atan2(d.x, d.z);
             } else play(seating ? "sit" : "idle");
           }
+          if(now-lastPresencePush>.9&&now-started>1){lastPresencePush=now;stateCallbackRef.current(mine.position.x,mine.position.z,actionRef.current==="dance"?"dance":mode||"idle")}
         }
         renderer.render(scene, camera);
       };
