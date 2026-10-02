@@ -44,12 +44,12 @@
 - `canAppointModerator(role): boolean` returns true only for `owner`.
 - HTTP payloads retain role keys; UI displays ADM/MOD and leader star after full name.
 
-- [ ] **Step 1: Write failing role helper tests** for all labels and only-owner appoint capability.
-- [ ] **Step 2: Run `npm test -- tests/room-roles.test.ts`** and verify failure.
-- [ ] **Step 3: Implement pure role helpers** without changing DB enum/key values.
-- [ ] **Step 4: Add failing route/UI tests**: only ADM can assign/revoke MOD for any existing profile; MOD/member requests receive `403`; rendered roster/profile says ADM or `Name ⭐` rather than “dono/líder”.
-- [ ] **Step 5: Update the current leader route and role labels**. Extend protected query to resolve selected user's profile; do not allow client to assign ADM or self-promote.
-- [ ] **Step 6: Run role tests, lint, and TypeScript**; expected pass.
+- [x] **Step 1: Write failing role helper tests** for all labels and only-owner appoint capability.
+- [x] **Step 2: Run `npm test -- tests/room-roles.test.ts`** and verify failure.
+- [x] **Step 3: Implement pure role helpers** without changing DB enum/key values.
+- [x] **Step 4: Add failing route/UI tests**: only ADM can assign/revoke MOD for any existing profile; MOD/member requests receive `403`; rendered roster/profile says ADM or `Name ⭐` rather than “dono/líder”.
+- [x] **Step 5: Update the current leader route and role labels**. Extend protected query to resolve selected user's profile; do not allow client to assign ADM or self-promote.
+- [x] **Step 6: Run role tests, lint, and TypeScript**; expected pass.
 - [ ] **Step 7: Commit** as `feat: present room owner and leader as ADM and MOD`.
 
 ### Task 2: Monthly cycle, fundraiser validation, schema, and audit RPC

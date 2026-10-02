@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { visitorSpawn } from "@/lib/room/visitor-spawn";
+import { normalizeRoomRole, type RoomRole } from "@/lib/room/roles";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 export async function GET() {
@@ -26,12 +27,13 @@ export async function GET() {
   }>;
   const presences = presenceResult.data ?? [];
   const presenceById = new Map(presences.map((presence) => [presence.user_id, presence]));
-  const rolesById = new Map<string, "owner" | "leader">();
+  const rolesById = new Map<string, RoomRole>();
   if (authenticated) {
     const { data: roles, error } = await supabase.from("room_roles").select("user_id, role");
     if (error) return NextResponse.json({ error: "room_roles_read_failed" }, { status: 500 });
     for (const role of roles ?? []) {
-      if (role.role === "owner" || role.role === "leader") rolesById.set(role.user_id, role.role);
+      const normalizedRole = normalizeRoomRole(role.role);
+      if (normalizedRole !== "member") rolesById.set(role.user_id, normalizedRole);
     }
   }
 

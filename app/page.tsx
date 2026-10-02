@@ -10,6 +10,7 @@ import AvatarPreview from "@/components/avatar-preview";
 import MuralWindow from "@/components/mural-window";
 import { useDtecAuth } from "@/hooks/use-dtec-auth";
 import type { MuralId } from "@/lib/mural-types";
+import { canAppointModerator, roleLabel } from "@/lib/room/roles";
 import type { AvatarId } from "@/lib/profile/validation";
 
 const OfficeScene = dynamic(() => import("@/components/office-scene"), { ssr: false });
@@ -81,7 +82,7 @@ export default function Home() {
 
   const sceneName = auth.profile?.displayName ?? name;
   const sceneAvatar = auth.profile?.avatarId ?? avatar;
-  const isOwner = onlineUsers.some((user) => user.userId === auth.user?.id && user.role === "owner");
+  const canManageRoomRoles = canAppointModerator(onlineUsers.find((user) => user.userId === auth.user?.id)?.role);
 
   const save = async () => {
     setSaving(true);
@@ -200,12 +201,12 @@ export default function Home() {
   };
 
   const toggleLeader = async () => {
-    if (!selectedUser || !isOwner) return;
+    if (!selectedUser || !canManageRoomRoles) return;
     setLeaderError("");
     const isLeader = selectedUser.role !== "leader";
     try {
       const response = await fetch(`/api/room/users/${selectedUser.userId}/leader`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ isLeader }) });
-      if (!response.ok) throw new Error("Não foi possível atualizar a liderança.");
+      if (!response.ok) throw new Error("Não foi possível atualizar o papel MOD.");
       const role = isLeader ? "leader" : "member";
       setSelectedUser({ ...selectedUser, role });
       setOnlineUsers((users) => users.map((user) => user.userId === selectedUser.userId ? { ...user, role } : user));
@@ -227,7 +228,7 @@ export default function Home() {
           <Users size={23} /><b>•</b><span>{onlineCount} na sala</span><ChevronDown size={15} />
         </button>
         {onlineOpen && <section className="online-menu" aria-label="Pessoas online"><header><strong>Na sala agora</strong><button aria-label="Fechar lista" onClick={() => setOnlineOpen(false)}><X size={16} /></button></header>
-          {onlineCount === 0 ? <p className="online-empty">Aguardando colegas entrarem…</p> : <ul>{onlineUsers.filter((user) => user.online).map((user) => <li key={user.userId}><button type="button" onClick={() => { setOnlineOpen(false); if (auth.state === "anonymous") { setLoginPromptOpen(true); return; } if (!ready) return; setSelectedUser({ ...user, title: user.title ?? "", role: user.role ?? "member", bio: "", birthDayMonth: null, whatsapp: "" }); setProfileLoading(true); setLeaderError(""); }}><span className="online-marker">{user.role === "owner" ? <Crown size={14} aria-label="Dono da sala" /> : user.role === "leader" ? <Star size={14} aria-label="Líder da sala" /> : null}{user.name}{user.userId === auth.user?.id ? " (você)" : ""}</span>{user.title && <small>[{user.title}]</small>}</button></li>)}</ul>}
+          {onlineCount === 0 ? <p className="online-empty">Aguardando colegas entrarem…</p> : <ul>{onlineUsers.filter((user) => user.online).map((user) => <li key={user.userId}><button type="button" onClick={() => { setOnlineOpen(false); if (auth.state === "anonymous") { setLoginPromptOpen(true); return; } if (!ready) return; setSelectedUser({ ...user, title: user.title ?? "", role: user.role ?? "member", bio: "", birthDayMonth: null, whatsapp: "" }); setProfileLoading(true); setLeaderError(""); }}><span className="online-marker">{roleLabel(user.role ?? "member") === "ADM" && <span className="online-role-badge"><Crown size={13} aria-hidden="true" />{roleLabel(user.role ?? "member")}</span>}{user.name}{roleLabel(user.role ?? "member") === "MOD" && <span className="online-role-badge"><Star size={13} aria-hidden="true" />{roleLabel(user.role ?? "member")}</span>}{user.userId === auth.user?.id ? " (você)" : ""}</span>{user.title && <small>[{user.title}]</small>}</button></li>)}</ul>}
         </section>}
       </div>
       <div className="top-actions"><button aria-label="Tela cheia" onClick={() => document.documentElement.requestFullscreen?.()}><Maximize /></button><button aria-label="Ajuda" onClick={() => setControlsOpen(ready)}><HelpCircle /></button>
@@ -258,12 +259,12 @@ export default function Home() {
     </Dialog>
     {selectedUser && <Dialog open onOpenChange={(open) => { if (!open) setSelectedUser(null); }}><DialogContent className="person-dialog" showCloseButton={false}><DialogHeader><DialogTitle className="sr-only">Perfil de {selectedUser.name}</DialogTitle><DialogDescription className="sr-only">Informações do colega online.</DialogDescription></DialogHeader>
       <button type="button" className="person-close" aria-label="Fechar perfil" onClick={() => setSelectedUser(null)}><X size={17} /></button>
-      <div className="person-identity"><AvatarPreview model={selectedUser.avatar} headOnly /><div><h2>{selectedUser.role === "owner" ? "👑 " : selectedUser.role === "leader" ? "⭐ " : ""}{selectedUser.name}</h2>{selectedUser.title && <span>{selectedUser.title}</span>}</div></div>
+      <div className="person-identity"><AvatarPreview model={selectedUser.avatar} headOnly /><div><h2>{selectedUser.role === "owner" && <><Crown size={17} aria-hidden="true" />{roleLabel(selectedUser.role)} </>}{selectedUser.name}{selectedUser.role === "leader" && <> <Star size={17} aria-hidden="true" />{roleLabel(selectedUser.role)}</>}</h2>{selectedUser.title && <span>{selectedUser.title}</span>}</div></div>
       {profileLoading ? <p className="person-loading">Carregando perfil…</p> : <div className="person-details">{selectedUser.birthDayMonth && <p><strong>Aniversário</strong><span>{displayBirthday(selectedUser.birthDayMonth)}</span></p>}{selectedUser.bio && <p><strong>Sobre</strong><span>{selectedUser.bio}</span></p>}
         {selectedUser.whatsapp && <a className="whatsapp-link" href={`https://wa.me/${selectedUser.whatsapp.length <= 11 ? `55${selectedUser.whatsapp}` : selectedUser.whatsapp}`} target="_blank" rel="noopener noreferrer">WhatsApp</a>}
         {!selectedUser.birthDayMonth && !selectedUser.bio && !selectedUser.whatsapp && <p className="person-empty">Esta pessoa ainda não preencheu outras informações.</p>}
       </div>}
-      {isOwner && selectedUser.role !== "owner" && <button className="leader-toggle" onClick={() => void toggleLeader()}>{selectedUser.role === "leader" ? "Remover liderança" : "⭐ Tornar líder da sala"}</button>}
+      {canManageRoomRoles && selectedUser.role !== "owner" && <button className="leader-toggle" onClick={() => void toggleLeader()}>{selectedUser.role === "leader" ? "Remover MOD" : "⭐ Designar MOD"}</button>}
       {leaderError && <p className="person-error" role="alert">{leaderError}</p>}
     </DialogContent></Dialog>}
     {activeMural && <MuralWindow key={activeMural} muralId={activeMural} currentUserId={auth.user?.id ?? null} onClose={() => setActiveMural(null)} />}

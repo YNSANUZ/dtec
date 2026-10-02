@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { canAppointModerator } from "@/lib/room/roles";
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const supabase = await createServerSupabaseClient();
@@ -9,10 +10,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const { id } = await params;
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) return NextResponse.json({ error: "invalid_user_id" }, { status: 400 });
   const { data: currentRole, error: roleError } = await supabase.from("room_roles").select("role").eq("user_id", auth.claims.sub).maybeSingle();
-  if (roleError || currentRole?.role !== "owner") return NextResponse.json({ error: "owner_only" }, { status: 403 });
+  if (roleError || !canAppointModerator(currentRole?.role)) return NextResponse.json({ error: "adm_only" }, { status: 403 });
   const body = await request.json().catch(() => null) as { isLeader?: unknown } | null;
   if (typeof body?.isLeader !== "boolean") return NextResponse.json({ error: "invalid_role" }, { status: 400 });
-  if (id === auth.claims.sub) return NextResponse.json({ error: "owner_role_fixed" }, { status: 400 });
+  if (id === auth.claims.sub) return NextResponse.json({ error: "adm_role_fixed" }, { status: 400 });
+  const { data: targetProfile, error: targetProfileError } = await supabase.from("profiles").select("user_id").eq("user_id", id).maybeSingle();
+  if (targetProfileError) return NextResponse.json({ error: "profile_read_failed" }, { status: 500 });
+  if (!targetProfile) return NextResponse.json({ error: "profile_not_found" }, { status: 404 });
   const result = body.isLeader
     ? await supabase.from("room_roles").insert({ user_id: id, role: "leader", appointed_by: auth.claims.sub })
     : await supabase.from("room_roles").delete().eq("user_id", id).eq("role", "leader");

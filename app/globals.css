@@ -93,6 +93,7 @@
 .online-menu li button:hover{border-color:#aac8e3;background:#e4eff9}
 .online-marker{display:flex;align-items:center;gap:7px;font-size:.85rem;font-weight:750}
 .online-marker svg{flex:none;color:#ce9b27;fill:#f5d773}
+.online-role-badge{display:inline-flex;align-items:center;gap:3px;color:#455a77;font-size:.65rem;font-weight:800}
 .online-menu li small{max-width:128px;overflow:hidden;color:#6d7888;font-size:.75rem;text-overflow:ellipsis;white-space:nowrap}
 .online-empty{padding:18px;color:#687890;font-size:.82rem;text-align:center}
 .creator-dialog{display:flex!important;flex-direction:column;max-height:min(88dvh,790px)!important;overflow:hidden}
@@ -106,7 +107,7 @@
 .person-dialog{width:min(400px,calc(100% - 28px))!important;max-width:400px!important;padding:22px!important;border:2px solid #fff!important;border-radius:8px!important;background:#e8e7e1!important;color:#263a59;box-shadow:4px 5px 0 #566273,0 18px 52px #07132675!important}
 .person-close{position:absolute;top:10px;right:10px;display:grid;width:28px;height:27px;place-items:center;border:1px solid #fff;border-radius:4px;background:#d8e7f5;color:#263c5a;box-shadow:inset 1px 1px #fff,inset -2px -2px #8da3bb;cursor:pointer}
 .person-identity{display:flex;align-items:center;gap:14px;padding:8px 36px 16px 0;border-bottom:1px solid #c4c4bd}
-.person-identity h2{margin:0;color:#1c3e70;font-size:1.12rem}
+.person-identity h2{display:flex;align-items:center;gap:4px;margin:0;color:#1c3e70;font-size:1.12rem}
 .person-identity span{display:block;margin-top:4px;color:#637184;font-size:.8rem}
 .person-identity .avatar-head-only{width:64px;height:64px;flex:0 0 64px;overflow:hidden;border:2px solid white;border-radius:50%;background:#d7e5f3;box-shadow:0 1px 3px #273d5c55}
 .avatar-head-only canvas{width:64px!important;height:64px!important;display:block}
