@@ -12,7 +12,8 @@ import { useDtecAuth } from "@/hooks/use-dtec-auth";
 import type { MuralId } from "@/lib/mural-types";
 import { canAppointModerator, roleLabel } from "@/lib/room/roles";
 import type { AvatarId } from "@/lib/profile/validation";
-import { getKeyboardInset } from "@/lib/room/mobile-viewport";
+import { useRoomChatViewport } from "@/hooks/use-room-chat-viewport";
+import chatStyles from "@/components/rooms/dtec-chat.module.css";
 
 const OfficeScene = dynamic(() => import("@/components/office-scene"), { ssr: false });
 const avatars: AvatarId[] = ["a", "c", "f", "j", "n", "r"];
@@ -59,7 +60,7 @@ export default function DtecRoom() {
   const [chatText, setChatText] = useState("");
   const [chatSending, setChatSending] = useState(false);
   const [chatError, setChatError] = useState("");
-  const [chatBottom, setChatBottom] = useState(120);
+  const { rootRef: chatRootRef, onFocus: chatOnFocus, onBlur: chatOnBlur } = useRoomChatViewport();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [bubble, setBubble] = useState("");
   const presence = useRef<PresenceState>({ x: 0, z: 5, action: "idle" });
@@ -81,22 +82,9 @@ export default function DtecRoom() {
   }, []);
 
   useEffect(() => {
-    if (!chatOpen) return;
-    const viewport = window.visualViewport;
-    const syncChatPosition = () => {
-      const keyboardInset = getKeyboardInset(window.innerHeight, viewport?.height ?? window.innerHeight, viewport?.offsetTop ?? 0);
-      setChatBottom(Math.max(120, keyboardInset + 12));
-    };
-    syncChatPosition();
-    window.addEventListener("resize", syncChatPosition);
-    viewport?.addEventListener("resize", syncChatPosition);
-    viewport?.addEventListener("scroll", syncChatPosition);
-    return () => {
-      window.removeEventListener("resize", syncChatPosition);
-      viewport?.removeEventListener("resize", syncChatPosition);
-      viewport?.removeEventListener("scroll", syncChatPosition);
-    };
-  }, [chatOpen]);
+    // Removing a focused input does not reliably emit blur on every browser.
+    if (!chatOpen || !ready) chatOnBlur();
+  }, [chatOpen, ready, chatOnBlur]);
 
   useEffect(() => {
     if (!auth.user || auth.profile) return;
@@ -265,7 +253,7 @@ export default function DtecRoom() {
   const ownBirthdayToday = Boolean(auth.user && onlineUsers.find((user) => user.userId === auth.user?.id)?.birthdayToday);
   const onlineCount = onlineUsers.filter((user) => user.online).length;
 
-  return <main className="app-shell">
+  return <main ref={chatRootRef} className={`app-shell ${chatStyles.shell}`}>
     <OfficeScene name={sceneName} avatar={sceneAvatar} action={action} message={bubble} created={ready && Boolean(auth.user) && restoredUser === auth.user} initialPosition={sceneStart} remoteUsers={remoteUsers} birthdayToday={ownBirthdayToday} positionOwnerId={auth.user?.id ?? "visitor"} onStateChange={updatePresence} onCharacterClick={characterClick} onMuralClick={muralClick} />
     <div className="shade" />
     <nav className="legal-links" aria-label="Informações legais"><Link href="/politica-de-privacidade">Privacidade</Link><span aria-hidden="true">·</span><Link href="/termos-de-servico">Termos</Link></nav>
@@ -287,7 +275,7 @@ export default function DtecRoom() {
     {auth.error && <div className="auth-notice" role="status">{auth.error}<button aria-label="Fechar aviso" onClick={auth.clearError}>×</button></div>}
     {accountOpen && ready && <div className="account-menu"><strong>{sceneName}</strong><small>{auth.user?.email}</small><button onClick={editProfile}>Meu avatar e perfil</button><Link href="/?create=1" className="account-menu-link">Criar meu CuboChat</Link><button type="button" disabled title="Instalação do aplicativo em preparação">Instalar aplicativo <small>Em breve</small></button><button onClick={() => { setAccountOpen(false); setChatOpen(false); setControlsOpen(false); void auth.signOut(); }}>Sair da conta</button></div>}
     {ready && <nav className="actionbar" aria-label="Ações do personagem"><button onClick={() => setAction(action === "dance" ? "idle" : "dance")}>{action === "dance" ? "Parar" : "Dançar"}</button><button onClick={() => setChatOpen((open) => !open)}>Conversar</button><button onClick={editProfile}>Meu avatar</button></nav>}
-    {chatOpen && ready && <form className="chat-pop" style={{ bottom: `calc(${chatBottom}px + env(safe-area-inset-bottom))` }} onSubmit={(event) => void sendMessage(event)}><strong>Conversar</strong><input value={chatText} onChange={(event) => setChatText(event.target.value)} placeholder="Digite uma mensagem…" maxLength={100} /><button disabled={chatSending}>{chatSending ? "Enviando…" : "Enviar"}</button>{chatError && <small role="alert">{chatError}</small>}</form>}
+    {chatOpen && ready && <form className={`chat-pop ${chatStyles.composer}`} aria-label="Conversar na sala" onSubmit={(event) => void sendMessage(event)} onKeyDown={(event) => { if (event.key === "Escape") { event.preventDefault(); setChatOpen(false); } }}><strong className={chatStyles.title}>Conversar</strong><input value={chatText} onChange={(event) => setChatText(event.target.value)} onFocus={chatOnFocus} onBlur={chatOnBlur} aria-label="Mensagem" autoComplete="off" enterKeyHint="send" placeholder="Digite uma mensagem…" maxLength={100} /><button disabled={chatSending || !chatText.trim()}>{chatSending ? "Enviando…" : "Enviar"}</button><button type="button" className={chatStyles.close} aria-label="Fechar conversa" onClick={() => setChatOpen(false)}><X size={16} /></button>{chatError && <small role="alert">{chatError}</small>}</form>}
     {messages.length > 0 && <aside className="chat-history" aria-label="Últimas mensagens"><h3>Conversas recentes</h3>{messages.map((message) => <p key={message.id}><strong>{message.name}</strong><span>{message.text}</span></p>)}</aside>}
     {controlsOpen && ready && <div className="avatar-pop"><button className="close-mini" onClick={() => setControlsOpen(false)}><X /></button><strong>{sceneName}</strong><small>Você assumiu o controle.</small><p>Clique no chão para caminhar.</p><button onClick={() => setAction(action === "dance" ? "idle" : "dance")}>Dançar</button><button onClick={editProfile}>Editar personagem</button></div>}
     <Dialog open={loginPromptOpen} onOpenChange={setLoginPromptOpen}><DialogContent className="login-prompt-dialog" showCloseButton={false}><button type="button" className="login-prompt-close" aria-label="Fechar" onClick={() => setLoginPromptOpen(false)}><X size={17} /></button><DialogHeader><DialogTitle>Entre para interagir com a sala</DialogTitle><DialogDescription>Faça login com Google para conversar, movimentar seu personagem e ver os detalhes dos colegas.</DialogDescription></DialogHeader><a className="login-prompt-google" href="/auth/login?next=/dtec"><i className="google-logo" aria-hidden="true" />Entrar com Google</a></DialogContent></Dialog>

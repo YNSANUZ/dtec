@@ -1,0 +1,11 @@
+.shell :global(.office-canvas) { bottom: auto; height: var(--room-layout-height, 100%); }
+.shell .composer { width: min(380px, calc(100vw - 24px)); bottom: calc(max(72px, var(--room-chat-bottom, 12px)) + env(safe-area-inset-bottom)); padding: 8px; gap: 6px; flex-wrap: wrap; max-height: var(--room-chat-space, calc(100dvh - 140px)); overflow: auto; }
+.shell .composer input { min-width: 0; padding: 8px; }
+.shell .composer button { padding: 8px; flex-shrink: 0; }
+.shell .composer .close { display: grid; place-items: center; width: 30px; height: 32px; padding: 0; color: #d9e4ef; background: #ffffff12; }
+.shell .composer small { flex-basis: 100%; color: #ffc8bd; font-size: 12px; line-height: 1.35; }
+.shell .composer :is(input, button):focus-visible { outline: 2px solid #8ceacc; outline-offset: 2px; }
+@media (max-width: 700px) {
+  .shell .composer input { font-size: 16px; }
+  .title { display: none; }
+}
