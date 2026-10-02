@@ -21,6 +21,7 @@ export default function GenericRoom({ room }: { room: { slug: string; title: str
   const [selectedPerson, setSelectedPerson] = useState<{ scope: string; id: string } | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const chatRevision = useRef(0);
+  const sendScope = useRef<{ active: boolean; sending: boolean } | null>(null);
   const [bubbleCutoff, setBubbleCutoff] = useState(0);
   const [chatText, setChatText] = useState("");
   const [bubble, setBubble] = useState("");
@@ -45,10 +46,18 @@ export default function GenericRoom({ room }: { room: { slug: string; title: str
     message: [...messages].reverse().find((message) => message.authorId === character.userId && Date.parse(message.createdAt) > bubbleCutoff)?.text ?? "",
   }));
 
-  useEffect(() => () => {
-    if (bubbleTimer.current !== null) window.clearTimeout(bubbleTimer.current);
-    bubbleTimer.current = null;
-  }, []);
+  useEffect(() => {
+    const scope = { active: true, sending: false };
+    sendScope.current = scope;
+    return () => {
+      scope.active = false;
+      if (bubbleTimer.current !== null) window.clearTimeout(bubbleTimer.current);
+      bubbleTimer.current = null;
+      setSending(false);
+      setChatError("");
+      setBubble("");
+    };
+  }, [chatUrl, auth.user?.id, auth.state]);
 
   useEffect(() => {
     let active = true;
@@ -112,11 +121,15 @@ export default function GenericRoom({ room }: { room: { slug: string; title: str
 
   const sendMessage = async (event: FormEvent) => {
     event.preventDefault();
-    if (!chatText.trim() || sending) return;
+    const scope = sendScope.current;
+    if (auth.state !== "ready" || !scope?.active || scope.sending || !chatText.trim() || sending) return;
+    scope.sending = true;
     setSending(true); setChatError("");
     try {
       const response = await fetch(chatUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: chatText }) });
+      if (!scope.active) return;
       const body = await response.json() as { message?: ChatMessage; error?: string };
+      if (!scope.active) return;
       if (!response.ok || !body.message) throw new Error("Não foi possível enviar a mensagem.");
       // A read started before this acknowledgement cannot undo the send.
       chatRevision.current++;
@@ -127,8 +140,8 @@ export default function GenericRoom({ room }: { room: { slug: string; title: str
       bubbleTimer.current = window.setTimeout(() => { bubbleTimer.current = null; setBubble(""); }, 5000);
       setChatText("");
     } catch (failure) {
-      setChatError(failure instanceof Error ? failure.message : "Falha ao enviar.");
-    } finally { setSending(false); }
+      if (scope.active) setChatError(failure instanceof Error ? failure.message : "Falha ao enviar.");
+    } finally { scope.sending = false; if (scope.active) setSending(false); }
   };
   return <main ref={chatRootRef} className={`lobby-shell ${styles.shell}`}>
     <OfficeScene environment="lobby" name={auth.profile?.displayName ?? "Visitante"} avatar={auth.profile?.avatarId ?? "r"} action="idle" message={bubble} created={auth.state === "ready" && presenceReady} initialPosition={sceneStart} remoteUsers={visibleCharacters} birthdayToday={ownBirthdayToday} positionOwnerId={positionKey} onStateChange={(x, z, action) => { ownPosition.current = { x, z, action: action === "dance" ? "dance" : ["walk", "sit"].includes(action) ? action : "idle" }; }} onCharacterClick={(id) => setSelectedPerson({ scope: peopleScope, id: id ?? auth.user?.id ?? "visitor" })} onMuralClick={() => {}} />

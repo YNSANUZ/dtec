@@ -63,15 +63,25 @@ export default function DtecRoom() {
   const { rootRef: chatRootRef, onFocus: chatOnFocus, onBlur: chatOnBlur } = useRoomChatViewport();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const chatRevision = useRef(0);
+  const sendScope = useRef<{ active: boolean; sending: boolean } | null>(null);
   const [bubble, setBubble] = useState("");
   const bubbleTimer = useRef<number | null>(null);
   const presence = useRef<PresenceState>({ x: 0, z: 5, action: "idle" });
   const initializedProfile = useRef<typeof auth.user>(null);
 
-  useEffect(() => () => {
-    if (bubbleTimer.current !== null) window.clearTimeout(bubbleTimer.current);
-    bubbleTimer.current = null;
-  }, []);
+  useEffect(() => {
+    const scope = { active: true, sending: false };
+    sendScope.current = scope;
+    return () => {
+      scope.active = false;
+      if (bubbleTimer.current !== null) window.clearTimeout(bubbleTimer.current);
+      bubbleTimer.current = null;
+      setChatSending(false);
+      setChatError("");
+      setBubble("");
+      setAction((current) => current === "wave" ? "idle" : current);
+    };
+  }, [auth.user?.id, auth.state]);
 
   useEffect(() => {
     let active = true;
@@ -232,17 +242,21 @@ export default function DtecRoom() {
 
   const sendMessage = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (!ready || chatSending) return;
+    const scope = sendScope.current;
+    if (!ready || !scope?.active || scope.sending || chatSending) return;
     const text = chatText.trim().slice(0, 100);
     if (!text) return;
+    scope.sending = true;
     setChatSending(true);
     setChatError("");
     try {
       const response = await fetch("/api/rooms/dtec/chat", {
         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text }),
       });
+      if (!scope.active) return;
       if (!response.ok) throw new Error("Não foi possível enviar a mensagem.");
       const body = await response.json() as { message: ChatMessage };
+      if (!scope.active) return;
       // Ignore any snapshot that began before this confirmed send.
       chatRevision.current++;
       setMessages((current) => [...current.filter((message) => message.id !== body.message.id), body.message].slice(-5));
@@ -255,8 +269,8 @@ export default function DtecRoom() {
         setBubble(""); setAction((current) => current === "wave" ? "idle" : current);
       }, 5000);
     } catch (error) {
-      setChatError(error instanceof Error ? error.message : "Não foi possível enviar a mensagem.");
-    } finally { setChatSending(false); }
+      if (scope.active) setChatError(error instanceof Error ? error.message : "Não foi possível enviar a mensagem.");
+    } finally { scope.sending = false; if (scope.active) setChatSending(false); }
   };
 
   const toggleLeader = async () => {
