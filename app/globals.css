@@ -302,6 +302,9 @@
 .mural-reaction-dialog{max-width:380px!important;gap:14px!important;border:1px solid #d6dce4!important;border-radius:12px!important;background:#fcfcfa!important;padding:18px!important}
 .mural-reaction-dialog [data-slot=dialog-title]{font-size:1rem;color:#273d59}
 .mural-reaction-dialog [data-slot=dialog-description]{font-size:.76rem;color:#6b7b8d}
+.mural-reaction-tabs{display:flex;gap:6px}
+.mural-reaction-tabs button{flex:1;border:1px solid #cbd5e1;border-radius:7px;background:#f2f5f8;padding:7px 8px;color:#4b607b;font-size:.76rem;cursor:pointer}
+.mural-reaction-tabs button[aria-pressed=true]{border-color:#4586d2;background:#e5f1ff;color:#235f9d;font-weight:700}
 .mural-reaction-people{display:grid;max-height:280px;gap:7px;overflow:auto;padding:0;margin:0;list-style:none}
 .mural-reaction-people li{display:flex;align-items:center;gap:10px;border:1px solid #e5e8ed;border-radius:8px;background:#fff;padding:7px 10px}
 .mural-reaction-people li strong{font-size:.8rem;color:#394b62}

@@ -31,6 +31,7 @@ import AvatarPreview from "@/components/avatar-preview";
 import { EventsFolder } from "@/components/mural/events-folder";
 import { FundraisersFolder } from "@/components/mural/fundraisers-folder";
 import { MuralPeopleStack, type PeoplePreview } from "@/components/mural/people-stack";
+import { MuralReactionTabs } from "@/components/mural/reaction-tabs";
 import { formatBirthday, orderBirthdays, saoPauloMonthDay } from "@/lib/birthdays/order";
 import type { MuralReaction } from "@/lib/mural-reactions";
 import { createLatestRequest } from "@/lib/mural/latest-request";
@@ -126,6 +127,9 @@ function RecadosContent({ currentUserId }: { currentUserId: string | null }) {
   const [reactionPeople, setReactionPeople] = useState<ReactionPerson[]>([]);
   const [reactionLoading, setReactionLoading] = useState(false);
   const [reactionError, setReactionError] = useState("");
+  const reactionRequest = useRef(createLatestRequest<ReactionPerson[]>());
+
+  useEffect(() => () => reactionRequest.current.invalidate(), []);
 
   useEffect(() => {
     if (!currentUserId) {
@@ -188,19 +192,19 @@ function RecadosContent({ currentUserId }: { currentUserId: string | null }) {
     }
   };
 
-  const showReactionPeople = async (messageId: string, type: MuralReaction) => {
+  const showReactionPeople = (messageId: string, type: MuralReaction) => {
     setReactionDialog({ messageId, type });
     setReactionPeople([]);
     setReactionError("");
     setReactionLoading(true);
-    try {
+    void reactionRequest.current.run(async () => {
       const response = await fetch(`/api/mural/messages/${messageId}/reactions?type=${type}`, { cache: "no-store" });
       const body = await response.json() as { people?: ReactionPerson[] };
       if (!response.ok) throw new Error("Não foi possível consultar as reações.");
-      setReactionPeople(body.people ?? []);
-    } catch (error) {
+      return body.people ?? [];
+    }, setReactionPeople, (error) => {
       setReactionError(error instanceof Error ? error.message : "Não foi possível consultar as reações.");
-    } finally { setReactionLoading(false); }
+    }, () => setReactionLoading(false));
   };
 
   const deleteMessage = async (message: MuralMessage) => {
@@ -250,12 +254,13 @@ function RecadosContent({ currentUserId }: { currentUserId: string | null }) {
         </>
       )}
     </section>
-    <Dialog open={reactionDialog !== null} onOpenChange={(open) => { if (!open) setReactionDialog(null); }}>
+    <Dialog open={reactionDialog !== null} onOpenChange={(open) => { if (!open) { reactionRequest.current.invalidate(); setReactionDialog(null); } }}>
       <DialogContent className="mural-reaction-dialog">
         <DialogHeader>
           <DialogTitle>{reactionDialog?.type === "dislike" ? "Quem descurtiu" : "Quem curtiu"}</DialogTitle>
           <DialogDescription>Lista de colegas autenticados que reagiram a este recado.</DialogDescription>
         </DialogHeader>
+        {reactionDialog && <MuralReactionTabs selected={reactionDialog.type} onSelect={(type) => showReactionPeople(reactionDialog.messageId, type)} />}
         {reactionLoading ? <p className="mural-loading">Carregando…</p> : reactionError ? <p className="mural-form-error" role="alert">{reactionError}</p> : reactionPeople.length ? (
           <ul className="mural-reaction-people">{reactionPeople.map((person) => <li key={person.userId}><AvatarPreview model={person.avatar} headOnly /><strong>{person.name}</strong></li>)}</ul>
         ) : <p className="mural-loading">Ainda não há reações deste tipo.</p>}
