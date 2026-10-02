@@ -9,9 +9,10 @@ Escritório virtual interativo da DTEC, desenvolvido como projeto independente d
 - personagens simulados andando, parando, sentando e dançando;
 - movimentação por clique e interação com cadeiras;
 - balões de conversa e histórico local das cinco mensagens mais recentes;
-- mural de informações e quadro de aniversariantes.
+- quadros 2D leves para informações, demandas, lazer e aniversariantes;
+- mural de recados com leitura autenticada, autoria, edição e exclusão do próprio conteúdo (após aplicar a migração correspondente).
 
-Esta versão é uma demonstração pública. A autenticação Google e os perfis usam Supabase; presença, movimentos e mensagens compartilhados entre computadores ainda são etapas futuras.
+Esta versão ainda é evolutiva. A autenticação Google e os perfis usam Supabase; presença e movimentos compartilhados e sincronização do chat continuam sendo etapas futuras. O Mural de Informações é separado do chat do escritório.
 
 ## Autenticação Google em produção
 
@@ -21,10 +22,10 @@ O aplicativo usa Supabase Auth com OAuth Google, PKCE e sessão persistente em c
 2. No Google Cloud, crie um cliente OAuth do tipo **Web application** e use como URI de redirecionamento autorizado a callback exibida pelo próprio painel do Supabase, no formato `https://<project-ref>.supabase.co/auth/v1/callback`.
 3. Cadastre o Client ID e o Client Secret do Google exclusivamente no painel do Supabase.
 4. Em **Supabase → Authentication → URL Configuration**, defina `https://dtec-kappa.vercel.app` como Site URL e permita `https://dtec-kappa.vercel.app/auth/callback` em Redirect URLs. Para desenvolvimento, permita também `http://localhost:3000/auth/callback`.
-5. Execute `supabase/migrations/202610010001_profiles.sql` no SQL Editor do projeto Supabase.
+5. Execute, nesta ordem, `supabase/migrations/202610010001_profiles.sql` e `supabase/migrations/202610010002_mural_messages.sql` no SQL Editor do projeto Supabase.
 6. No projeto Vercel, configure `NEXT_PUBLIC_SUPABASE_URL` e `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` para Production, Preview e Development.
 
-A chave `service_role`, o Client Secret do Google e tokens do provedor nunca pertencem às variáveis públicas do Vercel. Depois de aplicar a migração, confirme que um usuário autenticado consegue criar/alterar somente a linha cujo `user_id` seja igual a `auth.uid()`.
+A chave `service_role`, o Client Secret do Google e tokens do provedor nunca pertencem às variáveis públicas do Vercel. A política do mural permite leitura a qualquer conta Google autenticada; cada pessoa só pode criar, editar ou excluir seus próprios recados. Recados fixados não podem ser alterados por usuários comuns. A lista de acesso é aberta como solicitado, então não publique dados internos sensíveis nesse mural.
 
 ## Desenvolvimento
 
