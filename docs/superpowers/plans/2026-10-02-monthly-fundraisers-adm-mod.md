@@ -66,13 +66,13 @@
 - `normalizeFundraiser(input: unknown): {title:string;description:string;monthlyAmountCents:number;dueDay:number;pixKey:string|null;paymentInstructions:string}`.
 - RPC `set_fundraiser_payment(p_fundraiser_id uuid,p_cycle_due_date date,p_participant_id uuid,p_paid boolean)` derives actor from `auth.uid()`, checks self vs ADM/MOD, updates cycle state, appends one audit row in the same transaction.
 
-- [ ] **Step 1: Write failing cycle tests** for day 1, due day boundary, day 31 in February, leap-year February, year rollover, Sao Paulo date, and invalid day.
-- [ ] **Step 2: Run `npm test -- tests/fundraiser-cycle.test.ts`** and verify failure.
-- [ ] **Step 3: Implement `getUpcomingDueDate`** using `Intl.DateTimeFormat`/timezone-safe date parts; avoid UTC day rollover errors.
-- [ ] **Step 4: Write failing validation tests** for fixed amount in positive integer cents, required due day, bounded title/description/Pix fields, and invalid/negative values.
-- [ ] **Step 5: Implement `normalizeFundraiser`**; run both focused test suites and verify pass.
-- [ ] **Step 6: Write migration** for `fundraisers`, `fundraiser_participants`, `fundraiser_contributions` keyed by `(fundraiser_id,user_id,cycle_due_date)`, and append-only `fundraiser_payment_audit`; add checks/FKs/indexes/RLS/grants and one RPC.
-- [ ] **Step 7: Add failing migration contract tests** for auth-only reads, self or ADM/MOD payment mutation, admin-only campaign write, immutable audit, and no aggregate amount response.
+- [x] **Step 1: Write failing cycle tests** for day 1, due day boundary, day 31 in February, leap-year February, year rollover, Sao Paulo date, and invalid day.
+- [x] **Step 2: Run `npm test -- tests/fundraiser-cycle.test.ts`** and verify failure.
+- [x] **Step 3: Implement `getUpcomingDueDate`** using `Intl.DateTimeFormat`/timezone-safe date parts; avoid UTC day rollover errors.
+- [x] **Step 4: Write failing validation tests** for fixed amount in positive integer cents, required due day, bounded title/description/Pix fields, and invalid/negative values.
+- [x] **Step 5: Implement `normalizeFundraiser`**; run both focused test suites and verify pass.
+- [x] **Step 6: Write migration** for `fundraisers`, `fundraiser_participants`, `fundraiser_contributions` keyed by `(fundraiser_id,user_id,cycle_due_date)`, and append-only `fundraiser_payment_audit`; add checks/FKs/indexes/RLS/grants and one RPC.
+- [x] **Step 7: Add failing migration contract tests** for auth-only reads, self or ADM/MOD payment mutation, admin-only campaign write, immutable audit, and no aggregate amount response.
 - [ ] **Step 8: Verify migration tests and apply in staging**. Check that due-day change applies only to future cycles, not old history; commit as `feat: add recurring fundraiser schema and cycle audit`.
 
 ### Task 3: Campaign and participant APIs
