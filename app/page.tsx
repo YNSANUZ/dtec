@@ -63,9 +63,17 @@ export default function Home() {
 
   useEffect(() => {
     if (!auth.user || auth.profile) return;
-    const fullName = String(auth.user.user_metadata?.full_name ?? "").trim().replace(/\s+/g, " ").split(" ").slice(0, 2).join(" ");
+    const metadata = auth.user.user_metadata ?? {};
+    const googleIdentity = auth.user.identities?.find((identity) => identity.provider === "google")?.identity_data ?? {};
+    const nameCandidate = [metadata.full_name, metadata.name, `${metadata.given_name ?? ""} ${metadata.family_name ?? ""}`, googleIdentity.full_name, googleIdentity.name]
+      .find((candidate) => typeof candidate === "string" && candidate.trim());
+    const fullName = String(nameCandidate ?? "")
+      .trim().replace(/\s+/g, " ").split(" ").slice(0, 2).join(" ");
     if (fullName) window.setTimeout(() => setName(fullName), 0);
   }, [auth.profile, auth.user]);
+
+  const googlePhoto = String(auth.user?.user_metadata?.avatar_url ?? auth.user?.user_metadata?.picture ?? "");
+  const googleAccountName = String(auth.user?.user_metadata?.full_name ?? auth.user?.user_metadata?.name ?? name);
 
   const sceneName = auth.profile?.displayName ?? name;
   const sceneAvatar = auth.profile?.avatarId ?? avatar;
@@ -190,7 +198,7 @@ export default function Home() {
       </div>
       <div className="top-actions"><button aria-label="Tela cheia" onClick={() => document.documentElement.requestFullscreen?.()}><Maximize /></button><button aria-label="Ajuda" onClick={() => setControlsOpen(ready)}><HelpCircle /></button>
         {auth.state === "anonymous" && <a className="profile google-entry" aria-label="Entrar com Google" href="/auth/login"><i className="google-logo" style={{ backgroundImage: 'url("https://img.icons8.com/color/1200/google-logo.jpg")' }} aria-hidden="true" /><span className="login-label">Entrar</span></a>}
-        {ready && <button className="profile" aria-label="Abrir perfil" onClick={() => { setAccountOpen((open) => !open); setOnlineOpen(false); }}><span>{sceneName.slice(0, 2).toUpperCase()}</span><ChevronDown size={17} /></button>}
+        {ready && <button className="profile" aria-label="Abrir perfil" onClick={() => { setAccountOpen((open) => !open); setOnlineOpen(false); }}>{googlePhoto ? <span className="google-account-avatar" role="img" aria-label="Foto da conta Google" style={{ backgroundImage: `url("${googlePhoto}")` }} /> : <span>{sceneName.slice(0, 2).toUpperCase()}</span>}<ChevronDown size={17} /></button>}
       </div>
     </header>
     {auth.error && <div className="auth-notice" role="status">{auth.error}<button aria-label="Fechar aviso" onClick={auth.clearError}>×</button></div>}
@@ -200,7 +208,8 @@ export default function Home() {
     {messages.length > 0 && <aside className="chat-history" aria-label="Últimas mensagens"><h3>Conversas recentes</h3>{messages.map((message) => <p key={message.id}><strong>{message.name}</strong><span>{message.text}</span></p>)}</aside>}
     {controlsOpen && ready && <div className="avatar-pop"><button className="close-mini" onClick={() => setControlsOpen(false)}><X /></button><strong>{sceneName}</strong><small>Você assumiu o controle.</small><p>Clique no chão para caminhar.</p><button onClick={() => setAction(action === "dance" ? "idle" : "dance")}>Dançar</button><button onClick={editProfile}>Editar personagem</button></div>}
     <Dialog open={chooserOpen} onOpenChange={(open) => { if (auth.state !== "authenticated-needs-profile") setCreatorOpen(open); }}>
-      <DialogContent className="creator-dialog" overlayClassName="creator-overlay"><DialogHeader><DialogTitle>{auth.profile ? "Edite seu perfil" : "Escolha seu personagem"}</DialogTitle><DialogDescription>Seu nome e seu personagem identificam você no escritório.</DialogDescription></DialogHeader>
+      <DialogContent className="creator-dialog" overlayClassName="creator-overlay"><DialogHeader><DialogTitle>{auth.profile ? "Edite seu perfil" : "Complete seu perfil DTEC"}</DialogTitle><DialogDescription>{auth.profile ? "Atualize as informações que seus colegas veem na sala." : "Confira seu nome e escolha como aparecerá no escritório."}</DialogDescription></DialogHeader>
+        {!auth.profile && <div className="google-profile-card">{googlePhoto ? <span className="google-profile-photo" role="img" aria-label="Foto da sua conta Google" style={{ backgroundImage: `url("${googlePhoto}")` }} /> : <span className="google-profile-photo google-profile-fallback">{googleAccountName.slice(0, 1).toUpperCase()}</span>}<span><strong>{googleAccountName}</strong><small>Conta Google conectada</small></span></div>}
         <div className="profile-form-scroll"><label>Nome e sobrenome<input value={name === "Você" ? "" : name} onChange={(event) => setName(event.target.value)} placeholder="Ex.: Bruno Leão" maxLength={48} autoComplete="name" /><small>Use dois nomes. Você pode acrescentar uma função abaixo.</small></label>
           <label>Descrição ou cargo <span className="optional-label">opcional</span><input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Ex.: Infraestrutura, Chefe, Apt 201" maxLength={48} /></label>
           <label>Aniversário <span className="optional-label">opcional · somente dia e mês</span><input type="text" inputMode="numeric" autoComplete="off" placeholder="DD/MM" maxLength={5} value={birthDayMonth} onChange={(event) => { const digits = event.target.value.replace(/\D/g, "").slice(0, 4); setBirthDayMonth(digits.length > 2 ? `${digits.slice(0, 2)}/${digits.slice(2)}` : digits); }} /><small>Não pedimos nem guardamos o ano.</small></label>
