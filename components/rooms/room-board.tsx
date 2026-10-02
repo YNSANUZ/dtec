@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogTitle, DialogDescription, DialogClose } fr
 import { EventsFolder } from "@/components/mural/events-folder";
 import { FundraisersFolder } from "@/components/mural/fundraisers-folder";
 import { RoomBirthdays } from "@/components/rooms/room-birthdays";
+import { RoomBoardOverview } from "@/components/rooms/room-board-overview";
 
 type Notice = { id: string; authorId: string; authorName: string; content: string; isPinned: boolean; createdAt: string; likeCount: number; dislikeCount: number; myReaction: "like" | "dislike" | null };
 type Person = { userId: string; name: string };
@@ -31,7 +32,7 @@ export function RoomBoard(props: Props) {
 }
 
 function BoardContent({ roomSlug, currentUserId }: Props) {
-  const [section, setSection] = useState<"notices" | "events" | "fundraisers" | "birthdays">("notices");
+  const [section, setSection] = useState<"overview" | "notices" | "events" | "fundraisers" | "birthdays">("overview");
   const [canManage, setCanManage] = useState(false);
   useEffect(() => {
     if (!currentUserId) return;
@@ -44,9 +45,10 @@ function BoardContent({ roomSlug, currentUserId }: Props) {
   if (!currentUserId) return <div className="room-board-body mural-access-note"><p>Entre com Google para consultar os avisos, eventos e vaquinhas.</p><Link className="mural-primary-button" href={`/auth/login?next=/${roomSlug}`}>Entrar com Google</Link></div>;
   return <>
     <nav className="room-board-tabs" aria-label="Seções do quadro">
-      {([["notices", "Recados"], ["events", "Eventos"], ["fundraisers", "Vaquinhas"], ["birthdays", "Aniversariantes"]] as const).map(([id, label]) => <button type="button" key={id} aria-pressed={section === id} onClick={() => setSection(id)}>{label}</button>)}
+      {([["overview", "Visão geral"], ["notices", "Recados"], ["events", "Eventos"], ["fundraisers", "Vaquinhas"], ["birthdays", "Aniversariantes"]] as const).map(([id, label]) => <button type="button" key={id} aria-pressed={section === id} onClick={() => setSection(id)}>{label}</button>)}
     </nav>
     <div className="room-board-body">
+      {section === "overview" && <RoomBoardOverview roomSlug={roomSlug} onOpen={setSection} />}
       {section === "notices" && <Notices roomSlug={roomSlug} currentUserId={currentUserId} canManage={canManage} />}
       {section === "events" && <EventsFolder roomSlug={roomSlug} currentUserId={currentUserId} canManage={canManage} />}
       {section === "fundraisers" && <FundraisersFolder roomSlug={roomSlug} currentUserId={currentUserId} isAdminOrMod={canManage} />}

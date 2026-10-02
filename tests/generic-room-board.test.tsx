@@ -19,6 +19,7 @@ afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 
 it("uses only the selected room and publishes a notice to that room", async () => {
   render(<RoomBoard roomSlug="amigos" currentUserId="member" onClose={() => {}} />);
+  fireEvent.click(screen.getByRole("button", { name: "Recados" }));
   expect(await screen.findByText(notice.content)).toBeTruthy();
   fireEvent.change(screen.getByLabelText("Novo recado"), { target: { value: "Meu aviso" } });
   fireEvent.click(screen.getByRole("button", { name: "Publicar recado" }));
@@ -38,7 +39,9 @@ it("discards the previous room and ignores its late response", async () => {
   let resolveOld!: (response: Response) => void;
   fetchMock.mockImplementation((url: string) => url.endsWith("/staff") ? reply({ canManage: false }) : url.includes("/amigos/") ? new Promise((resolve) => { resolveOld = resolve; }) : reply({ messages: [{ ...notice, content: "Aviso da segunda sala" }] }));
   const view = render(<RoomBoard roomSlug="amigos" currentUserId="member" onClose={() => {}} />);
+  fireEvent.click(screen.getByRole("button", { name: "Recados" }));
   view.rerender(<RoomBoard roomSlug="outra" currentUserId="member" onClose={() => {}} />);
+  fireEvent.click(screen.getByRole("button", { name: "Recados" }));
   expect(await screen.findByText("Aviso da segunda sala")).toBeTruthy();
   resolveOld(new Response(JSON.stringify({ messages: [notice] })));
   await waitFor(() => expect(screen.queryByText(notice.content)).toBeNull());
@@ -47,6 +50,7 @@ it("discards the previous room and ignores its late response", async () => {
 it("shows reaction counts and opens one detailed roster", async () => {
   fetchMock.mockImplementation((url: string) => reply(url.endsWith("/staff") ? { canManage: false } : url.includes("reactions?") ? { people: [{ userId: "person", name: "Tiago Salomão" }] } : { messages: [notice] }));
   render(<RoomBoard roomSlug="amigos" currentUserId="member" onClose={() => {}} />);
+  fireEvent.click(screen.getByRole("button", { name: "Recados" }));
   fireEvent.click(await screen.findByRole("button", { name: "Curtidas: 1" }));
   expect(await screen.findByText("Tiago Salomão")).toBeTruthy();
   expect(fetchMock).toHaveBeenCalledWith("/api/rooms/amigos/mural/messages/note/reactions?type=like", { cache: "no-store" });
@@ -66,6 +70,7 @@ it("lets a member mark their payment with the displayed cycle, without manager c
 it("lets an ADM create the first campaign in an empty room", async () => {
   fetchMock.mockImplementation((url: string) => reply(url.endsWith("/staff") ? { canManage: true } : url.endsWith("/presence") ? { users: [] } : url.includes("/fundraisers") ? { fundraisers: [] } : { messages: [] }));
   render(<RoomBoard roomSlug="amigos" currentUserId="member" onClose={() => {}} />);
+  fireEvent.click(screen.getByRole("button", { name: "Recados" }));
   await waitFor(() => expect(screen.getByText("Nenhum recado nesta sala.")).toBeTruthy());
   fireEvent.click(screen.getByRole("button", { name: "Vaquinhas" }));
   fireEvent.click(await screen.findByRole("button", { name: "Criar vaquinha" }));

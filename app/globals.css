@@ -9,6 +9,14 @@
 .room-board-tabs button[aria-pressed="true"] { background: #d5e7ff; border-color: #1957af; }
 .room-board-body { min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 16px; }
 .room-board-body .mural-folder-content { padding: 0; }
+.room-board-overview { display: grid; gap: 10px; }
+.room-board-overview h3 { margin: 0 0 4px; font-size: 17px; }
+.room-board-section { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; padding: 6px 10px; border: 1px solid #fff; border-radius: 4px; background: #efeee8; box-shadow: inset 1px 1px white, inset -2px -2px #b3b3ad; }
+.room-board-section-open { display: flex; align-items: center; gap: 10px; flex: 1 1 230px; min-width: 0; padding: 6px 0; border: 0; color: #253d5c; background: transparent; text-align: left; cursor: pointer; }
+.room-board-section-open > span { flex: 1; min-width: 0; display: grid; gap: 4px; }
+.room-board-section-open small { color: #718098; font-size: 12px; }
+.room-board-section .mural-people-trigger { margin-left: auto; }
+.room-board-overview-note { margin: 2px 0; color: #718098; font-size: 12px; }
 .event-photo-preview { display: flex; justify-content: flex-end; padding: 0 12px 8px; }
 .fundraiser-card-group { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; padding-right: 8px; border: 1px solid #fff; border-radius: 4px; background: #efeee8; box-shadow: inset 1px 1px white, inset -2px -2px #b3b3ad; }
 .fundraiser-card-group:hover { background: #e4edf6; }

@@ -1,6 +1,6 @@
 # CuboChat — validação de isolamento por sala
 
-Data: 02/10/2026. Escopo ampliado estimado em 83%; não é percentual de testes.
+Data: 02/10/2026. Escopo ampliado estimado em 84%; não é percentual de testes.
 
 ## Destinos
 
@@ -97,6 +97,12 @@ Esses testes não executam GPU real nem demonstram duas contas Google independen
 Revisão independente deste diff não encontrou problemas críticos, importantes ou menores; não julgou limpeza global preexistente de recursos, GPU/GLTF reais ou backend de presença fora do incremento. Commit 0a1ad9b enviado somente à branch de testes; deployment Vercel AwANVRFkEv9T7DJR8GH6q6cgafKn, target preview, Ready, alias de staging confirmado via CLI. Inspeção no navegador recuperou a mesma sessão Gestor e o histórico; ampliar a câmera, abrir/fechar o quadro e digitar um rascunho manteve o enquadramento ampliado e o controle Reenquadrar. O recado/reação existentes carregaram. Rascunho limpo sem enviar, sem novos registros de chat ou perfil. Provas outputs/qa/preview-live-labels-board.png e preview-live-labels-scene.png; a primeira registra o carregamento inicial do quadro, que terminou na inspeção seguinte. Esse smoke de uma conta não valida propagação de renomeação entre dois usuários.
 
 Não liberar produção ou DNS apenas com testes locais. Confirmar preview apontando para staging, concluir testes reais acima e solicitar aprovação específica para migração/publicação em produção e domínio.
+
+## Incremento restrito: entrada geral dos quadros das salas genéricas
+
+Desenho registrado antes do código: abrir o quadro genérico em Visão geral, com atalhos Recados/Eventos/Vaquinhas/Aniversariantes e preservar as abas atuais. Uma API autenticada por sala reúne pessoas distintas: autores e reações de recados; interessados em eventos abertos; participantes ativos de vaquinhas abertas. Não interpretar como pessoas online ou pagamentos confirmados. Resumo somente contagem e até seis fotos Google/+N, detalhe sob clique com nome/cargo/cabeça PNG, sem contatos ou dados financeiros. Paginar recursos/associações/perfis, filtrar recursos pela sala antes de coletar IDs, falha de foto não impede contagem; reutilizar helper validado. Leitura apenas, nenhuma chamada de ciclo/pagamento, política/migração ou OfficeScene. Guardas de desmontagem/abort/identidade por sala/conta e cancelamento da lista evitam resultados tardios/StrictMode. A DTEC mantém sua entrada legada já existente, sem reestruturar seu cenário. Testar auth, isolamento, deduplicação, +N, paginação, falha e transições antes de preview staging.
+
+Implementado: nova GET /api/rooms/[slug]/participation, detalhe opt-in ?section=notices/events/fundraisers, privado/no-store e contexto Google/perfil/sala existente. Recursos e associações paginados100 e perfis em grupos100, IDs de pais filtrados por sala/aberto antes de associação. Set deduplica pessoas; só nomes/cargo/avatar/foto no detalhe, preview sem nomes/contatos/Pix/valor/pagamento. RPC fotos pede até seis por seção, dedup/batches200 existente; falha foto mantém contagem. UI começa em Visão geral com quatro atalhos/abas preservadas, círculos/contagem +N abrindo lista cabeça PNG/nome/cargo; cleanup local abort/request-id bloqueia StrictMode/respostas antigas/desmontagem, BoardContent key protege sala/conta/logout. Oito RED iniciais; GREEN16 direcionados, suite326/70 arquivos maxWorkers=2, build/TypeScript, ESLint direcionado sem avisos e diff check passaram. Primeiro build encontrou a união de selects incompatível no parser Supabase e opção exact inexistente em Testing Library; corrigidas com selects literais e seleção por nome. Aviso de ref corrigido mantendo objeto mutável da requisição no cleanup, sem suprimir regra. Nenhuma migração/RLS/OfficeScene/presença/financeiro/produção/DNS alterado. Preview e QA visual pendentes, estimativa84%, sem declarar duas identidades/concorrência/celular físico.
 
 ## Incremento restrito: fotos nos cartões de vaquinhas
 
