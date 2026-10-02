@@ -1,6 +1,6 @@
 # CuboChat — validação de isolamento por sala
 
-Data: 02/10/2026. Escopo ampliado estimado em 74%; não é percentual de testes.
+Data: 02/10/2026. Escopo ampliado estimado em 75%; não é percentual de testes.
 
 ## Destinos
 
@@ -66,7 +66,9 @@ Um primeiro envio do lote pelo editor reutilizou texto anterior e abortou com sc
 
 ## Limitações e porta de saída
 
-As miniaturas de cabeças reaproveitadas ainda usam WebGL por avatar: medir desempenho e preferir imagens estáticas/cache antes da conclusão do produto. No preview a cabeça apareceu pequena/desalinhada no círculo da contribuição; ajustar enquadramento. Administração de eventos, fotos do Google e perfil global ainda precisam QA de paridade visual/funcional.
+As miniaturas foram substituídas por doze PNGs locais transparentes (176×176, 107236 bytes no conjunto): cabeça e corpo dos seis modelos existentes. Nenhum WebGL/GLTF/RAF por miniatura na interface; os utilitários de geração ficam apenas em scripts, fora do componente. O CSS agora respeita círculos de 34/38/42/58/64 px e centraliza o rosto. Fixture local confirmou todos os modelos e foi removida antes do build; prova em outputs/qa/avatar-thumbnails-local.png. Validação: 221 testes em 57 arquivos, ESLint dos arquivos novos/alterados, build/TypeScript e diff check passaram. Um primeiro build encontrou referência gerada à fixture já removida; removido somente .next/dev/types/validator.ts obsoleto, o build passou.
+
+Administração de eventos, fotos do Google e perfil global ainda precisam QA de paridade visual/funcional. O preview deste ajuste ainda precisa conferência antes de registrar publicação bem-sucedida.
 
 Fixtures da interface permanecem somente no staging, identificadas como QA: salas qa20261002 e qa20261002b, um recado, um evento, duas mensagens (uma por sala) e uma vaquinha fictícia de R$10 sem chave Pix, com instrução explícita para não pagar. Não houve transferência. Screenshots em outputs/qa/preview-payment-qa.png e preview-camera-qa.png (ignorados no Git). O botão fechar do novo quadro ficou desalinhado pela regra global herdada; ajuste local usa grid/place-items/line-height com seletor do botão para centralizar o X; 6 testes do quadro e build passaram.
 

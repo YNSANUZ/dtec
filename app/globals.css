@@ -147,7 +147,10 @@
 .person-identity{display:flex;align-items:center;gap:14px;padding:8px 36px 16px 0;border-bottom:1px solid #c4c4bd}
 .person-identity h2{display:flex;align-items:center;gap:4px;margin:0;color:#1c3e70;font-size:1.12rem}
 .person-identity span{display:block;margin-top:4px;color:#637184;font-size:.8rem}
-.person-identity .avatar-head-only{width:64px;height:64px;flex:0 0 64px;overflow:hidden;border:2px solid white;border-radius:50%;background:#d7e5f3;box-shadow:0 1px 3px #273d5c55}
+.avatar-preview.avatar-head-only{width:42px!important;height:42px!important;overflow:hidden;border-radius:50%;background:#d7e5f3;flex-shrink:0}
+.avatar-preview img{width:100%!important;height:100%!important;display:block;object-fit:contain}
+.avatar-thumbnail-placeholder{display:grid;width:100%;height:100%;place-items:center;color:#8ea5bf;font-size:22px}
+.person-identity .avatar-head-only{width:64px!important;height:64px!important;flex:0 0 64px;overflow:hidden;border:2px solid white;border-radius:50%;background:#d7e5f3;box-shadow:0 1px 3px #273d5c55}
 .avatar-head-only canvas{width:64px!important;height:64px!important;display:block}
 .person-details{display:grid;gap:10px;padding:14px 0}
 .person-details p{display:grid;gap:3px;margin:0;color:#354861;font-size:.87rem;line-height:1.45}
@@ -166,7 +169,7 @@
 .kart-interest-button.selected{background:#d7f0df;color:#17683a}
 .kart-interested-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:10px;overflow:auto;padding:2px}
 .kart-interested-person{display:flex;min-width:0;flex-direction:column;align-items:center;gap:5px;padding:9px 5px;border:1px solid #fff;border-radius:5px;background:#efeee8;box-shadow:inset 1px 1px #fff,inset -2px -2px #b3b3ad;text-align:center}
-.kart-interested-person .avatar-head-only{width:58px;height:58px;overflow:hidden;border:2px solid #fff;border-radius:50%;background:#d7e5f3}
+.kart-interested-person .avatar-head-only{width:58px!important;height:58px!important;overflow:hidden;border:2px solid #fff;border-radius:50%;background:#d7e5f3}
 .kart-interested-person .avatar-head-only canvas{width:58px!important;height:58px!important}
 .kart-interested-person strong{color:#263d5b;font-size:.75rem;line-height:1.2;overflow-wrap:anywhere}
 .kart-interested-person small{max-width:100%;color:#718098;font-size:.67rem;line-height:1.2;overflow-wrap:anywhere}
@@ -207,7 +210,7 @@
 .event-roster-heading>span{min-width:22px;padding:3px 6px;border-radius:10px;background:#e3eaf2;text-align:center;font-size:.68rem;font-weight:800}
 .event-roster{display:flex;flex-wrap:wrap;gap:7px}
 .event-roster-person{display:flex;min-width:110px;align-items:center;gap:7px;padding:5px;border:1px solid #fff;border-radius:4px;background:#f7f6f1}
-.event-roster-person .avatar-head-only{width:34px;height:34px;overflow:hidden;border:1px solid #fff;border-radius:50%;background:#d7e5f3}
+.event-roster-person .avatar-head-only{width:34px!important;height:34px!important;overflow:hidden;border:1px solid #fff;border-radius:50%;background:#d7e5f3}
 .event-roster-person .avatar-head-only canvas{width:34px!important;height:34px!important}
 .event-roster-person>span{display:flex;min-width:0;flex-direction:column;gap:2px}
 .event-roster-person strong,.event-roster-person small{max-width:160px;overflow:hidden;color:#263d5b;font-size:.68rem;text-overflow:ellipsis;white-space:nowrap}
@@ -261,7 +264,7 @@
 .contribution-pending h4 span{background:#e4e4e1;color:#747d87}
 .contribution-person{display:flex;min-height:44px;align-items:center;gap:7px;padding:5px;border:1px solid #fff;border-radius:4px;background:#f5f4ef}
 .contribution-person.pending{opacity:.58;background:#e8e7e2}
-.contribution-person .avatar-head-only{width:34px;height:34px;flex:none;overflow:hidden;border:1px solid #fff;border-radius:50%;background:#d7e5f3}
+.contribution-person .avatar-head-only{width:34px!important;height:34px!important;flex:none;overflow:hidden;border:1px solid #fff;border-radius:50%;background:#d7e5f3}
 .contribution-person .avatar-head-only canvas{width:34px!important;height:34px!important}
 .contribution-person-copy{display:flex;min-width:0;flex:1;flex-direction:column;gap:2px}
 .contribution-person-copy strong{overflow:hidden;color:#263d5b;font-size:.69rem;text-overflow:ellipsis;white-space:nowrap}
@@ -338,7 +341,7 @@
 .birthday-members-list{display:grid;flex:1;min-height:0;align-content:start;overflow:auto;overscroll-behavior:contain;border:1px solid #fff;background:#f7f6f1;padding:4px 10px;box-shadow:inset 1px 1px #c1c1bb,inset -1px -1px #fff}
 .birthday-member{display:flex;min-height:64px;align-items:center;gap:11px;border-bottom:1px solid #d5d8db;padding:6px 3px}
 .birthday-member:last-child{border-bottom:0}
-.birthday-member .avatar-head-only{flex:0 0 42px;width:42px;height:42px}
+.birthday-member .avatar-head-only{flex:0 0 42px;width:42px!important;height:42px!important}
 .birthday-member-name{display:grid;min-width:0;flex:1;gap:2px}
 .birthday-member-name strong{overflow:hidden;color:#2e435f;font-size:.82rem;text-overflow:ellipsis;white-space:nowrap}
 .birthday-member-name small{overflow:hidden;color:#7b8794;font-size:.68rem;text-overflow:ellipsis;white-space:nowrap}
@@ -346,7 +349,7 @@
 .birthday-directory-note{margin:0;color:#6d7887;font-size:.66rem;line-height:1.35}
 .mural-window-retro .birthday-directory{background:#deddd7}
 .mural-window-retro .birthday-directory-heading,.mural-window-retro .birthday-members-list{border-radius:2px}
-@media(max-width:700px){.birthday-directory{padding:10px;gap:8px}.birthday-member{min-height:58px;gap:8px}.birthday-member .avatar-head-only{flex-basis:38px;width:38px;height:38px}.birthday-member-name strong{font-size:.76rem}.birthday-member time{font-size:.68rem}}
+@media(max-width:700px){.birthday-directory{padding:10px;gap:8px}.birthday-member{min-height:58px;gap:8px}.birthday-member .avatar-head-only{flex-basis:38px;width:38px!important;height:38px!important}.birthday-member-name strong{font-size:.76rem}.birthday-member time{font-size:.68rem}}
 @media(max-width:700px){.mural-recados{gap:10px}.mural-composer{padding:11px}.mural-composer textarea{min-height:70px}.mural-primary-button,.mural-secondary-button{min-height:36px;padding:7px 9px;font-size:.7rem}.mural-message-card{padding:10px}.mural-message-body{font-size:.78rem}.mural-reaction-dialog{width:calc(100% - 28px)!important}.mural-reaction-people{max-height:min(45dvh,280px)}}
 .google-account-avatar{background-position:center;background-repeat:no-repeat;background-size:cover;border:2px solid #ffffffd9;box-shadow:0 2px 8px #07132666}
 .google-profile-card{display:flex;align-items:center;gap:11px;padding:10px 12px;border:1px solid #ffffff1f;border-radius:12px;background:#ffffff0c}
