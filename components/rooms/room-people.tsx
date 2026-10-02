@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import AvatarPreview from "@/components/avatar-preview";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
@@ -61,13 +61,13 @@ function ScopedRoomPeople({ roomSlug, currentUserId, characters, selectedUserId,
     <Dialog open={selectedUserId !== null} onOpenChange={(open) => { if (!open) onClose(); }}>
       <DialogContent className={`person-dialog ${styles.profile}`} showCloseButton={false}>
         <DialogClose className="person-close" aria-label="Fechar perfil">×</DialogClose>
-        {selectedUserId && <RoomProfile key={profileUrl} profileUrl={profileUrl} roomSlug={roomSlug} currentUserId={currentUserId} />}
+        {selectedUserId && <RoomProfile key={profileUrl} profileUrl={profileUrl} roomSlug={roomSlug} currentUserId={currentUserId} onRoleChange={(userId, role) => setListResult((previous) => previous?.value ? { ...previous, value: previous.value.map((person) => person.userId === userId ? { ...person, role } : person) } : previous)} />}
       </DialogContent>
     </Dialog>
   </>;
 }
 
-function RoomProfile({ profileUrl, roomSlug, currentUserId }: { profileUrl: string; roomSlug: string; currentUserId: string | null }) {
+function RoomProfile({ profileUrl, roomSlug, currentUserId, onRoleChange }: { profileUrl: string; roomSlug: string; currentUserId: string | null; onRoleChange: (id: string, role: RoomPerson["role"]) => void }) {
   const [result, setResult] = useState<Result<RoomPersonProfile>>();
   const profile = result?.value;
   const needsLogin = !currentUserId || result?.expired;
@@ -104,6 +104,57 @@ function RoomProfile({ profileUrl, roomSlug, currentUserId }: { profileUrl: stri
             <div className="person-identity"><AvatarPreview model={profile.avatar} headOnly /><div><h2><RoleName person={profile} /></h2>{profile.title && <span>{profile.title}</span>}</div></div>
             <div className="person-details">{profile.birthDayMonth && <p><strong>Aniversário</strong>{profile.birthDayMonth}</p>}{profile.bio && <p><strong>Biografia</strong>{profile.bio}</p>}{!profile.birthDayMonth && !profile.bio && <p className="person-empty">Sem informações adicionais.</p>}</div>
             <div className={styles.contacts}>{whatsapp && <a className="whatsapp-link" href={`https://wa.me/${whatsapp}`} target="_blank" rel="noopener noreferrer">WhatsApp</a>}{instagram && <a className="whatsapp-link" href={`https://www.instagram.com/${instagram}/`} target="_blank" rel="noopener noreferrer">Instagram</a>}</div>
+            {profile.role !== "owner" && profile.userId !== currentUserId && <ModeratorControls roomSlug={roomSlug} person={profile} onChange={(role) => {
+              setResult((previous) => previous?.value ? { ...previous, value: { ...previous.value, role } } : previous);
+              onRoleChange(profile.userId, role);
+            }} />}
           </> : result?.error ? <p className="person-error" role="alert">{result.error}</p> : <p className="person-loading" role="status">Carregando perfil…</p>}
         </>;
+}
+
+function ModeratorControls({ roomSlug, person, onChange }: { roomSlug: string; person: RoomPerson; onChange: (role: RoomPerson["role"]) => void }) {
+  const [isOwner, setIsOwner] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const active = useRef(false);
+  const staffUrl = `/api/rooms/${roomSlug}/staff`;
+  useEffect(() => {
+    active.current = true;
+    let lookupActive = true;
+    const controller = new AbortController();
+    void (async () => {
+      try {
+        const response = await fetch(staffUrl, { cache: "no-store", signal: controller.signal });
+        if (!response.ok) return;
+        const body = await response.json() as { role?: string };
+        // MOD canManage=true is for content moderation, not appointing staff.
+        if (lookupActive) setIsOwner(body.role === "owner");
+      } catch { /* No confirmed ADM capability: do not offer management. */ }
+    })();
+    return () => { lookupActive = false; active.current = false; controller.abort(); };
+  }, [staffUrl]);
+  const remove = person.role === "leader";
+  const change = async () => {
+    if (!isOwner || !confirming || saving) return;
+    setSaving(true);
+    setError("");
+    try {
+      const response = await fetch(staffUrl, { method: remove ? "DELETE" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userId: person.userId }) });
+      if (!response.ok) throw new Error();
+      const body = await response.json() as { ok?: boolean; isLeader?: boolean };
+      if (body.ok !== true || body.isLeader !== !remove) throw new Error();
+      if (active.current) { onChange(remove ? "member" : "leader"); setConfirming(false); }
+    } catch { if (active.current) { setError("Não foi possível alterar o papel MOD nesta sala."); setConfirming(false); } }
+    finally { if (active.current) setSaving(false); }
+  };
+  if (!isOwner) return null;
+  return <section className={styles.management} aria-label="Administrar MOD">
+    {confirming ? <>
+      <p>{remove ? "Remover MOD de" : "Confirmar MOD para"} {person.name} nesta sala?</p>
+      <small>O MOD pode administrar recados, eventos e vaquinhas desta sala.</small>
+      <div><button type="button" className="leader-toggle" disabled={saving} onClick={() => void change()}>{saving ? "Salvando…" : remove ? "Confirmar remoção" : "Confirmar designação"}</button><button type="button" disabled={saving} onClick={() => setConfirming(false)}>Cancelar alteração</button></div>
+    </> : <button type="button" className="leader-toggle" onClick={() => { setError(""); setConfirming(true); }}>{remove ? "Remover MOD" : "Designar MOD"}</button>}
+    {error && <p className="person-error" role="alert">{error}</p>}
+  </section>;
 }

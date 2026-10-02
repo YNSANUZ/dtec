@@ -1,6 +1,6 @@
 # CuboChat — validação de isolamento por sala
 
-Data: 02/10/2026. Escopo ampliado estimado em 79%; não é percentual de testes.
+Data: 02/10/2026. Escopo ampliado estimado em 80%; não é percentual de testes.
 
 ## Destinos
 
@@ -97,6 +97,12 @@ Esses testes não executam GPU real nem demonstram duas contas Google independen
 Revisão independente deste diff não encontrou problemas críticos, importantes ou menores; não julgou limpeza global preexistente de recursos, GPU/GLTF reais ou backend de presença fora do incremento. Commit 0a1ad9b enviado somente à branch de testes; deployment Vercel AwANVRFkEv9T7DJR8GH6q6cgafKn, target preview, Ready, alias de staging confirmado via CLI. Inspeção no navegador recuperou a mesma sessão Gestor e o histórico; ampliar a câmera, abrir/fechar o quadro e digitar um rascunho manteve o enquadramento ampliado e o controle Reenquadrar. O recado/reação existentes carregaram. Rascunho limpo sem enviar, sem novos registros de chat ou perfil. Provas outputs/qa/preview-live-labels-board.png e preview-live-labels-scene.png; a primeira registra o carregamento inicial do quadro, que terminou na inspeção seguinte. Esse smoke de uma conta não valida propagação de renomeação entre dois usuários.
 
 Não liberar produção ou DNS apenas com testes locais. Confirmar preview apontando para staging, concluir testes reais acima e solicitar aprovação específica para migração/publicação em produção e domínio.
+
+## Checkpoint de controles MOD nas salas gerais
+
+Próximo incremento restrito (heartbeat 19:47 UTC): expor no cartão das salas genéricas os controles Designar MOD / Remover MOD, já previstos no desenho aprovado e nas rotas staff existentes. Somente GET staff da sala confirma ADM; canManage=true de MOD não basta. Alvos ADM e o próprio usuário não recebem controles. Reusar POST/DELETE existentes sem alterar permissões, migrações ou endpoints; confirmação explícita no cartão antes de qualquer mutação, botão ocupado e erros, descartando retorno de cartão/sala anterior. Não efetuar concessão real de acesso em staging nesta execução; testes usam respostas fictícias. A coroa e estrela seguem os papéis da sala, atualizados após resposta do servidor. Sem ampliar o escopo de contas/segurança externo.
+
+Implementado localmente: confirmação com nome/sala e resumo do acesso MOD, cancelar sem requisição, indicador de salvamento e bloqueio de envio duplicado. Resposta inesperada ou negada não promove o alvo; retorno após mudar de cartão/sala é ignorado. Papel confirmado atualiza estrela do cartão e metadata da lista. Dois RED comprovaram ausência dos controles; um terceiro RED em StrictMode mostrou uma consulta antiga sobrepondo a autoridade recente, corrigido com guarda específica de cada lookup. GREEN: 23 testes direcionados (UI, staff API e montagem do cenário), suite completa 291 testes/65 arquivos maxWorkers=2; build/TypeScript, ESLint direcionado e diff check passaram. Nenhum endpoint/política/migração/OfficeScene mudou. Não foi designado ou removido MOD real; conceder acesso numa sessão real exige confirmação de Ynsan no momento da ação. Publicação/QA visual ainda pendentes; dois usuários, concorrência e mobile físico continuam abertos. Estimativa 80%.
 
 ## Checkpoint de restauração da posição após relato de teletransporte
 

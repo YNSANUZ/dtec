@@ -3,4 +3,10 @@
 .area>section{z-index:40}
 .profile{max-height:80dvh;overflow:auto}
 .contacts{display:flex;gap:8px;flex-wrap:wrap}
+.management{display:grid;gap:8px;margin-top:12px}
+.management p{margin:0;font-size:.85rem}
+.management small{font-size:.75rem;color:#64748b}
+.management>div{display:flex;gap:8px;flex-wrap:wrap}
+.management button{cursor:pointer}
+.management button:disabled{opacity:.55;cursor:wait}
 @media(max-width:600px){.counter{font-size:.72rem;padding:6px}.area>section{left:-90px}}
