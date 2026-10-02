@@ -9,7 +9,8 @@ describe("getCelebrationState", () => {
     expect(getCelebrationState(true, 1000, 1000 + BIRTHDAY_BADGE_MS)).toEqual({ visible: false, dancing: false });
   });
 
-  it("repeats every two minutes and remains hidden between celebrations", () => {
+  it("pauses for two full minutes after the five-second badge", () => {
+    expect(BIRTHDAY_CYCLE_MS).toBe(BIRTHDAY_BADGE_MS + 120_000);
     expect(getCelebrationState(true, 0, BIRTHDAY_CYCLE_MS - 1).visible).toBe(false);
     expect(getCelebrationState(true, 0, BIRTHDAY_CYCLE_MS).visible).toBe(true);
     expect(getCelebrationState(true, 0, BIRTHDAY_CYCLE_MS + BIRTHDAY_DANCE_MS).dancing).toBe(false);

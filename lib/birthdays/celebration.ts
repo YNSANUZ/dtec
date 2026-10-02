@@ -1,5 +1,5 @@
-export const BIRTHDAY_CYCLE_MS = 120_000;
 export const BIRTHDAY_BADGE_MS = 5_000;
+export const BIRTHDAY_CYCLE_MS = BIRTHDAY_BADGE_MS + 120_000;
 export const BIRTHDAY_DANCE_MS = 3_000;
 
 export function getCelebrationState(
@@ -15,4 +15,11 @@ export function getCelebrationState(
     visible: elapsed < BIRTHDAY_BADGE_MS,
     dancing: elapsed < BIRTHDAY_DANCE_MS,
   };
+}
+
+// Start only once the signal and model are actually available to this viewer.
+export function getCharacterCelebrationState(starts: Map<string, number>, key: string, birthdayToday: boolean, now: number) {
+  if (!birthdayToday) { starts.delete(key); return { visible: false, dancing: false }; }
+  if (!starts.has(key)) starts.set(key, now);
+  return getCelebrationState(true, starts.get(key)!, now);
 }

@@ -22,6 +22,10 @@ export async function GET(_request: Request, context: Context) {
     ? await supabase.from("profiles").select("user_id, display_name, avatar_id").in("user_id", ids)
     : { data: [], error: null };
   if (profileError) return NextResponse.json({ error: "presence_profiles_read_failed" }, { status: 500 });
+  const { data: birthdays, error: birthdayError } = ids.length
+    ? await supabase.rpc("birthday_today_user_ids") : { data: [], error: null };
+  if (birthdayError) return NextResponse.json({ error: "room_birthday_signal_read_failed" }, { status: 500 });
+  const birthdayIds = new Set((birthdays ?? []).map((entry: { user_id: string }) => entry.user_id));
   const byId = new Map((profiles ?? []).map((profile) => [profile.user_id, profile]));
   const cutoff = Date.now() - 45_000;
   return NextResponse.json({ users: (positions ?? []).flatMap((position) => {
@@ -30,7 +34,7 @@ export async function GET(_request: Request, context: Context) {
     const online = Date.parse(position.last_seen) > cutoff;
     return [{ userId: position.user_id, name: profile.display_name, avatar: profile.avatar_id,
       x: position.x, z: position.z, action: online ? position.action : "idle", online,
-      birthdayToday: false, message: "" }];
+      birthdayToday: birthdayIds.has(position.user_id), message: "" }];
   }) }, { headers: { "Cache-Control": "no-store" } });
 }
 

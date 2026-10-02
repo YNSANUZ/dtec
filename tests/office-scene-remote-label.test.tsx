@@ -107,6 +107,53 @@ function finishAsset(path: string) {
 }
 
 describe("live remote labels", () => {
+  it("keeps a birthday badge during local walking, stops it at five seconds, and frees its private texture on unmount", () => {
+    const view = render(<OfficeScene {...props} birthdayToday remoteUsers={[]} />); tick(500);
+    const scene = gpu.scene!; const camera = gpu.camera!; const mine = scene.children.find(object => object.type === "Group" && !object.userData.roomUserId)!;
+    const start = mine.position.clone();
+    const badge = mine.children.find(child => child.userData.popStartedAt !== undefined) as Sprite; expect(badge).toBeTruthy();
+    const point = new Vector3(5, 0, 7).project(camera);
+    const pointer = { pointerId: 1, pointerType: "mouse", button: 0, clientX: (point.x + 1) * 640, clientY: (1 - point.y) * 360 };
+    const canvas = view.container.querySelector(".office-canvas canvas")!; fireEvent.pointerDown(canvas, pointer); fireEvent.pointerUp(canvas, pointer); tick(600);
+    expect(mine.position.distanceTo(start)).toBeGreaterThan(0); expect(mine.children).toContain(badge);
+    tick(5_000); expect(mine.children).not.toContain(badge); tick(125_000);
+    const nextBadge = mine.children.find(child => child.userData.popStartedAt !== undefined) as Sprite; expect(nextBadge).toBeTruthy();
+    const dispose = vi.spyOn(nextBadge.material.map!, "dispose"); view.unmount(); expect(dispose).toHaveBeenCalledOnce();
+  });
+
+  it("removes the badge immediately when the birthday signal changes without recreating the remote model", () => {
+    const view = render(<OfficeScene {...props} remoteUsers={[{ ...remote, birthdayToday: true }]} />); tick(2_000);
+    const object = remoteObject(); const oldModel = model(); const badge = object.children.find(child => child.userData.popStartedAt !== undefined) as Sprite; expect(badge).toBeTruthy();
+    const dispose = vi.spyOn(badge.material.map!, "dispose");
+    view.rerender(<OfficeScene {...props} remoteUsers={[remote]} />); tick(2_100);
+    expect(dispose).toHaveBeenCalledOnce(); expect(object.children).not.toContain(badge); expect(model()).toBe(oldModel);
+    view.rerender(<OfficeScene {...props} remoteUsers={[{ ...remote, birthdayToday: true }]} />); tick(2_200);
+    expect(object.children.some(child => child.userData.popStartedAt !== undefined)).toBe(true);
+  });
+  it("starts a delayed birthday signal immediately, keeps the cycle across polls and disposes expired badges without resetting the camera", () => {
+    const view = render(<OfficeScene {...props} remoteUsers={[remote]} />); tick(10_000);
+    const scene = gpu.scene!; const camera = gpu.camera!; const object = remoteObject(); const position = object.position.clone();
+    fireEvent.click(screen.getByRole("button", { name: "Aumentar zoom" })); const projection = camera.projectionMatrix.clone();
+    const birthday = { ...remote, birthdayToday: true };
+    view.rerender(<OfficeScene {...props} remoteUsers={[birthday]} />); tick(10_100);
+    const badge = object.children.find(child => child.userData.popStartedAt !== undefined) as Sprite;
+    expect(badge).toBeTruthy(); const textureDispose = vi.spyOn(badge.material.map!, "dispose"); const materialDispose = vi.spyOn(badge.material, "dispose");
+    view.rerender(<OfficeScene {...props} remoteUsers={[{ ...birthday }]} />); tick(14_900);
+    expect(object.children).toContain(badge); tick(15_100); expect(object.children).not.toContain(badge);
+    expect(textureDispose).toHaveBeenCalledOnce(); expect(materialDispose).toHaveBeenCalledOnce();
+    tick(135_099); expect(object.children.some(child => child.userData.popStartedAt !== undefined)).toBe(false);
+    tick(135_100); expect(object.children.some(child => child.userData.popStartedAt !== undefined)).toBe(true);
+    expect(gpu.scene).toBe(scene); expect(gpu.camera).toBe(camera); expect(camera.projectionMatrix.equals(projection)).toBe(true); expect(object.position.equals(position)).toBe(true);
+  });
+
+  it("starts the badge when a slow GLTF becomes visible and releases it when the member disappears", () => {
+    assets.deferred = true;
+    const view = render(<OfficeScene {...props} remoteUsers={[{ ...remote, avatar: "c", birthdayToday: true }]} />); tick(10_000);
+    finishAsset("c"); tick(10_100);
+    const object = remoteObject(); const badge = object.children.find(child => child.userData.popStartedAt !== undefined) as Sprite;
+    expect(badge).toBeTruthy(); const dispose = vi.spyOn(badge.material.map!, "dispose");
+    view.rerender(<OfficeScene {...props} remoteUsers={[]} />); tick(12_000); expect(dispose).toHaveBeenCalledOnce();
+  });
   it("restores the new position even if the loading phase's avatar has not finished loading", () => {
     const view = render(<OfficeScene {...props} remoteUsers={[]} />);
     tick(2_000);

@@ -4,15 +4,21 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import GenericRoom from "@/components/generic-room";
 const sceneMount = vi.hoisted(() => vi.fn());
-vi.mock("next/dynamic", () => ({ default: () => function SceneFixture({ onCharacterClick }: { onCharacterClick: (id: string | null) => void }) { React.useEffect(() => { sceneMount(); }, []); return <div aria-label="Cenário"><button onClick={() => onCharacterClick(null)}>Clicar no próprio boneco</button></div>; } }));
+const sceneBirthday = vi.hoisted(() => vi.fn());
+vi.mock("next/dynamic", () => ({ default: () => function SceneFixture({ onCharacterClick, birthdayToday }: { onCharacterClick: (id: string | null) => void; birthdayToday: boolean }) { sceneBirthday(birthdayToday); React.useEffect(() => { sceneMount(); }, []); return <div aria-label="Cenário"><button onClick={() => onCharacterClick(null)}>Clicar no próprio boneco</button></div>; } }));
 vi.mock("@/hooks/use-dtec-auth", () => {
   const auth = { state: "ready", user: { id: "member" }, profile: { displayName: "Ana Silva", avatarId: "a" } };
   return { useDtecAuth: () => auth };
 });
 const transport = vi.fn();
 const response = (body: unknown) => new Response(JSON.stringify(body));
-beforeEach(() => { transport.mockReset(); sceneMount.mockClear(); vi.stubGlobal("fetch", transport); });
+beforeEach(() => { transport.mockReset(); sceneMount.mockClear(); sceneBirthday.mockClear(); vi.stubGlobal("fetch", transport); });
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
+it("uses the same public presence birthday flag for the own character without remounting the scene", async () => {
+  transport.mockImplementation((url: string) => Promise.resolve(response(url.endsWith("/presence") ? { users: [{ userId: "member", x: 7, z: 2, name: "Ana Silva", avatar: "a", online: true, birthdayToday: true }] } : { messages: [] })));
+  render(<GenericRoom room={{ slug: "amigos", title: "Amigos", description: "" }} />);
+  await waitFor(() => expect(sceneBirthday).toHaveBeenLastCalledWith(true)); expect(sceneMount).toHaveBeenCalledOnce();
+});
 it("restores persisted position before sending the first presence update", async () => {
   let finishPresence!: (response: Response) => void;
   transport.mockImplementation((url: string, options?: RequestInit) => url.endsWith("/presence") && options?.method !== "POST"

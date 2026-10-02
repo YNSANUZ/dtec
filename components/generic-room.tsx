@@ -33,6 +33,7 @@ export default function GenericRoom({ room }: { room: { slug: string; title: str
   const positionKey = `${room.slug}:${auth.user?.id ?? "visitor"}`;
   const peopleScope = `${positionKey}:${auth.state}`;
   const presenceReady = restoredKey === positionKey;
+  const ownBirthdayToday = Boolean(characters.find((character) => character.userId === auth.user?.id)?.birthdayToday);
   const visibleCharacters = characters.filter((character) => character.userId !== auth.user?.id).map((character) => ({
     ...character,
     message: [...messages].reverse().find((message) => message.authorId === character.userId && Date.parse(message.createdAt) > bubbleCutoff)?.text ?? "",
@@ -103,7 +104,7 @@ export default function GenericRoom({ room }: { room: { slug: string; title: str
     } finally { setSending(false); }
   };
   return <main className="lobby-shell">
-    <OfficeScene environment="lobby" name={auth.profile?.displayName ?? "Visitante"} avatar={auth.profile?.avatarId ?? "r"} action="idle" message={bubble} created={auth.state === "ready" && presenceReady} initialPosition={sceneStart} remoteUsers={visibleCharacters} birthdayToday={false} positionOwnerId={positionKey} onStateChange={(x, z, action) => { ownPosition.current = { x, z, action: action === "dance" ? "dance" : ["walk", "sit"].includes(action) ? action : "idle" }; }} onCharacterClick={(id) => setSelectedPerson({ scope: peopleScope, id: id ?? auth.user?.id ?? "visitor" })} onMuralClick={() => {}} />
+    <OfficeScene environment="lobby" name={auth.profile?.displayName ?? "Visitante"} avatar={auth.profile?.avatarId ?? "r"} action="idle" message={bubble} created={auth.state === "ready" && presenceReady} initialPosition={sceneStart} remoteUsers={visibleCharacters} birthdayToday={ownBirthdayToday} positionOwnerId={positionKey} onStateChange={(x, z, action) => { ownPosition.current = { x, z, action: action === "dance" ? "dance" : ["walk", "sit"].includes(action) ? action : "idle" }; }} onCharacterClick={(id) => setSelectedPerson({ scope: peopleScope, id: id ?? auth.user?.id ?? "visitor" })} onMuralClick={() => {}} />
     <div className="shade" aria-hidden="true" />
     {boardOpen && <RoomBoard roomSlug={room.slug} currentUserId={auth.state === "ready" ? auth.user?.id ?? null : null} onClose={() => setBoardOpen(false)} />}
     <button type="button" className="room-board-open" onClick={() => setBoardOpen(true)}>Quadro de avisos</button>

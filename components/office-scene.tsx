@@ -4,7 +4,7 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { clone } from "three/examples/jsm/utils/SkeletonUtils.js";
 import type { MuralId } from "@/lib/mural-types";
-import { getCelebrationState } from "@/lib/birthdays/celebration";
+import { getCharacterCelebrationState } from "@/lib/birthdays/celebration";
 import { resolveRoomPositionState, type RoomPositionState } from "@/lib/room/position-state";
 import { resolveRoomCameraState, type RoomCameraState } from "@/lib/room/camera-state";
 type Props = {
@@ -92,6 +92,13 @@ function animateBirthdayBadge(sprite: THREE.Sprite, now: number) {
   sprite.scale.set(scale, scale, 1);
 }
 
+function disposeBirthdayBadge(sprite: THREE.Sprite | null) {
+  if (!sprite) return;
+  sprite.removeFromParent();
+  sprite.material.map?.dispose();
+  sprite.material.dispose();
+}
+
 function canvasPlane(
   draw: (ctx: CanvasRenderingContext2D) => void,
   w: number,
@@ -138,7 +145,7 @@ export default function OfficeScene({
     // Parent presence polls replace callback identities; those must not tear down the live world.
     characterClickRef = useRef(onCharacterClick),
     muralClickRef = useRef(onMuralClick),
-    birthdaySessionStartRef = useRef<number | null>(null),
+    birthdayClocksRef = useRef({ ownerId: positionOwnerId, starts: new Map<string, number>() }),
     birthdayTodayRef = useRef(birthdayToday),
     positionStateRef = useRef<RoomPositionState | null>(null),
     cameraViewRef = useRef<RoomCameraState | null>(null),
@@ -159,7 +166,8 @@ export default function OfficeScene({
   useEffect(() => { birthdayTodayRef.current = birthdayToday; }, [birthdayToday]);
   useEffect(() => {
     if (!host.current) return;
-    if (birthdaySessionStartRef.current === null) birthdaySessionStartRef.current = performance.now();
+    if (birthdayClocksRef.current.ownerId !== positionOwnerId) birthdayClocksRef.current = { ownerId: positionOwnerId, starts: new Map() };
+    const birthdayStarts = birthdayClocksRef.current.starts;
     const savedPosition = resolveRoomPositionState(positionStateRef.current, positionOwnerId, initialPosition, created);
     // Record the restoration phase even while the GLTF is still loading.
     positionStateRef.current = savedPosition;
@@ -611,13 +619,12 @@ export default function OfficeScene({
         const dt = Math.min(clock.getDelta(), 0.04),
           now = performance.now() / 1000;
         mixers.forEach((m) => m.update(dt));
-        const sessionStart = birthdaySessionStartRef.current ?? performance.now();
         if (now - lastRemoteRefresh > 1) {
           lastRemoteRefresh = now;
           const ids = new Set(remoteRef.current.map(u => u.userId));
           remoteLoads.forEach((_request, id) => { if (!ids.has(id)) remoteLoads.delete(id); });
           remoteAgents.forEach((a, id) => {
-            if (!ids.has(id)) { stopRemoteMixer(a); scene.remove(a.object); remoteAgents.delete(id); }
+            if (!ids.has(id)) { disposeBirthdayBadge(a.birthdayBadge); birthdayStarts.delete(`remote:${id}`); stopRemoteMixer(a); scene.remove(a.object); remoteAgents.delete(id); }
           });
           remoteRef.current.forEach(u => {
             const a = remoteAgents.get(u.userId);
@@ -649,10 +656,10 @@ export default function OfficeScene({
         remoteAgents.forEach((a,id)=>{
           const d=a.target.clone().sub(a.object.position);
           const presence=remoteRef.current.find(u=>u.userId===id);
-          const celebration=getCelebrationState(Boolean(presence?.birthdayToday),sessionStart,performance.now());
+          const celebration=getCharacterCelebrationState(birthdayStarts,`remote:${id}`,Boolean(presence?.birthdayToday),performance.now());
           if(celebration.visible!==a.birthdayVisible){
             a.birthdayVisible=celebration.visible;
-            if(a.birthdayBadge){a.object.remove(a.birthdayBadge);a.birthdayBadge=null}
+            if(a.birthdayBadge){disposeBirthdayBadge(a.birthdayBadge);a.birthdayBadge=null}
             if(celebration.visible){a.birthdayBadge=birthdayBadge();a.birthdayBadge.position.y=3.55;a.object.add(a.birthdayBadge)}
           }
           if(a.birthdayBadge)animateBirthdayBadge(a.birthdayBadge,performance.now());
@@ -663,10 +670,10 @@ export default function OfficeScene({
           else playRemote(a,"idle");
         });
         if (mine && mineMixer) {
-          const ownCelebration = getCelebrationState(birthdayTodayRef.current, sessionStart, performance.now());
+          const ownCelebration = getCharacterCelebrationState(birthdayStarts, "self", birthdayTodayRef.current, performance.now());
           if (ownCelebration.visible !== selfBirthdayVisible) {
             selfBirthdayVisible = ownCelebration.visible;
-            if (selfBirthdayBadge) { mine.remove(selfBirthdayBadge); selfBirthdayBadge = null; }
+            if (selfBirthdayBadge) { disposeBirthdayBadge(selfBirthdayBadge); selfBirthdayBadge = null; }
             if (ownCelebration.visible) {
               selfBirthdayBadge = birthdayBadge();
               selfBirthdayBadge.position.y = 3.55;
@@ -735,6 +742,8 @@ export default function OfficeScene({
     return () => {
       alive = false;
       remoteLoads.clear();
+      disposeBirthdayBadge(selfBirthdayBadge);
+      remoteAgents.forEach(agent => disposeBirthdayBadge(agent.birthdayBadge));
       cameraViewRef.current = { radius: orbit.radius, phi: orbit.phi, theta: orbit.theta, zoom: camera.zoom };
       cancelAnimationFrame(frameId);
       window.removeEventListener("resize", resize);
