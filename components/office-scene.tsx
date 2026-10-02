@@ -343,6 +343,8 @@ export default function OfficeScene({
     scene.add(sector);
     type RemoteAgent = {
       object: THREE.Object3D;
+      model: THREE.Object3D;
+      avatar: string;
       mixer: THREE.AnimationMixer;
       clips: Map<string, THREE.AnimationClip>;
       action: THREE.AnimationAction | null;
@@ -357,8 +359,10 @@ export default function OfficeScene({
     };
     const loader = new GLTFLoader(),
       mixers: THREE.AnimationMixer[] = [],
-      remoteAgents = new Map<string,RemoteAgent>();
-    let mine: THREE.Object3D | null = null,
+      remoteAgents = new Map<string,RemoteAgent>(),
+      remoteLoads = new Map<string, { avatar: string }>();
+    let alive = true,
+      mine: THREE.Object3D | null = null,
       mineMixer: THREE.AnimationMixer | null = null,
       current: THREE.AnimationAction | null = null,
       bubble: THREE.Sprite | null = null,
@@ -378,6 +382,7 @@ export default function OfficeScene({
       online: boolean,
     ) =>
       loader.load(`${assetBase}/models/kenney/character-${model}.glb`, (g) => {
+        if (!alive) return;
         const o = clone(g.scene);
         o.scale.setScalar(0.85);
         o.position.set(x, 0, z);
@@ -397,12 +402,64 @@ export default function OfficeScene({
         clips = map;
       });
     addSelf(avatar, created ? name : "Visitante", savedPosition.x, savedPosition.z, created);
-    const addRemote=(u:(typeof remoteRef.current)[number])=>loader.load(`${assetBase}/models/kenney/character-${u.avatar}.glb`,g=>{
-      if(remoteAgents.has(u.userId))return;
-      const o=clone(g.scene);o.scale.setScalar(.85);o.position.set(u.x,0,u.z);o.traverse(v=>{if((v as THREE.Mesh).isMesh)(v as THREE.Mesh).castShadow=true});
-      const label=card(u.name,false,u.online);label.position.y=2.65;o.add(label);o.userData.roomUserId=u.userId;scene.add(o);
-      const mixer=new THREE.AnimationMixer(o);mixers.push(mixer);remoteAgents.set(u.userId,{object:o,mixer,clips:new Map(g.animations.map(c=>[c.name.toLowerCase(),c])),action:null,target:new THREE.Vector3(u.x,0,u.z),bubble:null,label,name:u.name,online:u.online,message:"",birthdayBadge:null,birthdayVisible:false});
-    });
+    const stopRemoteMixer = (a: RemoteAgent) => {
+      a.mixer.stopAllAction();
+      a.mixer.uncacheRoot(a.model);
+      const skeletons = new Set<THREE.Skeleton>();
+      a.model.traverse(object => {
+        if ((object as THREE.SkinnedMesh).isSkinnedMesh) skeletons.add((object as THREE.SkinnedMesh).skeleton);
+      });
+      // SkeletonUtils clones skeletons, unlike the shared geometry/materials.
+      skeletons.forEach(skeleton => skeleton.dispose());
+      const index = mixers.indexOf(a.mixer);
+      if (index >= 0) mixers.splice(index, 1);
+    };
+    const loadRemote = (u: (typeof remoteRef.current)[number]) => {
+      if (remoteLoads.get(u.userId)?.avatar === u.avatar) return;
+      const request = { avatar: u.avatar };
+      remoteLoads.set(u.userId, request);
+      loader.load(`${assetBase}/models/kenney/character-${u.avatar}.glb`, g => {
+        if (!alive || remoteLoads.get(u.userId) !== request) return;
+        remoteLoads.delete(u.userId);
+        const latest = remoteRef.current.find(user => user.userId === u.userId);
+        if (!latest || latest.avatar !== request.avatar) return;
+        const model = clone(g.scene);
+        model.traverse(v => { if ((v as THREE.Mesh).isMesh) (v as THREE.Mesh).castShadow = true; });
+        const mixer = new THREE.AnimationMixer(model);
+        const clips = new Map(g.animations.map(c => [c.name.toLowerCase(), c]));
+        const a = remoteAgents.get(u.userId);
+        if (a) {
+          // Keep the live transform and overlays in their persistent parent.
+          stopRemoteMixer(a);
+          a.object.remove(a.model);
+          a.model = model;
+          a.avatar = request.avatar;
+          a.mixer = mixer;
+          a.clips = clips;
+          a.action = null;
+          a.object.add(model);
+        } else {
+          const object = new THREE.Group();
+          object.scale.setScalar(.85);
+          object.position.set(latest.x, 0, latest.z);
+          object.userData.roomUserId = latest.userId;
+          const label = card(latest.name, false, latest.online);
+          label.position.y = 2.65;
+          object.add(model, label);
+          scene.add(object);
+          remoteAgents.set(latest.userId, {
+            object, model, avatar: request.avatar, mixer, clips, action: null,
+            target: new THREE.Vector3(latest.x, 0, latest.z), bubble: null, label,
+            name: latest.name, online: latest.online, message: "", birthdayBadge: null, birthdayVisible: false,
+          });
+        }
+        // Clones share GLTF geometry/materials; do not dispose those on swaps.
+        mixers.push(mixer);
+      }, undefined, () => {
+        // Retain the visible model; a subsequent presence poll may retry.
+        if (remoteLoads.get(u.userId) === request) remoteLoads.delete(u.userId);
+      });
+    };
     const ray = new THREE.Raycaster(),
       pointer = new THREE.Vector2(),
       floor = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0),
@@ -556,14 +613,17 @@ export default function OfficeScene({
         if (now - lastRemoteRefresh > 1) {
           lastRemoteRefresh = now;
           const ids = new Set(remoteRef.current.map(u => u.userId));
+          remoteLoads.forEach((_request, id) => { if (!ids.has(id)) remoteLoads.delete(id); });
           remoteAgents.forEach((a, id) => {
-            if (!ids.has(id)) { scene.remove(a.object); remoteAgents.delete(id); }
+            if (!ids.has(id)) { stopRemoteMixer(a); scene.remove(a.object); remoteAgents.delete(id); }
           });
           remoteRef.current.forEach(u => {
             const a = remoteAgents.get(u.userId);
-            if (!a) addRemote(u);
+            if (!a) loadRemote(u);
             else {
               a.target.set(u.x, 0, u.z);
+              if (a.avatar !== u.avatar) loadRemote(u);
+              else remoteLoads.delete(u.userId);
               // Refresh only the label, never the live world or avatar pose.
               if (a.online !== u.online || a.name !== u.name) {
                 a.object.remove(a.label);
@@ -670,6 +730,8 @@ export default function OfficeScene({
     resize();
     window.addEventListener("resize", resize);
     return () => {
+      alive = false;
+      remoteLoads.clear();
       cameraViewRef.current = { radius: orbit.radius, phi: orbit.phi, theta: orbit.theta, zoom: camera.zoom };
       cancelAnimationFrame(frameId);
       window.removeEventListener("resize", resize);

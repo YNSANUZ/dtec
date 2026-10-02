@@ -1,6 +1,6 @@
 # CuboChat — validação de isolamento por sala
 
-Data: 02/10/2026. Escopo ampliado estimado em 77%; não é percentual de testes.
+Data: 02/10/2026. Escopo ampliado estimado em 78%; não é percentual de testes.
 
 ## Destinos
 
@@ -97,3 +97,13 @@ Esses testes não executam GPU real nem demonstram duas contas Google independen
 Revisão independente deste diff não encontrou problemas críticos, importantes ou menores; não julgou limpeza global preexistente de recursos, GPU/GLTF reais ou backend de presença fora do incremento. Commit 0a1ad9b enviado somente à branch de testes; deployment Vercel AwANVRFkEv9T7DJR8GH6q6cgafKn, target preview, Ready, alias de staging confirmado via CLI. Inspeção no navegador recuperou a mesma sessão Gestor e o histórico; ampliar a câmera, abrir/fechar o quadro e digitar um rascunho manteve o enquadramento ampliado e o controle Reenquadrar. O recado/reação existentes carregaram. Rascunho limpo sem enviar, sem novos registros de chat ou perfil. Provas outputs/qa/preview-live-labels-board.png e preview-live-labels-scene.png; a primeira registra o carregamento inicial do quadro, que terminou na inspeção seguinte. Esse smoke de uma conta não valida propagação de renomeação entre dois usuários.
 
 Não liberar produção ou DNS apenas com testes locais. Confirmar preview apontando para staging, concluir testes reais acima e solicitar aprovação específica para migração/publicação em produção e domínio.
+
+## Checkpoint de troca remota de personagem
+
+Desenho restrito aprovado por Ynsan: substituir somente o modelo remoto, mantendo posição, direção, destino de caminhada, nome, mensagem e câmera; conservar o modelo visível quando o arquivo falha e ignorar respostas antigas. Implementação mantém um grupo pai persistente para a transformação/etiquetas e troca apenas seu filho GLTF. Pedido identificado por objeto, comparação com a escolha atual e guarda de desmontagem impedem sobrescritas e ressurreição após saída. Carregamentos pendentes iguais não se duplicam em cada poll. Nenhuma nova dependência de presença foi adicionada ao efeito que cria o cenário.
+
+Cinco novos testes reproduziram a falha antes da implementação: avatar antigo permanecia e não havia carregamento do substituto. Os testes adicionais cobrem escolha inicial atualizada durante carregamento, remoção de usuário, callbacks após desmontagem, retorno ao modelo já exibido e animação real do substituto. A revisão encontrou uma textura privada do esqueleto que não era liberada; confirmado no código local Three.js e em teste RED com SkinnedMesh/Bone/Skeleton reais. A correção libera somente esqueletos únicos do clone aposentado, sem descartar geometria/material compartilhados. Os 16 testes direcionados passaram após o ajuste; revisão incremental sem achados restantes. GPU, GLTF e desenho de etiquetas são as fronteiras substituídas nos testes DOM, não a lógica de movimento/câmera/mixers.
+
+Fixture temporária local sem banco executou os modelos GLB reais no navegador: f → r manteve a posição da personagem Ana QA, mensagem/etiqueta e enquadramento ampliado. Caminhada até o destino foi observada antes da troca. Screenshots outputs/qa/local-avatar-swap-before.png, local-avatar-swap-after.png e local-avatar-swap-dance.png. O primeiro ensaio usou por engano b, arquivo inexistente neste conjunto; fixture corrigida para f antes das provas finais. Rota temporária e arquivos de instrução gerados por next dev removidos, servidor parado; nenhum perfil, mensagem ou pagamento foi gravado. Isso valida renderização local, não propagação entre duas contas Google ou sincronização no backend.
+
+Validação final: 259 testes em 62 arquivos, build de produção/TypeScript, ESLint direcionado e diff check passaram. Removido somente o validator gerado obsoleto que apontava à rota temporária já excluída. Revisão independente final sem achados no incremento; limpeza global preexistente e QA multissessão continuam fora deste resultado. Estimativa 78%; tarefa 7 segue em andamento. Preview deste incremento ainda pendente neste registro.
