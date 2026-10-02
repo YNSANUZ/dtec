@@ -66,3 +66,41 @@ it("connects character and online-name clicks to the room profile without remoun
   expect(sceneMount).toHaveBeenCalledOnce();
   expect(transport).toHaveBeenCalledWith("/api/rooms/amigos/users/member", expect.objectContaining({ cache: "no-store" }));
 });
+
+it("keeps chat compact and scene mounted while reading history, drafting and sending", async () => {
+  transport.mockImplementation((url: string, init?: RequestInit) => Promise.resolve(response(url.endsWith("/presence") ? { users: [] }
+    : init?.method === "POST" ? { message: { id: "new", authorId: "member", name: "Ana Silva", text: "Olá", createdAt: new Date().toISOString() } }
+      : { messages: [{ id: "old", name: "Ana Silva", text: "Anterior", createdAt: "2026-10-02T12:00:00Z" }] })));
+  render(<GenericRoom room={{ slug: "amigos", title: "Amigos", description: "Descrição da sala" }} />);
+  const history = screen.getByRole("button", { name: "Mostrar mensagens" });
+  expect(history.getAttribute("aria-expanded")).toBe("false");
+  fireEvent.click(history); expect(await screen.findByText("Anterior", { exact: false })).toBeTruthy();
+  const input = screen.getByLabelText("Mensagem");
+  expect(input.getAttribute("maxLength")).toBe("100");
+  fireEvent.focus(input); fireEvent.change(input, { target: { value: "Olá" } });
+  fireEvent.click(screen.getByRole("button", { name: "Ocultar mensagens" }));
+  expect((input as HTMLInputElement).value).toBe("Olá");
+  fireEvent.submit(input.closest("form")!);
+  await waitFor(() => expect((input as HTMLInputElement).value).toBe(""));
+  expect(transport).toHaveBeenCalledWith("/api/rooms/amigos/chat", expect.objectContaining({ method: "POST", body: JSON.stringify({ text: "Olá" }) }));
+  expect(screen.getByText("Descrição da sala")).toBeTruthy();
+  expect(screen.getByRole("link", { name: "Voltar à entrada" }).getAttribute("href")).toBe("/");
+  expect(sceneMount).toHaveBeenCalledOnce();
+});
+
+it("keeps the room scene mounted and the draft intact during keyboard resize and send failure", async () => {
+  const viewport = new EventTarget() as EventTarget & { height: number; offsetTop: number; scale: number };
+  Object.assign(viewport, { height: 844, offsetTop: 0, scale: 1 });
+  vi.stubGlobal("visualViewport", viewport); vi.stubGlobal("innerWidth", 390); vi.stubGlobal("innerHeight", 844);
+  transport.mockImplementation((url: string, init?: RequestInit) => Promise.resolve(init?.method === "POST" && url.endsWith("/chat")
+    ? new Response("{}", { status: 500 }) : response(url.endsWith("/presence") ? { users: [] } : { messages: [] })));
+  render(<GenericRoom room={{ slug: "amigos", title: "Amigos", description: "" }} />);
+  const input = screen.getByLabelText("Mensagem"); fireEvent.focus(input);
+  fireEvent.change(input, { target: { value: "Rascunho" } }); viewport.height = 500;
+  window.dispatchEvent(new Event("resize")); viewport.dispatchEvent(new Event("resize"));
+  expect(screen.getByRole("main").style.getPropertyValue("--room-layout-height")).toBe("844px");
+  fireEvent.submit(input.closest("form")!);
+  expect(await screen.findByRole("alert")).toBeTruthy();
+  expect((input as HTMLInputElement).value).toBe("Rascunho");
+  expect(sceneMount).toHaveBeenCalledOnce();
+});
