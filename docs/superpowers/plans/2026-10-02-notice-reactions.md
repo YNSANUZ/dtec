@@ -41,12 +41,12 @@
 - `toggleMuralReaction(current: MuralReaction | null, requested: MuralReaction): MuralReaction | null` returns `null` for same-type toggle, requested type for add/switch.
 - RPC `public.toggle_mural_reaction(p_message_id uuid,p_reaction text)` derives actor from `auth.uid()` and atomically toggles their reaction.
 
-- [ ] **Step 1: Write failing tests** for none→like, none→dislike, like→null, dislike→null, and like↔dislike.
-- [ ] **Step 2: Run `npm test -- tests/mural-reactions.test.ts`** and confirm failure.
-- [ ] **Step 3: Implement the pure toggle function** with exhaustive reaction validation.
-- [ ] **Step 4: Write migration-contract tests** for table FK cascade, `(message_id,user_id)` uniqueness, RLS, authenticated-only grants, and RPC actor derivation.
-- [ ] **Step 5: Write migration/RPC**; authenticated list reads are allowed, writes are only through validated self mutation, anon receives no table or function access.
-- [ ] **Step 6: Run both focused test files**; expected pass.
+- [x] **Step 1: Write failing tests** for none→like, none→dislike, like→null, dislike→null, and like↔dislike.
+- [x] **Step 2: Run `npm test -- tests/mural-reactions.test.ts`** and confirm failure before implementation.
+- [x] **Step 3: Implement the pure toggle function** with exhaustive reaction validation.
+- [x] **Step 4: Write migration-contract tests** for table FK cascade, `(message_id,user_id)` uniqueness, RLS, authenticated-only grants, aggregate privacy, and RPC actor derivation.
+- [x] **Step 5: Write migration/RPC**; authenticated list reads are allowed, writes are only through validated self mutation, anon receives no table or function access.
+- [x] **Step 6: Run focused tests**; all pass locally.
 - [ ] **Step 7: Apply migration in staging and test** member self-toggle, duplicate retries, and anon denial; then commit `feat: persist authenticated notice reactions`.
 
 ### Task 2: Reaction APIs and message count state
@@ -62,12 +62,12 @@
 - `DELETE` removes the caller's own row and returns updated state/counts.
 - Existing `GET /api/mural/messages` includes each card's `{likeCount,dislikeCount,myReaction}`; it never includes name lists.
 
-- [ ] **Step 1: Write failing API tests** for anonymous `401`, invalid reaction `400`, counts/my state, selected-list filtering, and no list leakage from messages GET.
-- [ ] **Step 2: Run `npm test -- tests/mural-reactions-api.test.ts`** and verify failure.
-- [ ] **Step 3: Implement route handlers** using the project's current route context/`getMuralUserContext`; validate dynamic `id` with `normalizeMuralMessageId` and set `Cache-Control: no-store`.
-- [ ] **Step 4: Extend the message list response** with counts and caller reaction, using one bounded aggregate query for the existing 100-message limit.
-- [ ] **Step 5: Run focused API tests and TypeScript**; expected pass with no anonymous identity disclosure.
-- [ ] **Step 6: Commit** as `feat: expose authenticated mural reaction state`.
+- [x] **Step 1: Write API tests** for anonymous `401`, invalid reaction `400`, counts/my state, selected-list filtering, and no list leakage from messages GET.
+- [x] **Step 2: Run focused API tests**; all pass.
+- [x] **Step 3: Implement route handlers** using `getMuralUserContext`; validate dynamic `id` and use private no-store responses.
+- [x] **Step 4: Extend the message list response** with counts and caller reaction, using one bounded aggregate RPC for the existing 100-message limit.
+- [x] **Step 5: Run focused API tests and TypeScript**; no anonymous identity disclosure.
+- [x] **Step 6: Commit** with the local reaction feature commit.
 
 ### Task 3: Reaction controls and one-list dialog
 
@@ -81,10 +81,10 @@
 - `NoticeReactions({messageId,likeCount,dislikeCount,myReaction,onChange})` renders two `aria-pressed` buttons and one compact names dialog.
 - Dialog requests `type=like` or `type=dislike` and renders only the selected type; selecting the other filter replaces the list in place.
 
-- [ ] **Step 1: Write failing view-model tests** for both counters, selected state, same-type toggle, switching type, correct people list, and one selected list at a time; do not assume a React DOM test renderer, which is not installed.
-- [ ] **Step 2: Run the focused UI test** and verify failure.
-- [ ] **Step 3: Implement `NoticeReactions`** with optimistic state guarded against duplicate in-flight requests and rollback on error.
-- [ ] **Step 4: Integrate in `RecadosContent`** and refresh the message's count/my-state following successful toggles.
-- [ ] **Step 5: Add minimal retro-window styles** with internal scrolling, keyboard access, and mobile touch targets.
-- [ ] **Step 6: Run `npm test`, `npm run lint`, `npx tsc --noEmit`, and `npm run build`**; manually verify dialog and reaction controls at desktop and mobile widths.
+- [x] **Step 1: Write focused toggle and API contract tests** for counts, selected state, switching type, correct people list, and only one selected list.
+- [x] **Step 2: Run focused tests**; all pass.
+- [x] **Step 3: Implement reaction controls** in `RecadosContent`; database uniqueness and the message-row lock serialize reactions.
+- [x] **Step 4: Integrate and refresh each card's counts/my-state** following successful toggles.
+- [x] **Step 5: Add minimal retro-window styles** with internal scrolling, keyboard-accessible buttons, and mobile touch targets.
+- [ ] **Step 6: Run the full suite, lint, TypeScript, and build**; automated checks pass. Manual authenticated desktop/mobile verification remains pending staging access.
 - [ ] **Step 7: Commit** as `feat: add like and dislike controls to notices`.

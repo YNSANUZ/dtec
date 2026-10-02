@@ -277,6 +277,17 @@
 .mural-message-actions button{display:grid;width:29px;height:29px;place-items:center;border:1px solid transparent;border-radius:7px;background:transparent;color:#718096;cursor:pointer}
 .mural-message-actions button:hover{border-color:#e2e7ed;background:#f5f7f9;color:#344860}
 .mural-message-body{margin:8px 0 0;color:#46576d;font-size:.82rem;line-height:1.55;white-space:pre-wrap;overflow-wrap:anywhere}
+.mural-reaction-row{display:flex;align-items:center;gap:5px;margin-top:9px;color:#65758a}
+.mural-reaction-toggle,.mural-reaction-count{display:inline-flex;min-width:28px;height:27px;align-items:center;justify-content:center;gap:5px;border:1px solid #dce3eb;border-radius:7px;background:#f8fafc;color:#627189;cursor:pointer}
+.mural-reaction-count{min-width:26px;padding:0 6px;font-size:.7rem}
+.mural-reaction-toggle:hover,.mural-reaction-count:hover{border-color:#9fb8d8;background:#eef5ff;color:#245c99}
+.mural-reaction-toggle.is-selected{border-color:#75a7df;background:#e6f1ff;color:#1d66b3}
+.mural-reaction-dialog{max-width:380px!important;gap:14px!important;border:1px solid #d6dce4!important;border-radius:12px!important;background:#fcfcfa!important;padding:18px!important}
+.mural-reaction-dialog [data-slot=dialog-title]{font-size:1rem;color:#273d59}
+.mural-reaction-dialog [data-slot=dialog-description]{font-size:.76rem;color:#6b7b8d}
+.mural-reaction-people{display:grid;max-height:280px;gap:7px;overflow:auto;padding:0;margin:0;list-style:none}
+.mural-reaction-people li{display:flex;align-items:center;gap:10px;border:1px solid #e5e8ed;border-radius:8px;background:#fff;padding:7px 10px}
+.mural-reaction-people li strong{font-size:.8rem;color:#394b62}
 .mural-privacy-note{margin:0;color:#8894a2;font-size:.68rem;line-height:1.4}
 .birthday-directory{display:flex;flex:1;min-height:0;flex-direction:column;gap:10px;overflow:hidden;padding:12px 18px;background:#deddd7}
 .birthday-directory-heading{display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid #fff;background:#efeee8;color:#344c6b;box-shadow:inset 1px 1px #fff,inset -2px -2px #b3b3ad}
@@ -295,7 +306,7 @@
 .mural-window-retro .birthday-directory{background:#deddd7}
 .mural-window-retro .birthday-directory-heading,.mural-window-retro .birthday-members-list{border-radius:2px}
 @media(max-width:700px){.birthday-directory{padding:10px;gap:8px}.birthday-member{min-height:58px;gap:8px}.birthday-member .avatar-head-only{flex-basis:38px;width:38px;height:38px}.birthday-member-name strong{font-size:.76rem}.birthday-member time{font-size:.68rem}}
-@media(max-width:700px){.mural-recados{gap:10px}.mural-composer{padding:11px}.mural-composer textarea{min-height:70px}.mural-primary-button,.mural-secondary-button{min-height:36px;padding:7px 9px;font-size:.7rem}.mural-message-card{padding:10px}.mural-message-body{font-size:.78rem}}
+@media(max-width:700px){.mural-recados{gap:10px}.mural-composer{padding:11px}.mural-composer textarea{min-height:70px}.mural-primary-button,.mural-secondary-button{min-height:36px;padding:7px 9px;font-size:.7rem}.mural-message-card{padding:10px}.mural-message-body{font-size:.78rem}.mural-reaction-dialog{width:calc(100% - 28px)!important}.mural-reaction-people{max-height:min(45dvh,280px)}}
 .google-account-avatar{background-position:center;background-repeat:no-repeat;background-size:cover;border:2px solid #ffffffd9;box-shadow:0 2px 8px #07132666}
 .google-profile-card{display:flex;align-items:center;gap:11px;padding:10px 12px;border:1px solid #ffffff1f;border-radius:12px;background:#ffffff0c}
 .google-profile-photo{display:block;flex:0 0 42px;width:42px;height:42px;border-radius:50%;background-position:center;background-repeat:no-repeat;background-size:cover;background-color:#fff;box-shadow:0 2px 8px #0003}

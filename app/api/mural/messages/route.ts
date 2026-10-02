@@ -21,6 +21,18 @@ export async function GET() {
 
   if (profilesError) return NextResponse.json({ error: "mural_authors_read_failed" }, { status: 500 });
   const names = new Map((profiles ?? []).map((profile) => [profile.user_id, profile.display_name]));
+  const ids = (rows ?? []).map((row) => row.id);
+  const { data: summaries, error: summaryError } = ids.length
+    ? await context.supabase.rpc("get_mural_reaction_summary", { p_message_ids: ids })
+    : { data: [], error: null };
+  if (summaryError) return NextResponse.json({ error: "mural_reactions_read_failed" }, { status: 500 });
+  const summaryRows = (summaries ?? []) as Array<{
+    message_id: string;
+    like_count: number;
+    dislike_count: number;
+    my_reaction: "like" | "dislike" | null;
+  }>;
+  const reactions = new Map(summaryRows.map((summary) => [summary.message_id, summary]));
   const messages = (rows ?? []).map((row) => ({
     id: row.id,
     authorId: row.author_id,
@@ -29,6 +41,9 @@ export async function GET() {
     isPinned: row.is_pinned,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    likeCount: Number(reactions.get(row.id)?.like_count ?? 0),
+    dislikeCount: Number(reactions.get(row.id)?.dislike_count ?? 0),
+    myReaction: reactions.get(row.id)?.my_reaction ?? null,
   }));
   return NextResponse.json({ messages });
 }

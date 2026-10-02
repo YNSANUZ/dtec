@@ -13,6 +13,8 @@ import {
   PartyPopper,
   Send,
   Trash2,
+  ThumbsDown,
+  ThumbsUp,
   UsersRound,
 } from "lucide-react";
 import {
@@ -27,6 +29,7 @@ import AvatarPreview from "@/components/avatar-preview";
 import { EventsFolder } from "@/components/mural/events-folder";
 import { FundraisersFolder } from "@/components/mural/fundraisers-folder";
 import { formatBirthday, orderBirthdays, saoPauloMonthDay } from "@/lib/birthdays/order";
+import type { MuralReaction } from "@/lib/mural-reactions";
 
 type FolderInfo = {
   title: string;
@@ -91,7 +94,12 @@ type MuralMessage = {
   isPinned: boolean;
   createdAt: string;
   updatedAt: string;
+  likeCount: number;
+  dislikeCount: number;
+  myReaction: MuralReaction | null;
 };
+
+type ReactionPerson = { userId: string; name: string; avatar: string };
 
 function RecadosContent({ currentUserId }: { currentUserId: string | null }) {
   const [messages, setMessages] = useState<MuralMessage[]>([]);
@@ -101,6 +109,10 @@ function RecadosContent({ currentUserId }: { currentUserId: string | null }) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
+  const [reactionDialog, setReactionDialog] = useState<{ messageId: string; type: MuralReaction } | null>(null);
+  const [reactionPeople, setReactionPeople] = useState<ReactionPerson[]>([]);
+  const [reactionLoading, setReactionLoading] = useState(false);
+  const [reactionError, setReactionError] = useState("");
 
   useEffect(() => {
     if (!currentUserId) {
@@ -136,8 +148,8 @@ function RecadosContent({ currentUserId }: { currentUserId: string | null }) {
       const body = await response.json() as { message?: MuralMessage; error?: string };
       if (!response.ok || !body.message) throw new Error(body.error && !body.error.includes("failed") ? body.error : "Não foi possível salvar o recado.");
       setMessages((current) => editingId
-        ? current.map((message) => message.id === editingId ? body.message! : message)
-        : [body.message!, ...current]);
+        ? current.map((message) => message.id === editingId ? { ...message, ...body.message! } : message)
+        : [{ ...body.message!, likeCount: 0, dislikeCount: 0, myReaction: null }, ...current]);
       setMessageText("");
       setEditingId(null);
     } catch (error) {
@@ -145,6 +157,37 @@ function RecadosContent({ currentUserId }: { currentUserId: string | null }) {
     } finally {
       setSaving(false);
     }
+  };
+
+  const toggleReaction = async (message: MuralMessage, reaction: MuralReaction) => {
+    try {
+      const response = await fetch(`/api/mural/messages/${message.id}/reactions`, {
+        method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ reaction }),
+      });
+      const body = await response.json() as { likeCount?: number; dislikeCount?: number; myReaction?: MuralReaction | null };
+      if (!response.ok) throw new Error("Não foi possível registrar sua reação.");
+      setMessages((items) => items.map((item) => item.id === message.id ? {
+        ...item, likeCount: body.likeCount ?? item.likeCount, dislikeCount: body.dislikeCount ?? item.dislikeCount,
+        myReaction: body.myReaction ?? null,
+      } : item));
+    } catch {
+      setFormError("Não foi possível registrar sua reação. Tente novamente.");
+    }
+  };
+
+  const showReactionPeople = async (messageId: string, type: MuralReaction) => {
+    setReactionDialog({ messageId, type });
+    setReactionPeople([]);
+    setReactionError("");
+    setReactionLoading(true);
+    try {
+      const response = await fetch(`/api/mural/messages/${messageId}/reactions?type=${type}`, { cache: "no-store" });
+      const body = await response.json() as { people?: ReactionPerson[] };
+      if (!response.ok) throw new Error("Não foi possível consultar as reações.");
+      setReactionPeople(body.people ?? []);
+    } catch (error) {
+      setReactionError(error instanceof Error ? error.message : "Não foi possível consultar as reações.");
+    } finally { setReactionLoading(false); }
   };
 
   const deleteMessage = async (message: MuralMessage) => {
@@ -161,6 +204,7 @@ function RecadosContent({ currentUserId }: { currentUserId: string | null }) {
   };
 
   return (
+    <>
     <section className="mural-folder-content mural-recados" aria-live="polite">
       <div className="mural-breadcrumb"><span>Mural de Informações</span><ChevronRight size={14} /><strong>Recados</strong></div>
       {!currentUserId ? (
@@ -180,6 +224,12 @@ function RecadosContent({ currentUserId }: { currentUserId: string | null }) {
               {messages.map((message) => <article className="mural-message-card" key={message.id}>
                 <div className="mural-message-heading"><div><strong>{message.authorName}</strong><time dateTime={message.createdAt}>{new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(new Date(message.createdAt))}</time></div>{message.authorId === currentUserId && <div className="mural-message-actions"><button type="button" aria-label="Editar recado" title="Editar" onClick={() => { setEditingId(message.id); setMessageText(message.content); setFormError(""); }}><Pencil size={14} /></button><button type="button" aria-label="Excluir recado" title="Excluir" onClick={() => void deleteMessage(message)}><Trash2 size={14} /></button></div>}</div>
                 <p className="mural-message-body">{message.content}</p>
+                <div className="mural-reaction-row" aria-label="Reações ao recado">
+                  <button type="button" className={`mural-reaction-toggle ${message.myReaction === "like" ? "is-selected" : ""}`} aria-label="Curtir recado" aria-pressed={message.myReaction === "like"} onClick={() => void toggleReaction(message, "like")}><ThumbsUp size={15} aria-hidden="true" /></button>
+                  <button type="button" className="mural-reaction-count" aria-label={`Ver quem curtiu: ${message.likeCount}`} onClick={() => void showReactionPeople(message.id, "like")}>{message.likeCount}</button>
+                  <button type="button" className={`mural-reaction-toggle ${message.myReaction === "dislike" ? "is-selected" : ""}`} aria-label="Descurtir recado" aria-pressed={message.myReaction === "dislike"} onClick={() => void toggleReaction(message, "dislike")}><ThumbsDown size={15} aria-hidden="true" /></button>
+                  <button type="button" className="mural-reaction-count" aria-label={`Ver quem descurtiu: ${message.dislikeCount}`} onClick={() => void showReactionPeople(message.id, "dislike")}>{message.dislikeCount}</button>
+                </div>
               </article>)}
             </div>
           )}
@@ -187,6 +237,18 @@ function RecadosContent({ currentUserId }: { currentUserId: string | null }) {
         </>
       )}
     </section>
+    <Dialog open={reactionDialog !== null} onOpenChange={(open) => { if (!open) setReactionDialog(null); }}>
+      <DialogContent className="mural-reaction-dialog">
+        <DialogHeader>
+          <DialogTitle>{reactionDialog?.type === "dislike" ? "Quem descurtiu" : "Quem curtiu"}</DialogTitle>
+          <DialogDescription>Lista de colegas autenticados que reagiram a este recado.</DialogDescription>
+        </DialogHeader>
+        {reactionLoading ? <p className="mural-loading">Carregando…</p> : reactionError ? <p className="mural-form-error" role="alert">{reactionError}</p> : reactionPeople.length ? (
+          <ul className="mural-reaction-people">{reactionPeople.map((person) => <li key={person.userId}><AvatarPreview model={person.avatar} headOnly /><strong>{person.name}</strong></li>)}</ul>
+        ) : <p className="mural-loading">Ainda não há reações deste tipo.</p>}
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }
 
