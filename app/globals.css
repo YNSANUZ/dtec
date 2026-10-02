@@ -327,3 +327,9 @@
 .google-account-entry .login-label{display:inline;max-width:120px;width:auto;height:auto;overflow:hidden;border-radius:0;background:transparent;color:#fff;font:750 .9rem Inter,ui-sans-serif,system-ui,sans-serif;text-overflow:ellipsis;white-space:nowrap;box-shadow:none}
 .google-account-entry>svg{flex:0 0 auto;color:#fff}
 @media(max-width:700px){.top-actions .profile.google-account-entry{height:38px;padding-right:8px;padding-left:27px;gap:5px}.google-account-entry .google-account-photo{left:-12px;width:36px;height:36px}.google-account-entry .login-label{max-width:64px;font-size:.78rem}}
+.chat-pop{width:min(520px,calc(100vw - 32px));padding:8px 10px;border:1px solid #ffffff36;border-radius:14px;background:rgba(17,29,49,.9);box-shadow:0 10px 30px #07101f55;backdrop-filter:blur(14px)}
+.chat-pop strong{color:#fff;font-size:.78rem;white-space:nowrap}
+.chat-pop input{min-width:0;flex:1;border-color:#ffffff30;background:#ffffff12;color:#fff;font-size:.82rem}
+.chat-pop input::placeholder{color:#c1cad7}
+.chat-pop button{padding:9px 13px;font-size:.78rem}
+@media(max-width:700px){.chat-pop{width:calc(100% - 24px);flex-wrap:nowrap;gap:7px;padding:7px 8px}.chat-pop input{min-width:0;flex:1;padding:10px 8px}.chat-pop button{padding:9px 10px}}

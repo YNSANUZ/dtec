@@ -12,6 +12,7 @@ import { useDtecAuth } from "@/hooks/use-dtec-auth";
 import type { MuralId } from "@/lib/mural-types";
 import { canAppointModerator, roleLabel } from "@/lib/room/roles";
 import type { AvatarId } from "@/lib/profile/validation";
+import { getKeyboardInset } from "@/lib/room/mobile-viewport";
 
 const OfficeScene = dynamic(() => import("@/components/office-scene"), { ssr: false });
 const avatars: AvatarId[] = ["a", "c", "f", "j", "n", "r"];
@@ -53,6 +54,7 @@ export default function Home() {
   const [action, setAction] = useState<"idle" | "dance" | "wave">("idle");
   const [sceneStart, setSceneStart] = useState({ x: 0, z: 5 });
   const [chatText, setChatText] = useState("");
+  const [chatBottom, setChatBottom] = useState(120);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [bubble, setBubble] = useState("");
   const presence = useRef<PresenceState>({ x: 0, z: 5, action: "idle" });
@@ -65,6 +67,24 @@ export default function Home() {
     }, 0);
     return () => clearTimeout(id);
   }, []);
+
+  useEffect(() => {
+    if (!chatOpen) return;
+    const viewport = window.visualViewport;
+    const syncChatPosition = () => {
+      const keyboardInset = getKeyboardInset(window.innerHeight, viewport?.height ?? window.innerHeight, viewport?.offsetTop ?? 0);
+      setChatBottom(Math.max(120, keyboardInset + 12));
+    };
+    syncChatPosition();
+    window.addEventListener("resize", syncChatPosition);
+    viewport?.addEventListener("resize", syncChatPosition);
+    viewport?.addEventListener("scroll", syncChatPosition);
+    return () => {
+      window.removeEventListener("resize", syncChatPosition);
+      viewport?.removeEventListener("resize", syncChatPosition);
+      viewport?.removeEventListener("scroll", syncChatPosition);
+    };
+  }, [chatOpen]);
 
   useEffect(() => {
     if (!auth.user || auth.profile) return;
@@ -221,7 +241,7 @@ export default function Home() {
   const onlineCount = onlineUsers.filter((user) => user.online).length;
 
   return <main className="app-shell">
-    <OfficeScene name={sceneName} avatar={sceneAvatar} action={action} message={bubble} created={ready} initialPosition={sceneStart} remoteUsers={remoteUsers} birthdayToday={ownBirthdayToday} onStateChange={updatePresence} onCharacterClick={characterClick} onMuralClick={muralClick} />
+    <OfficeScene name={sceneName} avatar={sceneAvatar} action={action} message={bubble} created={ready} initialPosition={sceneStart} remoteUsers={remoteUsers} birthdayToday={ownBirthdayToday} positionOwnerId={auth.user?.id ?? "visitor"} onStateChange={updatePresence} onCharacterClick={characterClick} onMuralClick={muralClick} />
     <div className="shade" />
     <nav className="legal-links" aria-label="Informações legais"><Link href="/politica-de-privacidade">Privacidade</Link><span aria-hidden="true">·</span><Link href="/termos-de-servico">Termos</Link></nav>
     <header className="topbar">
@@ -242,7 +262,7 @@ export default function Home() {
     {auth.error && <div className="auth-notice" role="status">{auth.error}<button aria-label="Fechar aviso" onClick={auth.clearError}>×</button></div>}
     {accountOpen && ready && <div className="account-menu"><strong>{sceneName}</strong><small>{auth.user?.email}</small><button onClick={editProfile}>Meu avatar e perfil</button><button onClick={() => { setAccountOpen(false); setChatOpen(false); setControlsOpen(false); void auth.signOut(); }}>Sair da conta</button></div>}
     {ready && <nav className="actionbar" aria-label="Ações do personagem"><button onClick={() => setAction(action === "dance" ? "idle" : "dance")}>{action === "dance" ? "Parar" : "Dançar"}</button><button onClick={() => setChatOpen((open) => !open)}>Conversar</button><button onClick={editProfile}>Meu avatar</button></nav>}
-    {chatOpen && ready && <form className="chat-pop" onSubmit={sendMessage}><strong>Conversar</strong><input autoFocus value={chatText} onChange={(event) => setChatText(event.target.value)} placeholder="Digite uma mensagem…" maxLength={100} /><button>Enviar</button></form>}
+    {chatOpen && ready && <form className="chat-pop" style={{ bottom: `calc(${chatBottom}px + env(safe-area-inset-bottom))` }} onSubmit={sendMessage}><strong>Conversar</strong><input value={chatText} onChange={(event) => setChatText(event.target.value)} placeholder="Digite uma mensagem…" maxLength={100} /><button>Enviar</button></form>}
     {messages.length > 0 && <aside className="chat-history" aria-label="Últimas mensagens"><h3>Conversas recentes</h3>{messages.map((message) => <p key={message.id}><strong>{message.name}</strong><span>{message.text}</span></p>)}</aside>}
     {controlsOpen && ready && <div className="avatar-pop"><button className="close-mini" onClick={() => setControlsOpen(false)}><X /></button><strong>{sceneName}</strong><small>Você assumiu o controle.</small><p>Clique no chão para caminhar.</p><button onClick={() => setAction(action === "dance" ? "idle" : "dance")}>Dançar</button><button onClick={editProfile}>Editar personagem</button></div>}
     <Dialog open={loginPromptOpen} onOpenChange={setLoginPromptOpen}><DialogContent className="login-prompt-dialog" showCloseButton={false}><button type="button" className="login-prompt-close" aria-label="Fechar" onClick={() => setLoginPromptOpen(false)}><X size={17} /></button><DialogHeader><DialogTitle>Entre para interagir com a sala</DialogTitle><DialogDescription>Faça login com Google para conversar, movimentar seu personagem e ver os detalhes dos colegas.</DialogDescription></DialogHeader><a className="login-prompt-google" href="/auth/login"><i className="google-logo" aria-hidden="true" />Entrar com Google</a></DialogContent></Dialog>

@@ -5,6 +5,7 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { clone } from "three/examples/jsm/utils/SkeletonUtils.js";
 import type { MuralId } from "@/lib/mural-types";
 import { getCelebrationState } from "@/lib/birthdays/celebration";
+import { resolveRoomPositionState, type RoomPositionState } from "@/lib/room/position-state";
 type Props = {
   name: string;
   avatar: string;
@@ -14,6 +15,7 @@ type Props = {
   initialPosition: { x: number; z: number };
   remoteUsers: Array<{userId:string;name:string;avatar:string;x:number;z:number;action:string;message:string;online:boolean;birthdayToday:boolean}>;
   birthdayToday: boolean;
+  positionOwnerId: string;
   onStateChange: (x:number,z:number,action:string) => void;
   onCharacterClick: (userId:string|null) => void;
   onMuralClick: (id: MuralId) => void;
@@ -119,6 +121,7 @@ export default function OfficeScene({
   initialPosition,
   remoteUsers,
   birthdayToday,
+  positionOwnerId,
   onStateChange,
   onCharacterClick,
   onMuralClick,
@@ -129,7 +132,12 @@ export default function OfficeScene({
     messageRef = useRef(message),
     remoteRef = useRef(remoteUsers),
     stateCallbackRef = useRef(onStateChange),
+    // Parent presence polls replace callback identities; those must not tear down the live world.
+    characterClickRef = useRef(onCharacterClick),
+    muralClickRef = useRef(onMuralClick),
     birthdaySessionStartRef = useRef<number | null>(null),
+    birthdayTodayRef = useRef(birthdayToday),
+    positionStateRef = useRef<RoomPositionState | null>(null),
     manualActionUntilRef = useRef(0),
     cameraControlsRef = useRef<{zoom:(direction:number)=>void;reframe:()=>void}>({zoom:()=>{},reframe:()=>{}});
   const [cameraAdjusted,setCameraAdjusted]=useState(false);
@@ -142,9 +150,13 @@ export default function OfficeScene({
   }, [message]);
   useEffect(() => { remoteRef.current = remoteUsers; }, [remoteUsers]);
   useEffect(() => { stateCallbackRef.current = onStateChange; }, [onStateChange]);
+  useEffect(() => { characterClickRef.current = onCharacterClick; }, [onCharacterClick]);
+  useEffect(() => { muralClickRef.current = onMuralClick; }, [onMuralClick]);
+  useEffect(() => { birthdayTodayRef.current = birthdayToday; }, [birthdayToday]);
   useEffect(() => {
     if (!host.current) return;
     if (birthdaySessionStartRef.current === null) birthdaySessionStartRef.current = performance.now();
+    const savedPosition = resolveRoomPositionState(positionStateRef.current, positionOwnerId, initialPosition, created);
     const el = host.current,
       scene = new THREE.Scene();
     scene.background = new THREE.Color(0xbcc7d3);
@@ -337,11 +349,11 @@ export default function OfficeScene({
       selfBirthdayBadge: THREE.Sprite | null = null,
       selfBirthdayVisible = false,
       shownMessage = "",
-      auto = created,
-      seating = false,
+      auto = savedPosition.automatic,
+      seating = savedPosition.sitting,
       autoPauseUntil = 0,
       clips = new Map<string, THREE.AnimationClip>();
-    const target = new THREE.Vector3(initialPosition.x, 0, initialPosition.z);
+    const target = new THREE.Vector3(savedPosition.targetX, 0, savedPosition.targetZ);
     const addSelf = (
       model: string,
       n: string,
@@ -367,7 +379,7 @@ export default function OfficeScene({
         mineMixer = mx;
         clips = map;
       });
-    addSelf(avatar, created ? name : "Visitante", initialPosition.x, initialPosition.z, created);
+    addSelf(avatar, created ? name : "Visitante", savedPosition.x, savedPosition.z, created);
     const addRemote=(u:(typeof remoteRef.current)[number])=>loader.load(`${assetBase}/models/kenney/character-${u.avatar}.glb`,g=>{
       if(remoteAgents.has(u.userId))return;
       const o=clone(g.scene);o.scale.setScalar(.85);o.position.set(u.x,0,u.z);o.traverse(v=>{if((v as THREE.Mesh).isMesh)(v as THREE.Mesh).castShadow=true});
@@ -387,7 +399,7 @@ export default function OfficeScene({
       ray.setFromCamera(pointer, camera);
       if (mine && ray.intersectObject(mine, true).length) {
         auto = false;
-        onCharacterClick(null);
+        characterClickRef.current(null);
         return;
       }
       const remoteHit = ray.intersectObjects([...remoteAgents.values()].map((agent) => agent.object), true)[0];
@@ -395,7 +407,7 @@ export default function OfficeScene({
         let root: THREE.Object3D | null = remoteHit.object;
         while (root && typeof root.userData.roomUserId !== "string") root = root.parent;
         if (root) {
-          onCharacterClick(root.userData.roomUserId as string);
+          characterClickRef.current(root.userData.roomUserId as string);
           return;
         }
       }
@@ -404,7 +416,7 @@ export default function OfficeScene({
         if (muralHit) {
           const muralIndex = Math.floor(muralHit.object.userData.muralIndex as number);
           const muralId: MuralId[] = ["information", "demands", "leisure", "birthdays"];
-          onMuralClick(muralId[muralIndex]);
+          muralClickRef.current(muralId[muralIndex]);
         }
         return;
       }
@@ -412,7 +424,7 @@ export default function OfficeScene({
       if (muralHit) {
         const muralIndex=Math.floor(muralHit.object.userData.muralIndex as number);
         const muralId: MuralId[]=["information","demands","leisure","birthdays"];
-        onMuralClick(muralId[muralIndex]);
+        muralClickRef.current(muralId[muralIndex]);
         return;
       }
       const seat = ray.intersectObjects(chairs, false)[0];
@@ -542,7 +554,7 @@ export default function OfficeScene({
           else playRemote(a,"idle");
         });
         if (mine && mineMixer) {
-          const ownCelebration = getCelebrationState(birthdayToday, sessionStart, performance.now());
+          const ownCelebration = getCelebrationState(birthdayTodayRef.current, sessionStart, performance.now());
           if (ownCelebration.visible !== selfBirthdayVisible) {
             selfBirthdayVisible = ownCelebration.visible;
             if (selfBirthdayBadge) { mine.remove(selfBirthdayBadge); selfBirthdayBadge = null; }
@@ -583,6 +595,15 @@ export default function OfficeScene({
             } else if (ownCelebration.dancing && !seating && performance.now() >= manualActionUntilRef.current) play("emote-yes");
             else play(seating ? "sit" : "idle");
           }
+          positionStateRef.current = {
+            ownerId: positionOwnerId,
+            x: mine.position.x,
+            z: mine.position.z,
+            targetX: target.x,
+            targetZ: target.z,
+            automatic: auto,
+            sitting: seating,
+          };
           if(created&&now-lastPresencePush>.9&&now-started>1){lastPresencePush=now;stateCallbackRef.current(mine.position.x,mine.position.z,actionRef.current==="dance"?"dance":mode||"idle")}
         }
         renderer.render(scene, camera);
@@ -612,6 +633,6 @@ export default function OfficeScene({
       renderer.dispose();
       el.replaceChildren();
     };
-  }, [assetBase, avatar, birthdayToday, created, initialPosition.x, initialPosition.z, name, onCharacterClick, onMuralClick]);
+  }, [assetBase, avatar, created, initialPosition, name, positionOwnerId]);
   return <><div ref={host} className="office-canvas"/><nav className="camera-controls" aria-label="Controles da câmera"><button type="button" aria-label="Aumentar zoom" onClick={()=>cameraControlsRef.current.zoom(1)}>+</button><button type="button" aria-label="Diminuir zoom" onClick={()=>cameraControlsRef.current.zoom(-1)}>−</button>{cameraAdjusted&&<button className="camera-reframe" type="button" aria-label="Reenquadrar cenário" onClick={()=>cameraControlsRef.current.reframe()}>Reenquadrar</button>}</nav></>;
 }

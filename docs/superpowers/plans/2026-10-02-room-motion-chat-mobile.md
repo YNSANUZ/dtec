@@ -39,11 +39,11 @@
 - `Home` owns saved initial position (`sceneStart`) and latest movement state (`presence.current`); `OfficeScene` owns live animation position and reports it via `onStateChange(x,z,action)`.
 - The regression test should exercise stable position when parent chat state changes and when stale persisted presence is received.
 
-- [ ] **Step 1: Reproduce on deployed/local build** by moving the avatar, opening chat, sending a message, closing chat, and waiting for a presence refresh; record which trigger resets the position.
-- [ ] **Step 2: Add a failing regression test** for that exact trigger using an extracted pure state transition helper; assert current coordinates/target remain unchanged.
-- [ ] **Step 3: Run `npm test -- tests/room-position-state.test.ts`** and confirm it fails for the reproduced case.
-- [ ] **Step 4: Inspect component keys/effect dependencies, `initialPosition` synchronization, animation ownership, and presence polling**; identify the single authoritative position and document the cause in a short code comment/test name.
-- [ ] **Step 5: Commit the regression test/cause note** as `test: reproduce room avatar position reset` before the fix.
+- [ ] **Step 1: Reproduce on deployed/local build** by moving the avatar, opening chat, sending a message, closing chat, and waiting for a presence refresh; live reproduction still needs an authenticated staging environment.
+- [x] **Step 2: Add a regression contract** for callback identity changes rebuilding the scene, plus pure tests for stable live position/target state.
+- [x] **Step 3: Run focused regressions**; the lifecycle contract failed before the callback-ref fix and now passes.
+- [x] **Step 4: Inspect component effect dependencies and polling**. Root cause: each 5-second character refresh replaces `onlineUsers`; `characterClick` changed identity, and because that callback was an `OfficeScene` effect dependency, React disposed/recreated Three.js at the saved initial position.
+- [x] **Step 5: Record the root cause beside the callback refs**; implementation and regression test are committed with the room fix below.
 
 ### Task 2: Fix the authoritative position flow
 
@@ -57,10 +57,10 @@
 - `mergeRoomPosition(current: RoomPosition, incoming: RoomPosition, source: "local"|"server"): RoomPosition` must never replace a newer local target/action with an older poll response.
 - Scene prop contract remains stable across chat state renders; if an initial position is needed, it is applied only once per authenticated user identity, except explicit profile reset.
 
-- [ ] **Step 1: Implement the minimal position fix** based on the recorded failing test; do not add speculative smoothing or arbitrary spawn offsets.
-- [ ] **Step 2: Run the regression test** and verify PASS, including walk→chat open/close→walk and new message send.
-- [ ] **Step 3: Add a second test** for reconnect/profile switch so saved position initializes only for the correct account and old-user state cannot bleed.
-- [ ] **Step 4: Run tests/lint/TypeScript/build** and verify two authenticated clients observe the same movement with no snapback.
+- [x] **Step 1: Implement the minimal fix**: keep callbacks in refs so parent polling cannot remount the scene; snapshot live position, target, sitting/automatic state across necessary scene reloads.
+- [x] **Step 2: Run automated state/lifecycle regressions**; helper verifies current coordinates/target survive same-account reloads. Live chat movement test still awaits staging.
+- [x] **Step 3: Test account switching**; a new owner ID initializes from its own spawn, never the prior account's saved state.
+- [ ] **Step 4: Full tests/lint/TypeScript/build pass (127 tests).** Verify two authenticated clients observe synchronized movement once staging is confirmed.
 - [ ] **Step 5: Commit** as `fix: preserve avatar position across room interactions`.
 
 ### Task 3: Compact composer and mobile keyboard viewport
@@ -75,10 +75,10 @@
 - `getVisualViewportInsets(viewportHeight:number,layoutHeight:number,offsetTop:number): {bottomInset:number;visibleHeight:number}` clamps invalid/negative measurements to safe values.
 - `chatOpen` renders a compact translucent fixed composer; mobile does not auto-focus an input until a user taps it; VisualViewport resize/scroll listeners update CSS custom properties and are removed on cleanup.
 
-- [ ] **Step 1: Write failing viewport tests** for keyboard open/closed, nonzero offset, invalid metrics, and layout-height fallback.
-- [ ] **Step 2: Run `npm test -- tests/visual-viewport.test.ts`** and verify failure.
-- [ ] **Step 3: Implement the pure metrics helper** and its tests.
-- [ ] **Step 4: Replace the oversized chat form** with a small translucent composer using `env(safe-area-inset-bottom)` and viewport CSS variables; keep canvas fixed at the layout viewport.
-- [ ] **Step 5: Add pure layout-contract tests** for compact composer dimensions/viewport variables; manually verify no full white overlay or keyboard-induced focus pan on touch devices (React DOM test renderer is not installed).
-- [ ] **Step 6: Run full test/lint/TypeScript/build**; verify desktop, narrow mobile, tall keyboard, and rotation through mobile emulation/browser.
-- [ ] **Step 7: Commit** as `fix: keep room chat compact above mobile keyboard`.
+- [x] **Step 1: Write failing viewport tests** for keyboard open/closed, nonzero offset, invalid metrics, and layout-height fallback.
+- [x] **Step 2: Run the focused viewport test**; it failed before the helper existed.
+- [x] **Step 3: Implement the pure `getKeyboardInset` helper** and tests.
+- [x] **Step 4: Make the composer compact/translucent, remove automatic focus, and reposition above the virtual keyboard using cleaned-up VisualViewport listeners and safe-area inset; the canvas remains fixed.**
+- [ ] **Step 5: Mobile visual check** for no full white overlay or keyboard-induced scene shift remains pending a device/browser session.
+- [x] **Step 6: Full tests/lint/TypeScript/build pass (127 tests).** Desktop/mobile visual emulation remains pending.
+- [ ] **Step 7: Commit** with the local scene/chat fix commit.
