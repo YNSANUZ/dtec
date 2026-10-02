@@ -86,4 +86,12 @@ Correção ad2bd1a publicada somente no preview, deployment AXYHzHNf9GCFHX2fLAji
 
 Fixtures da interface permanecem somente no staging, identificadas como QA: salas qa20261002 e qa20261002b, um recado, um evento, duas mensagens (uma por sala) e uma vaquinha fictícia de R$10 sem chave Pix, com instrução explícita para não pagar. Não houve transferência. Screenshots em outputs/qa/preview-payment-qa.png e preview-camera-qa.png (ignorados no Git). O botão fechar do novo quadro ficou desalinhado pela regra global herdada; ajuste local usa grid/place-items/line-height com seletor do botão para centralizar o X; 6 testes do quadro e build passaram.
 
+## Checkpoint de etiquetas e estabilidade do cenário
+
+A inspeção de paridade encontrou uma falha compartilhada por DTEC e salas gerais: o nome sobre um personagem remoto só era atualizado quando seu estado online mudava. Reprodução RED com o componente real mostrou Ana Silva ainda sobre o personagem após o perfil mudar para Ana Lima, tanto online quanto offline. Correção restrita à etiqueta: compara nome e presença, substitui somente o sprite e libera a textura/material privados anteriores. Não adiciona dependências ao ciclo de vida do cenário nem muda posição, ângulo ou modelo do personagem.
+
+Cinco testes comportamentais executam o componente e o grafo Three.js reais, substituindo apenas GPU, carregamento GLTF e desenho 2D indisponíveis no ambiente DOM. Cobrem renomeação online/offline, ponto verde, manutenção do sprite em polls idênticos, descarte dos recursos substituídos e caminhada real iniciada por clique que continua após atualização de chat/presença/callbacks, preservando a câmera ampliada. RED: três falhas esperadas no código anterior; GREEN: cinco passaram. Suite completa: 248 testes/62 arquivos; build/TypeScript, ESLint direcionado e diff check passaram. O primeiro build deste checkpoint encontrou apenas incompatibilidade da tipagem do mock com a sobrecarga WebGPU de getContext, corrigida no teste antes do build final.
+
+Esses testes não executam GPU real nem demonstram duas contas Google independentes. Troca remota de modelo/avatar e paridade de lista online/perfis/aniversariantes nas salas gerais permanecem fora desta correção e precisam incremento próprio e QA. Estimativa mantida em 77%; tarefa 7 segue em andamento, sem migração, produção ou DNS alterados.
+
 Não liberar produção ou DNS apenas com testes locais. Confirmar preview apontando para staging, concluir testes reais acima e solicitar aprovação específica para migração/publicação em produção e domínio.

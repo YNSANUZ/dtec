@@ -349,6 +349,7 @@ export default function OfficeScene({
       target: THREE.Vector3;
       bubble: THREE.Sprite | null;
       label: THREE.Sprite;
+      name: string;
       online: boolean;
       message: string;
       birthdayBadge: THREE.Sprite | null;
@@ -400,7 +401,7 @@ export default function OfficeScene({
       if(remoteAgents.has(u.userId))return;
       const o=clone(g.scene);o.scale.setScalar(.85);o.position.set(u.x,0,u.z);o.traverse(v=>{if((v as THREE.Mesh).isMesh)(v as THREE.Mesh).castShadow=true});
       const label=card(u.name,false,u.online);label.position.y=2.65;o.add(label);o.userData.roomUserId=u.userId;scene.add(o);
-      const mixer=new THREE.AnimationMixer(o);mixers.push(mixer);remoteAgents.set(u.userId,{object:o,mixer,clips:new Map(g.animations.map(c=>[c.name.toLowerCase(),c])),action:null,target:new THREE.Vector3(u.x,0,u.z),bubble:null,label,online:u.online,message:"",birthdayBadge:null,birthdayVisible:false});
+      const mixer=new THREE.AnimationMixer(o);mixers.push(mixer);remoteAgents.set(u.userId,{object:o,mixer,clips:new Map(g.animations.map(c=>[c.name.toLowerCase(),c])),action:null,target:new THREE.Vector3(u.x,0,u.z),bubble:null,label,name:u.name,online:u.online,message:"",birthdayBadge:null,birthdayVisible:false});
     });
     const ray = new THREE.Raycaster(),
       pointer = new THREE.Vector2(),
@@ -552,7 +553,37 @@ export default function OfficeScene({
           now = performance.now() / 1000;
         mixers.forEach((m) => m.update(dt));
         const sessionStart = birthdaySessionStartRef.current ?? performance.now();
-        if(now-lastRemoteRefresh>1){lastRemoteRefresh=now;const ids=new Set(remoteRef.current.map(u=>u.userId));remoteAgents.forEach((a,id)=>{if(!ids.has(id)){scene.remove(a.object);remoteAgents.delete(id)}});remoteRef.current.forEach(u=>{const a=remoteAgents.get(u.userId);if(!a)addRemote(u);else{a.target.set(u.x,0,u.z);if(a.online!==u.online){a.object.remove(a.label);a.online=u.online;a.label=card(u.name,false,u.online);a.label.position.y=2.65;a.object.add(a.label)}if(u.message!==a.message){if(a.bubble)a.object.remove(a.bubble);a.message=u.message;a.bubble=u.message?card(u.message,true):null;if(a.bubble){a.bubble.position.y=3.65;a.object.add(a.bubble)}}}})}
+        if (now - lastRemoteRefresh > 1) {
+          lastRemoteRefresh = now;
+          const ids = new Set(remoteRef.current.map(u => u.userId));
+          remoteAgents.forEach((a, id) => {
+            if (!ids.has(id)) { scene.remove(a.object); remoteAgents.delete(id); }
+          });
+          remoteRef.current.forEach(u => {
+            const a = remoteAgents.get(u.userId);
+            if (!a) addRemote(u);
+            else {
+              a.target.set(u.x, 0, u.z);
+              // Refresh only the label, never the live world or avatar pose.
+              if (a.online !== u.online || a.name !== u.name) {
+                a.object.remove(a.label);
+                a.label.material.map?.dispose();
+                a.label.material.dispose();
+                a.name = u.name;
+                a.online = u.online;
+                a.label = card(u.name, false, u.online);
+                a.label.position.y = 2.65;
+                a.object.add(a.label);
+              }
+              if (u.message !== a.message) {
+                if (a.bubble) a.object.remove(a.bubble);
+                a.message = u.message;
+                a.bubble = u.message ? card(u.message, true) : null;
+                if (a.bubble) { a.bubble.position.y = 3.65; a.object.add(a.bubble); }
+              }
+            }
+          });
+        }
         remoteAgents.forEach((a,id)=>{
           const d=a.target.clone().sub(a.object.position);
           const presence=remoteRef.current.find(u=>u.userId===id);
