@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { CakeSlice, ChevronDown, HelpCircle, Maximize, Users, X } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -27,7 +28,7 @@ export default function Home(){
  const sendMessage=(e:React.FormEvent)=>{e.preventDefault();if(!ready)return;const text=chatText.trim().slice(0,100);if(!text)return;const next=[...messages,{id:Date.now(),name:sceneName,text}].slice(-5);setMessages(next);setBubble(text);setChatText("");setAction("wave");localStorage.setItem("dtec-chat",JSON.stringify(next));window.setTimeout(()=>{setBubble("");setAction("idle")},5000)};
  const chooserOpen=auth.state==="authenticated-needs-profile"||creatorOpen;
 
- return <main className="app-shell"><OfficeScene name={sceneName} avatar={sceneAvatar} action={action} message={bubble} created={ready} remoteUsers={[]} onStateChange={()=>{}} onAvatarClick={avatarClick} onBirthdayClick={birthdayClick}/><div className="shade"/>
+ return <main className="app-shell"><OfficeScene name={sceneName} avatar={sceneAvatar} action={action} message={bubble} created={ready} remoteUsers={[]} onStateChange={()=>{}} onAvatarClick={avatarClick} onBirthdayClick={birthdayClick}/><div className="shade"/><nav className="legal-links" aria-label="Informações legais"><Link href="/politica-de-privacidade">Privacidade</Link><span aria-hidden="true">·</span><Link href="/termos-de-servico">Termos</Link></nav>
  <header className="topbar"><div className="brand">DTEC</div><span className="divider"/><div className="online"><Users size={23}/><b>•</b><span>8 na sala</span></div><div className="top-actions"><button aria-label="Tela cheia" onClick={()=>document.documentElement.requestFullscreen?.()}><Maximize/></button><button aria-label="Ajuda" onClick={()=>setControlsOpen(ready)}><HelpCircle/></button>{auth.state==="anonymous"&&<a className="profile google-entry" aria-label="Entrar com Google" href="/auth/login"><i className="google-logo" style={{backgroundImage:'url("https://img.icons8.com/color/1200/google-logo.jpg")'}} aria-hidden="true"/><span className="login-label">Entrar</span></a>}{ready&&<button className="profile" aria-label="Abrir perfil" onClick={()=>setAccountOpen(v=>!v)}><span>{sceneName.slice(0,2).toUpperCase()}</span><ChevronDown size={17}/></button>}</div></header>
  {auth.error&&<div className="auth-notice" role="status">{auth.error}<button aria-label="Fechar aviso" onClick={auth.clearError}>×</button></div>}
  {accountOpen&&ready&&<div className="account-menu"><strong>{sceneName}</strong><small>{auth.user?.email}</small><button onClick={editProfile}>Meu avatar</button><button onClick={()=>{setAccountOpen(false);setChatOpen(false);setControlsOpen(false);void auth.signOut()}}>Sair da conta</button></div>}
