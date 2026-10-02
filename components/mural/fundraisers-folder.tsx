@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, Check, Clipboard, CreditCard, Plus, Settings, UsersRound } from "lucide-react";
 import AvatarPreview from "@/components/avatar-preview";
+import { MuralPeopleStack, type PeoplePreview } from "@/components/mural/people-stack";
 import { canChangeFundraiserPayment, toFundraiserCardViewModel, type ContributionPerson } from "@/lib/fundraisers/presentation";
 
 type Fundraiser = {
@@ -17,6 +18,7 @@ type Fundraiser = {
   isParticipant: boolean;
   paid: ContributionPerson[];
   pending: ContributionPerson[];
+  photos?: PeoplePreview["photos"];
 };
 type DirectoryUser = { userId: string; name: string; avatar: string; title?: string };
 type ResponseBody = { fundraisers?: Fundraiser[]; error?: string };
@@ -54,7 +56,13 @@ function CampaignEditor({
   </form>;
 }
 
-export function FundraisersFolder({ currentUserId, isAdminOrMod, roomSlug }: { currentUserId: string | null; isAdminOrMod: boolean; roomSlug?: string }) {
+type FundraisersFolderProps = { currentUserId: string | null; isAdminOrMod: boolean; roomSlug?: string };
+
+export function FundraisersFolder(props: FundraisersFolderProps) {
+  return <ScopedFundraisersFolder key={`${props.roomSlug ?? "dtec"}:${props.currentUserId ?? "visitor"}`} {...props} />;
+}
+
+function ScopedFundraisersFolder({ currentUserId, isAdminOrMod, roomSlug }: FundraisersFolderProps) {
   const api = roomSlug ? `/api/rooms/${roomSlug}/fundraisers` : "/api/fundraisers";
   const directoryApi = roomSlug ? `/api/rooms/${roomSlug}/presence` : "/api/room/characters";
   const [fundraisers, setFundraisers] = useState<Fundraiser[]>([]);
@@ -194,7 +202,14 @@ export function FundraisersFolder({ currentUserId, isAdminOrMod, roomSlug }: { c
         </div>
         <p className="fundraiser-payment-note">O registro de pagamento é manual; o app não processa nem confirma transferências Pix.</p>
       </div> : fundraisers.length === 0 ? <div className="mural-no-messages"><UsersRound size={22} /><strong>Ainda não há vaquinhas abertas</strong><span>Quando uma iniciativa for criada, ela aparecerá nesta pasta.</span>{isAdminOrMod && <button type="button" className="mural-primary-button" onClick={() => setFormCampaign(null)}>Criar vaquinha</button>}</div>
-      : <div className="fundraiser-list"><div className="fundraiser-list-heading"><div><strong>Contribuições mensais</strong><small>Valor individual e situação de pagamento.</small></div>{isAdminOrMod && <button type="button" onClick={() => setFormCampaign(null)}><Plus size={14} />Criar vaquinha</button>}</div>{fundraisers.map((campaign) => { const card = toFundraiserCardViewModel(campaign); return <button type="button" className="fundraiser-card" key={campaign.id} onClick={() => setSelectedId(campaign.id)}><span className="fundraiser-card-icon"><CreditCard size={18} /></span><span><strong>{card.title}</strong><small>{card.monthlyAmountLabel} por pessoa · {card.dueDayLabel}</small></span><span className="fundraiser-card-status">{campaign.isParticipant ? "Participante" : "Aberta"}</span></button>; })}</div>}
+      : <div className="fundraiser-list"><div className="fundraiser-list-heading"><div><strong>Contribuições mensais</strong><small>Valor individual e situação de pagamento.</small></div>{isAdminOrMod && <button type="button" onClick={() => setFormCampaign(null)}><Plus size={14} />Criar vaquinha</button>}</div>{fundraisers.map((campaign) => {
+        const card = toFundraiserCardViewModel(campaign);
+        const count = campaign.paid.length + campaign.pending.length;
+        return <article className="fundraiser-card-group" key={campaign.id}>
+          <button type="button" className="fundraiser-card" onClick={() => setSelectedId(campaign.id)}><span className="fundraiser-card-icon"><CreditCard size={18} /></span><span><strong>{card.title}</strong><small>{card.monthlyAmountLabel} por pessoa · {card.dueDayLabel}</small></span><span className="fundraiser-card-status">{campaign.isParticipant ? "Participante" : "Aberta"}</span></button>
+          {campaign.photos && count > 0 && <div className="fundraiser-photo-preview"><MuralPeopleStack title={campaign.title} count={count} photos={campaign.photos} onClick={() => setSelectedId(campaign.id)} /></div>}
+        </article>;
+      })}</div>}
     {error && fundraisers.length > 0 && <p className="mural-form-error" role="alert">{error}</p>}
   </section>;
 }

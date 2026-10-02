@@ -1,6 +1,6 @@
 # CuboChat — validação de isolamento por sala
 
-Data: 02/10/2026. Escopo ampliado estimado em 82%; não é percentual de testes.
+Data: 02/10/2026. Escopo ampliado estimado em 83%; não é percentual de testes.
 
 ## Destinos
 
@@ -97,6 +97,12 @@ Esses testes não executam GPU real nem demonstram duas contas Google independen
 Revisão independente deste diff não encontrou problemas críticos, importantes ou menores; não julgou limpeza global preexistente de recursos, GPU/GLTF reais ou backend de presença fora do incremento. Commit 0a1ad9b enviado somente à branch de testes; deployment Vercel AwANVRFkEv9T7DJR8GH6q6cgafKn, target preview, Ready, alias de staging confirmado via CLI. Inspeção no navegador recuperou a mesma sessão Gestor e o histórico; ampliar a câmera, abrir/fechar o quadro e digitar um rascunho manteve o enquadramento ampliado e o controle Reenquadrar. O recado/reação existentes carregaram. Rascunho limpo sem enviar, sem novos registros de chat ou perfil. Provas outputs/qa/preview-live-labels-board.png e preview-live-labels-scene.png; a primeira registra o carregamento inicial do quadro, que terminou na inspeção seguinte. Esse smoke de uma conta não valida propagação de renomeação entre dois usuários.
 
 Não liberar produção ou DNS apenas com testes locais. Confirmar preview apontando para staging, concluir testes reais acima e solicitar aprovação específica para migração/publicação em produção e domínio.
+
+## Incremento restrito: fotos nos cartões de vaquinhas
+
+Desenho antes da implementação: reutilizar a RPC e o componente de fotos Google existentes, exibindo até seis fotos sobrepostas e +N de participantes ativos (pagos e pendentes juntos) em cada cartão de vaquinha. Clique abre o detalhe existente, com cabeças PNG/nome e listas separadas. API já filtra campanhas pela sala; buscar fotos somente dos participantes do roster retornado, sem mudar participação, pagamento, ciclo mensal, Pix ou permissões. Foto ausente/falha usa placeholder sem bloquear os dados. Chave por sala/conta remove imediatamente fotos antigas. Sem total arrecadado, nova migração, concessão MOD, câmera ou produção. Explicação humana recebida nesta etapa é conferência de alinhamento, não aprovação de novas regras: manter rótulo Participar e Pix opcional atuais.
+
+Implementado em cartões de salas genéricas e no alias DTEC: roster deduplicado, até seis IDs/fotos por campanha, contagem derivada dos mesmos pagos/pendentes existentes, placeholder sem bloquear leitura. Clique nas fotos abre o detalhe sem write e sem botões aninhados. FundraisersFolder keyed por sala/conta descarta fotos e respostas antigas imediatamente. Cinco regressões RED, depois 24 testes direcionados GREEN; suite316 em68 arquivos maxWorkers=2, build/TypeScript, ESLint direcionado e diff check passaram. Primeiro build encontrou tipagem unknown nos novos testes; corrigida a declaração de resposta e novo build passou. Verificação inclui oito pessoas/seis fotos/+2, ativos apenas/sala correta, RPC falho/zero participantes, DTEC, troca de sala/conta/logout. Não houve migração, política, concessão de acesso, mudança financeira, OfficeScene, produção ou DNS. Publicação de teste e QA visual ainda pendentes; resumo no menu inicial do quadro continua pendente, esta etapa é nos cartões de cada campanha.
 
 ## Incremento restrito: fotos nos cartões de eventos
 

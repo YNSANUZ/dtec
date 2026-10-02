@@ -3,6 +3,7 @@ import { normalizeMuralMessageId } from "@/lib/mural-validation";
 import { normalizeFundraiser, normalizeFundraiserPatch } from "@/lib/fundraisers/validation";
 import { hasRoomRole, type MuralUser } from "@/lib/rooms/authorization";
 import { getRoomMuralContext } from "@/lib/rooms/mural-server";
+import { readGooglePhotos } from "@/lib/rooms/google-photos";
 const fields = "id, title, description, monthly_amount_cents, due_day, pix_key, payment_instructions, status, created_by, created_at, updated_at";
 const json = (body: unknown, status = 200) => NextResponse.json(body, { status, headers: { "Cache-Control": "private, no-store" } });
 
@@ -35,7 +36,7 @@ export async function listRoomFundraisers(slugInput: string) {
         .eq("cycle_due_date", cycleDueDate),
     ]);
     if (participantsError || paymentsError) return { error: "fundraiser_roster_read_failed" } as const;
-    const participantIds = (participants ?? []).map((participant) => participant.user_id);
+    const participantIds = [...new Set((participants ?? []).map((participant) => participant.user_id))];
     const { data: profiles, error: profilesError } = participantIds.length
       ? await user.supabase.from("profiles").select("user_id, display_name, avatar_id, title").in("user_id", participantIds)
       : { data: [], error: null };
@@ -59,6 +60,8 @@ export async function listRoomFundraisers(slugInput: string) {
     const toPublicPerson = ({ userId, name, avatar, title, markedAt }: typeof roster[number]) => ({
       userId, name, avatar, title, markedAt,
     });
+    const previewIds = [...roster].sort(sortByName).slice(0, 6).map((person) => person.userId);
+    const photoById = await readGooglePhotos(user.supabase, previewIds);
     return {
       id: campaign.id,
       title: campaign.title,
@@ -70,6 +73,7 @@ export async function listRoomFundraisers(slugInput: string) {
       status: campaign.status,
       currentCycleDueDate: cycleDueDate,
       isParticipant: participantIds.includes(user.userId),
+      photos: previewIds.map((userId) => ({ photoUrl: photoById.get(userId) ?? null })),
       paid: roster.filter((person) => person.status === "paid").sort(sortByName).map(toPublicPerson),
       pending: roster.filter((person) => person.status === "pending").sort(sortByName).map(toPublicPerson),
     };
