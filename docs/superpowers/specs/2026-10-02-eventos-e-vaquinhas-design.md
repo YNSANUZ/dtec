@@ -1,4 +1,4 @@
-# DTEC Virtual Office — Organização da equipe, pagamentos recorrentes e interação
+# DTEC Virtual Office — Organização, pagamentos e interação do escritório
 
 **Status:** proposta de implementação aguardando revisão do usuário  
 **Data:** 2026-10-02
@@ -19,6 +19,7 @@ Estender os murais do DTEC para organizar eventos e contribuições coletivas, m
 - Cada participante pode registrar que pagou a própria contribuição; ADM ou MOD pode registrar ou corrigir o estado de qualquer participante.
 - Listas de pagos e pendentes com avatar escolhido no perfil e nome completo; pendentes usam apresentação visual mais discreta.
 - Na interface, usar os termos ADM e MOD no lugar de dono e líder. Somente ADM designa ou remove qualquer pessoa da sala como MOD; MOD é indicado por estrela depois do nome.
+- No aniversário cadastrado de um membro, exibir para todos (inclusive visitantes sem login) um balão festivo temporário sobre o personagem; não disponibilizar a data completa aos visitantes.
 - Corrigir a instabilidade em que o personagem retorna à posição inicial ou teleporta, após reproduzir e localizar a causa.
 - Reduzir o compositor de mensagens e evitar que o teclado virtual faça o cenário inteiro subir ou desaparecer no celular.
 - Sem cobrança, processamento de Pix ou integração bancária nesta etapa.
@@ -44,6 +45,8 @@ Na lista da equipe e nas janelas de perfil, a nomenclatura visível é ADM/MOD. 
 Ao abrir/fechar o chat ou enviar mensagem, a cena e a posição atual do personagem não devem ser recriadas/reinicializadas. Como há relato de teleporte e retorno ao ponto inicial, a causa será diagnosticada em situações de mensagem aberta, persistência de presença, atualização de perfil e reconexão; a correção deve preservar a posição e a sincronização sem esconder o defeito com deslocamento visual artificial.
 
 O compositor de mensagem será uma caixa compacta e discreta, em vez de um painel branco grande. Em celulares, a área 3D permanece ancorada ao viewport e o compositor reposiciona-se acima do teclado virtual usando as dimensões visíveis do viewport; abrir o teclado não deve deslocar o cenário para fora da tela. A janela de conversa pode rolar internamente e respeita áreas seguras do dispositivo.
+
+No dia do aniversário (fuso `America/Sao_Paulo`), o personagem recebe um balão de fala circular branco, com chapéu de festa e confetes, que aparece com animação de “pop” por 5 segundos, some por 2 minutos e retorna enquanto continuar sendo o dia do aniversário. Se um usuário ou visitante entrar durante o aniversário, verá o primeiro balão imediatamente; essa aparição inicia a contagem de 2 minutos daquela sessão. No início de cada aparição, o personagem dança por um breve período e retorna à ação anterior; um comando manual novo do usuário tem prioridade e cancela a dança comemorativa. O sinal está disponível também para visitantes anônimos, mas não revela idade ou data. Como a aparição inicial é relativa ao instante de entrada, sessões iniciadas em momentos diferentes podem ter o ciclo visual em fases diferentes.
 
 No celular, as janelas usam largura disponível, rolagem interna e controles acionáveis por toque, sem exigir navegação para outra página.
 
@@ -80,6 +83,10 @@ No rodapé de cada aviso, dois controles mostram 👍 Curtir e 👎 Descurtir co
 
 O estado de reação é substituível e removível; a tabela mantém apenas o estado atual, não um histórico de cada toque. A exclusão do aviso remove suas reações em cascata.
 
+### Sinal efêmero de aniversário
+
+O endpoint público de personagens pode incluir apenas `birthdayToday: boolean`, calculado no servidor para o dia corrente em `America/Sao_Paulo`. Para calcular esse sinal, usar uma função SQL/RPC restrita que retorna somente os IDs de perfis celebrando hoje; não conceder ao papel `anon` acesso a `birth_day_month`, nem devolver mês/dia ou nome de coluna de aniversário no endpoint público. A listagem completa de aniversários continua exclusiva a sessões autenticadas.
+
 ### `fundraisers`
 
 - `id uuid primary key`
@@ -113,6 +120,7 @@ Uma tabela append-only `fundraiser_payment_audit` registra campanha, participant
 
 - Leitura de eventos, interesses, campanhas e participantes exige sessão Google válida e perfil DTEC completo.
 - Leitura de contagens e listas de reações exige sessão Google válida e perfil DTEC completo; visitantes anônimos não consultam nomes de quem reagiu.
+- O marcador transitório `birthdayToday` é uma divulgação pública intencional aprovada; nenhum campo com a data completa pode ser consultado anonimamente. Apenas a lista autenticada de aniversários contém dia/mês.
 - Membros podem criar/remover somente seu próprio interesse.
 - ADM/MOD pode criar, editar, fechar ou cancelar eventos e campanhas. ADM mantém o poder administrativo global e somente ADM designa/remove MOD; MOD pode ser revogado por ADM.
 - Um membro só pode marcar o próprio pagamento; ADM/MOD pode registrar ou corrigir o pagamento de qualquer participante. Nenhum membro comum pode alterar o estado de outra pessoa.
@@ -129,6 +137,7 @@ Rotas autenticadas agrupadas por recurso:
 - `/api/events`: listar e criar; `/api/events/[id]`: editar/fechar; `/api/events/[id]/interest`: incluir/remover interesse próprio.
 - `/api/fundraisers`: listar e criar; `/api/fundraisers/[id]`: editar/fechar e configurar vencimento/valor; `/api/fundraisers/[id]/participants`: incluir/remover participante; `/api/fundraisers/[id]/contributions/[userId]`: registrar estado pago/não pago do ciclo atual dentro das permissões.
 - `/api/mural/messages/[id]/reactions`: ler contagens/lista autenticada e registrar, trocar ou remover a reação própria. Respostas agrupam nomes e avatares por tipo e devolvem somente o grupo solicitado/selecionado para a janela.
+- `/api/room/characters`: incluir, para cada personagem, somente o booleano `birthdayToday`; o valor é calculado por função restrita no servidor/banco, sem expor a data original do perfil.
 
 As rotas reutilizam o cliente Supabase server-side e respostas sem cache privado. Operações privilegiadas passam pela verificação de identidade/role e RPC transacional. O ciclo atual é determinado pelo dia de vencimento e data local de São Paulo; consultas/alterações devem criar o estado pendente do novo ciclo atomicamente quando necessário, sem rotina que apague o histórico. A interface pode ser organizada em componentes `EventsFolder`, `EventDetail`, `FundraisersFolder`, `FundraiserDetail`, `ContributionRoster` e `NoticeReactions`, integrados ao `MuralWindow` existente; cartões, reações e listas devem permanecer simples, sem canvas/Three.js.
 
@@ -147,14 +156,16 @@ Adicionar migração Supabase versionada e idempotente para tabelas, índices, R
 7. Ao entrar em novo ciclo mensal, todos os participantes começam como pendentes; os ciclos e auditorias antigos continuam consultáveis.
 8. Estados pendentes são apresentados de forma discreta; identidade exibida usa avatar e nome completo DTEC.
 9. Rótulos visíveis são ADM/MOD; apenas ADM pode designar qualquer perfil ativo como MOD e a estrela aparece depois do nome.
-10. A posição do personagem não reseta nem teleporta ao abrir/fechar/enviar chat, após perfil editar, ou ao reconectar.
-11. Composer de chat é compacto; em celular teclado abre sem deslocar cenário, com composer visível acima dele e rolagem interna.
-12. Funcionalidade continua utilizável em desktop e celular com rolagem interna das janelas; demais murais continuam funcionando.
-13. Pessoa autenticada pode curtir ou descurtir cada aviso; uma reação substitui a outra, e repetir a mesma reação a remove.
-14. Contadores correspondem às reações únicas; tocar em cada contador mostra avatar/nome completos exclusivamente da categoria correspondente, e é possível alternar a lista no mesmo diálogo sem exibir ambas simultaneamente.
-15. Visitante anônimo não pode reagir nem acessar contadores detalhados/listas de nomes; tentativa à API retorna `401`.
-16. Reações são apagadas quando um aviso é apagado; desktop e celular mantêm controles acessíveis, contadores legíveis e rolagem própria na lista.
-17. Lint, TypeScript, testes unitários e build passam; implantação de migração e aplicação é verificada em staging antes de produção.
+10. No dia local do aniversário, o booleano público é verdadeiro e contém apenas o ID necessário para renderizar personagem; fora do dia é falso e não existe leitura anônima da data completa.
+11. Ao entrar durante o aniversário, cada sessão vê o balão imediatamente; ele mostra chapéu/confetes por 5 segundos, some por 2 minutos e retorna, relativo à entrada da sessão. A dança breve volta à ação anterior e comando manual a interrompe.
+12. A posição do personagem não reseta nem teleporta ao abrir/fechar/enviar chat, após perfil editar, ou ao reconectar.
+13. Composer de chat é compacto; em celular teclado abre sem deslocar cenário, com composer visível acima dele e rolagem interna.
+14. Funcionalidade continua utilizável em desktop e celular com rolagem interna das janelas; demais murais continuam funcionando.
+15. Pessoa autenticada pode curtir ou descurtir cada aviso; uma reação substitui a outra, e repetir a mesma reação a remove.
+16. Contadores correspondem às reações únicas; tocar em cada contador mostra avatar/nome completos exclusivamente da categoria correspondente, e é possível alternar a lista no mesmo diálogo sem exibir ambas simultaneamente.
+17. Visitante anônimo não pode reagir nem acessar contadores detalhados/listas de nomes; tentativa à API retorna `401`.
+18. Reações são apagadas quando um aviso é apagado; desktop e celular mantêm controles acessíveis, contadores legíveis e rolagem própria na lista.
+19. Lint, TypeScript, testes unitários e build passam; implantação de migração e aplicação é verificada em staging antes de produção.
 
 ## Decisões abertas antes da implementação
 
@@ -173,3 +184,4 @@ Adicionar migração Supabase versionada e idempotente para tabelas, índices, R
 - O início de novo ciclo cria novos estados pendentes e não altera registros de ciclos passados.
 - Os rótulos ADM/MOD são de apresentação; a autorização continua determinada no servidor e não pelo texto/ícone.
 - O ajuste de chat/mobile não re-monta nem redimensiona indevidamente a cena 3D.
+- Visitantes anônimos recebem somente um sinal de que hoje é aniversário, não a data completa; cada sessão vê a primeira aparição imediatamente e então mantém seu próprio intervalo de 2 minutos.
