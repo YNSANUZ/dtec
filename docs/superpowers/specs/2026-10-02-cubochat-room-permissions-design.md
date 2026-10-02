@@ -1,6 +1,6 @@
 # CuboChat — permissões e isolamento de mural e vaquinhas por sala
 
-**Status:** desenho aprovado em conversa; especificação aguardando revisão de Ynsan
+**Status:** aprovado por Ynsan em conversa; implementação local e validação de staging em andamento
 **Data:** 2026-10-02
 
 ## Objetivo e limites

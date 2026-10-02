@@ -2,21 +2,21 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "Política de Privacidade | DTEC Virtual Office",
-  description: "Como o DTEC Virtual Office trata os dados de quem utiliza o escritório virtual.",
+  title: "Política de Privacidade | CuboChat",
+  description: "Como o CuboChat trata os dados de quem utiliza seus ambientes virtuais.",
 };
 
 export default function PrivacyPolicyPage() {
   return (
     <main className="legal-page">
       <article className="legal-document">
-        <Link className="legal-back" href="/">← Voltar ao escritório</Link>
-        <p className="legal-eyebrow">DTEC VIRTUAL OFFICE</p>
+        <Link className="legal-back" href="/">← Voltar ao CuboChat</Link>
+        <p className="legal-eyebrow">CUBOCHAT</p>
         <h1>Política de Privacidade</h1>
         <p className="legal-updated">Última atualização: 2 de outubro de 2026</p>
 
         <p>
-          Esta página explica quais dados são tratados quando você acessa o DTEC Virtual Office,
+          Esta página explica quais dados são tratados quando você acessa o CuboChat,
           para que são usados e como falar com a equipe responsável pelo aplicativo.
         </p>
 
@@ -29,11 +29,12 @@ export default function PrivacyPolicyPage() {
             fornecidos, nome e imagem de perfil.
           </li>
           <li>
-            <strong>Perfil do escritório:</strong> nome e avatar são necessários para participar.
-            Cargo/descrição, biografia, aniversário (somente dia e mês) e WhatsApp são opcionais.
+            <strong>Perfil global:</strong> nome e avatar são necessários para participar.
+            Cargo/descrição, biografia, aniversário (somente dia e mês), WhatsApp e Instagram são opcionais.
             Nome e avatar aparecem na sala para qualquer pessoa que tenha o link, inclusive visitantes
             sem login. O aniversário aparece no mural e os demais dados opcionais aparecem no perfil
             somente para participantes autenticados. O WhatsApp abre um link wa.me fora do app.
+            O identificador do Instagram, se fornecido, fica associado ao perfil para futuros recursos de contato.
           </li>
           <li>
             <strong>Presença:</strong> o app guarda a posição aproximada mais recente do personagem
@@ -52,9 +53,9 @@ export default function PrivacyPolicyPage() {
             autenticação e diagnosticar falhas, conforme as políticas desses serviços.
           </li>
           <li>
-            <strong>Conversas nesta versão:</strong> as cinco mensagens recentes são mantidas no
-            armazenamento local do navegador usado por você. Nesta versão, elas não são enviadas
-            ao servidor nem sincronizadas com os navegadores dos colegas.
+            <strong>Conversas:</strong> as cinco mensagens mais recentes são guardadas no servidor
+            e aparecem para todos que acessam a sala, inclusive visitantes sem login. Apenas
+            participantes autenticados podem enviar mensagens. Não compartilhe dados sensíveis no chat.
           </li>
         </ul>
 
@@ -67,7 +68,7 @@ export default function PrivacyPolicyPage() {
           decidiu compartilhar. Não inclua conteúdo sensível na biografia.
         </p>
         <p>
-          O login Google não dá ao DTEC acesso à sua senha Google. O aplicativo solicita apenas
+          O login Google não dá ao CuboChat acesso à sua senha Google. O aplicativo solicita apenas
           as informações básicas necessárias à autenticação; não usa sua conta para acessar Gmail,
           Drive ou outros serviços Google.
         </p>
@@ -84,8 +85,8 @@ export default function PrivacyPolicyPage() {
         <p>
           Os dados do perfil e a última posição do personagem permanecem armazenados enquanto a
           conta e o perfil forem mantidos no aplicativo. A indicação de online deixa de aparecer
-          após 45 segundos sem atualização. O histórico de conversas local permanece no navegador até ser removido pelo
-          usuário ou pelo próprio navegador. Aplicamos controles técnicos de autenticação e acesso,
+          após 45 segundos sem atualização. O histórico do chat mantém somente as cinco mensagens
+          mais recentes; cada nova mensagem remove a mais antiga. Aplicamos controles técnicos de autenticação e acesso,
           mas nenhum serviço conectado à internet pode garantir segurança absoluta.
         </p>
         <p>
@@ -102,10 +103,10 @@ export default function PrivacyPolicyPage() {
         </p>
 
         <p className="legal-note">
-          Dia e mês de aniversário, WhatsApp, cargo e biografia são opcionais. Você pode corrigir ou
+          Dia e mês de aniversário, WhatsApp, Instagram, cargo e biografia são opcionais. Você pode corrigir ou
           remover esses dados na edição do perfil. A liderança da sala é designada pelo dono.
         </p>
-        <Link className="legal-back legal-bottom-link" href="/">Voltar ao escritório</Link>
+        <Link className="legal-back legal-bottom-link" href="/">Voltar ao CuboChat</Link>
       </article>
     </main>
   );

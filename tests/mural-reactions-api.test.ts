@@ -4,7 +4,7 @@ const state = vi.hoisted(() => ({
   userId: "11111111-1111-4111-8111-111111111111",
   authenticated: true,
   reaction: null as string | null,
-  messages: [{ id: "33333333-3333-4333-8333-333333333333", author_id: "11111111-1111-4111-8111-111111111111", content: "Aviso", is_pinned: false, created_at: "2026-10-01T12:00:00Z", updated_at: "2026-10-01T12:00:00Z" }],
+  messages: [{ id: "33333333-3333-4333-8333-333333333333", room_slug: "dtec", author_id: "11111111-1111-4111-8111-111111111111", content: "Aviso", is_pinned: false, created_at: "2026-10-01T12:00:00Z", updated_at: "2026-10-01T12:00:00Z" }],
   profiles: [
     { user_id: "11111111-1111-4111-8111-111111111111", display_name: "Ana Silva", avatar_id: "a" },
     { user_id: "22222222-2222-4222-8222-222222222222", display_name: "Beto Lima", avatar_id: "c" },

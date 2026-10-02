@@ -11,7 +11,7 @@ const json = (body: unknown, status = 200) => NextResponse.json(body, {
 });
 
 async function getEventState(supabase: NonNullable<Awaited<ReturnType<typeof getMuralUserContext>>>["supabase"], eventId: string) {
-  const { data, error } = await supabase.from("room_events").select("id, status").eq("id", eventId).maybeSingle();
+  const { data, error } = await supabase.from("room_events").select("id, status").eq("id", eventId).eq("room_slug", "dtec").maybeSingle();
   if (error) return { event: null, failed: true };
   return { event: data, failed: false };
 }

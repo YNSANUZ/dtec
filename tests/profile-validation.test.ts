@@ -4,7 +4,7 @@ import { normalizeProfile } from "@/lib/profile/validation";
 describe("normalizeProfile", () => {
   it("normalizes first and last names, optional details, and Brazilian WhatsApp", () => {
     expect(normalizeProfile({ displayName: "  Bruno   Leão  ", avatarId: "a", title: "  Infraestrutura ", whatsapp: "(61) 99999-0000" }))
-      .toEqual({ displayName: "Bruno Leão", avatarId: "a", title: "Infraestrutura", bio: "", birthDayMonth: null, whatsapp: "5561999990000" });
+      .toEqual({ displayName: "Bruno Leão", avatarId: "a", title: "Infraestrutura", bio: "", birthDayMonth: null, whatsapp: "5561999990000", instagram: "" });
   });
 
   it("requires exactly two names", () => {
@@ -32,8 +32,13 @@ describe("normalizeProfile", () => {
     expect(() => normalizeProfile({ displayName: "Bruno Leão", avatarId: "a", whatsapp: "123" })).toThrow("WhatsApp");
   });
 
+  it("normalizes optional Instagram handles without storing a full URL", () => {
+    expect(normalizeProfile({ displayName: "Bruno Leão", avatarId: "a", instagram: "https://www.instagram.com/bruno.leao/" }).instagram).toBe("bruno.leao");
+    expect(() => normalizeProfile({ displayName: "Bruno Leão", avatarId: "a", instagram: "um nome" })).toThrow("Instagram");
+  });
+
   it("drops privileged fields sent by a client", () => {
     expect(normalizeProfile({ displayName: "Bruno Leão", avatarId: "r", user_id: "another-user", role: "owner", isLeader: true }))
-      .toEqual({ displayName: "Bruno Leão", avatarId: "r", title: "", bio: "", birthDayMonth: null, whatsapp: "" });
+      .toEqual({ displayName: "Bruno Leão", avatarId: "r", title: "", bio: "", birthDayMonth: null, whatsapp: "", instagram: "" });
   });
 });

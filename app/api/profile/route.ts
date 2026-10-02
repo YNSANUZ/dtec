@@ -17,7 +17,7 @@ export async function GET() {
 
   const { data, error } = await context.supabase
     .from("profiles")
-    .select("display_name, avatar_id, title, bio, birth_day_month, whatsapp")
+    .select("display_name, avatar_id, title, bio, birth_day_month, whatsapp, instagram")
     .eq("user_id", context.userId)
     .maybeSingle();
 
@@ -32,6 +32,7 @@ export async function GET() {
       bio: data.bio ?? "",
       birthDayMonth: data.birth_day_month ? `${data.birth_day_month.slice(3, 5)}/${data.birth_day_month.slice(0, 2)}` : "",
       whatsapp: data.whatsapp ?? "",
+      instagram: data.instagram ?? "",
     });
   } catch {
     // Existing profiles that do not yet match the two-name format complete onboarding again.
@@ -66,6 +67,7 @@ export async function PUT(request: Request) {
     bio: profile.bio,
     birth_day_month: profile.birthDayMonth,
     whatsapp: profile.whatsapp,
+    instagram: profile.instagram,
     updated_at: new Date().toISOString(),
   };
 
@@ -87,7 +89,7 @@ export async function PUT(request: Request) {
     : context.supabase.from("profiles").insert({ user_id: context.userId, ...profileFields });
 
   const { data, error } = await saveQuery
-    .select("display_name, avatar_id, title, bio, birth_day_month, whatsapp")
+    .select("display_name, avatar_id, title, bio, birth_day_month, whatsapp, instagram")
     .single();
 
   if (error) {
@@ -95,6 +97,6 @@ export async function PUT(request: Request) {
     return NextResponse.json({ error: "profile_save_failed" }, { status: 500 });
   }
   return NextResponse.json({
-    profile: { displayName: data.display_name, avatarId: data.avatar_id, title: data.title ?? "", bio: data.bio ?? "", birthDayMonth: data.birth_day_month ? `${data.birth_day_month.slice(3, 5)}/${data.birth_day_month.slice(0, 2)}` : null, whatsapp: data.whatsapp ?? "" },
+    profile: { displayName: data.display_name, avatarId: data.avatar_id, title: data.title ?? "", bio: data.bio ?? "", birthDayMonth: data.birth_day_month ? `${data.birth_day_month.slice(3, 5)}/${data.birth_day_month.slice(0, 2)}` : null, whatsapp: data.whatsapp ?? "", instagram: data.instagram ?? "" },
   });
 }

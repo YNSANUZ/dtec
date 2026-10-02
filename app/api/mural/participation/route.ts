@@ -47,14 +47,16 @@ async function collectPeople(supabase: Supabase, mural: Mural): Promise<FolderId
   if (mural === "demands") return folders;
 
   if (mural === "information") {
-    const [messages, reactions, fundraisers] = await Promise.all([
-      readAll((from, to) => supabase.from("mural_messages").select("author_id").order("id").range(from, to)),
-      readAll((from, to) => supabase.from("mural_message_reactions").select("user_id").order("message_id").order("user_id").range(from, to)),
-      readAll((from, to) => supabase.from("fundraisers").select("id").eq("status", "open").order("id").range(from, to)),
+    const [messages, fundraisers] = await Promise.all([
+      readAll((from, to) => supabase.from("mural_messages").select("id, author_id").eq("room_slug", "dtec").order("id").range(from, to)),
+      readAll((from, to) => supabase.from("fundraisers").select("id").eq("room_slug", "dtec").eq("status", "open").order("id").range(from, to)),
     ]);
-    if (!messages || !reactions || !fundraisers) return null;
+    if (!messages || !fundraisers) return null;
     for (const row of messages) folders.recados.add(row.author_id);
-    for (const row of reactions) folders.recados.add(row.user_id);
+    const reactionGroups = await Promise.all(chunks(messages.map((row) => row.id), PAGE_SIZE).map((group) => readAll((from, to) => supabase.from("mural_message_reactions")
+      .select("user_id").in("message_id", group).order("message_id").order("user_id").range(from, to))));
+    if (reactionGroups.some((group) => group === null)) return null;
+    for (const group of reactionGroups) for (const row of group ?? []) folders.recados.add(row.user_id);
     const ids = fundraisers.map((row) => row.id);
     if (ids.length) {
       const participantGroups = await Promise.all(chunks(ids, PAGE_SIZE).map((group) => readAll((from, to) => supabase.from("fundraiser_participants")
@@ -67,7 +69,7 @@ async function collectPeople(supabase: Supabase, mural: Mural): Promise<FolderId
   }
 
   const events = await readAll((from, to) => supabase.from("room_events")
-    .select("id, category").eq("status", "open").order("id").range(from, to));
+    .select("id, category").eq("room_slug", "dtec").eq("status", "open").order("id").range(from, to));
   if (!events) return null;
   const categoryById = new Map(events.map((row) => [row.id, row.category]));
   if (!categoryById.size) return folders;

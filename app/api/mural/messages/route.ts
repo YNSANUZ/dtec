@@ -9,6 +9,7 @@ export async function GET() {
   const { data: rows, error } = await context.supabase
     .from("mural_messages")
     .select("id, author_id, content, is_pinned, created_at, updated_at")
+    .eq("room_slug", "dtec")
     .order("is_pinned", { ascending: false })
     .order("created_at", { ascending: false })
     .limit(100);
@@ -61,7 +62,7 @@ export async function POST(request: Request) {
 
   const { data, error } = await context.supabase
     .from("mural_messages")
-    .insert({ author_id: context.userId, content: message.content })
+    .insert({ room_slug: "dtec", author_id: context.userId, content: message.content })
     .select("id, author_id, content, is_pinned, created_at, updated_at")
     .single();
 

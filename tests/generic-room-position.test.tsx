@@ -1,0 +1,32 @@
+// @vitest-environment happy-dom
+import React from "react";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { cleanup, render, waitFor } from "@testing-library/react";
+import GenericRoom from "@/components/generic-room";
+vi.mock("next/dynamic", () => ({ default: () => () => <div aria-label="Cenário" /> }));
+vi.mock("@/hooks/use-dtec-auth", () => {
+  const auth = { state: "ready", user: { id: "member" }, profile: { displayName: "Ana Silva", avatarId: "a" } };
+  return { useDtecAuth: () => auth };
+});
+const transport = vi.fn();
+const response = (body: unknown) => new Response(JSON.stringify(body));
+beforeEach(() => { transport.mockReset(); vi.stubGlobal("fetch", transport); });
+afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
+it("restores persisted position before sending the first presence update", async () => {
+  let finishPresence!: (response: Response) => void;
+  transport.mockImplementation((url: string, options?: RequestInit) => url.endsWith("/presence") && options?.method !== "POST"
+    ? new Promise((resolve) => { finishPresence = resolve; })
+    : Promise.resolve(response({ messages: [] })));
+  render(<GenericRoom room={{ slug: "amigos", title: "Amigos", description: "" }} />);
+  expect(transport.mock.calls.filter(([, options]) => options?.method === "POST")).toHaveLength(0);
+  finishPresence(response({ users: [{ userId: "member", x: 7, z: 2, name: "Ana Silva", avatar: "a", online: true }] }));
+  await waitFor(() => expect(transport).toHaveBeenCalledWith("/api/rooms/amigos/presence", expect.objectContaining({ method: "POST", body: JSON.stringify({ x: 7, z: 2, action: "idle" }) })));
+});
+it("restores the same user's position separately after switching rooms", async () => {
+  transport.mockImplementation((url: string) => Promise.resolve(response(url.endsWith("/presence") ? { users: [{ userId: "member", x: url.includes("/amigos/") ? 7 : -3, z: 2, name: "Ana Silva", avatar: "a", online: true }] } : { messages: [] })));
+  const view = render(<GenericRoom room={{ slug: "amigos", title: "Amigos", description: "" }} />);
+  await waitFor(() => expect(transport).toHaveBeenCalledWith("/api/rooms/amigos/presence", expect.objectContaining({ method: "POST", body: JSON.stringify({ x: 7, z: 2, action: "idle" }) })));
+  view.rerender(<GenericRoom room={{ slug: "outra", title: "Outra", description: "" }} />);
+  await waitFor(() => expect(transport).toHaveBeenCalledWith("/api/rooms/outra/presence", expect.objectContaining({ method: "POST", body: JSON.stringify({ x: -3, z: 2, action: "idle" }) })));
+  expect(transport.mock.calls.some(([url, options]) => url === "/api/rooms/outra/presence" && options?.method === "POST" && JSON.parse(options.body).x === 7)).toBe(false);
+});

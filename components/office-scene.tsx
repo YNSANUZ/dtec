@@ -8,6 +8,7 @@ import { getCelebrationState } from "@/lib/birthdays/celebration";
 import { resolveRoomPositionState, type RoomPositionState } from "@/lib/room/position-state";
 import { resolveRoomCameraState, type RoomCameraState } from "@/lib/room/camera-state";
 type Props = {
+  environment?: "dtec" | "lobby";
   name: string;
   avatar: string;
   action: "idle" | "dance" | "wave";
@@ -114,6 +115,7 @@ function canvasPlane(
   );
 }
 export default function OfficeScene({
+  environment = "dtec",
   name,
   avatar,
   action,
@@ -270,7 +272,7 @@ export default function OfficeScene({
       scene.add(g);
     }
     const muralBoards: THREE.Object3D[] = [];
-    const muralSpecs: Array<{id:MuralId;title:string;rows:string[];color:number}> = [
+    const muralSpecs: Array<{id:MuralId;title:string;rows:string[];color:number}> = environment === "lobby" ? [] : [
       {id:"information",title:"INFORMAÇÕES",rows:["Comunicados","Recados","Lembretes","Vaquinhas"],color:0x48a07b},
       {id:"demands",title:"LEMBRETES",rows:["Equipamentos","Solicitações","Atividades","Acompanhamento"],color:0x3c73bd},
       {id:"leisure",title:"LAZER",rows:["Futebol","Paintball","Kart","Confraternizações"],color:0x4b9b72},
@@ -321,11 +323,16 @@ export default function OfficeScene({
         ctx.textAlign = "left";
         ctx.fillStyle = "#0b4b83";
         ctx.font = "900 220px Arial";
-        ctx.fillText("DTEC", 52, 270);
+        ctx.fillText(environment === "lobby" ? "CUBOCHAT" : "DTEC", 52, 270, 920);
         ctx.fillStyle = "#1d2e48";
         ctx.font = "700 52px Arial";
-        ctx.fillText("Diretoria de Tecnologia", 58, 380);
-        ctx.fillText("da Informação", 58, 448);
+        if (environment === "lobby") {
+          ctx.fillText("Encontre sua sala", 58, 380);
+          ctx.fillText("e seus amigos", 58, 448);
+        } else {
+          ctx.fillText("Diretoria de Tecnologia", 58, 380);
+          ctx.fillText("da Informação", 58, 448);
+        }
         ctx.fillStyle = "#20a685";
         ctx.fillRect(58, 490, 360, 16);
       },
@@ -644,6 +651,6 @@ export default function OfficeScene({
       renderer.dispose();
       el.replaceChildren();
     };
-  }, [assetBase, avatar, created, initialPosition, name, positionOwnerId]);
+  }, [assetBase, avatar, created, environment, initialPosition, name, positionOwnerId]);
   return <><div ref={host} className="office-canvas"/><nav className="camera-controls" aria-label="Controles da câmera"><button type="button" aria-label="Aumentar zoom" onClick={()=>cameraControlsRef.current.zoom(1)}>+</button><button type="button" aria-label="Diminuir zoom" onClick={()=>cameraControlsRef.current.zoom(-1)}>−</button>{cameraAdjusted&&<button className="camera-reframe" type="button" aria-label="Reenquadrar cenário" onClick={()=>cameraControlsRef.current.reframe()}>Reenquadrar</button>}</nav></>;
 }

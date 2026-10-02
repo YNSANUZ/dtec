@@ -7,7 +7,7 @@ import { resolveAuthViewState } from "@/lib/auth/view-state";
 import type { AvatarId } from "@/lib/profile/validation";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 
-export type DtecProfile = { displayName: string; avatarId: AvatarId; title: string; bio: string; birthDayMonth: string | null; whatsapp: string };
+export type DtecProfile = { displayName: string; avatarId: AvatarId; title: string; bio: string; birthDayMonth: string | null; whatsapp: string; instagram: string };
 
 const authMessages: Record<string, string> = {
   cancelled: "A entrada com Google foi cancelada.",

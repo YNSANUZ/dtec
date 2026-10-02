@@ -80,20 +80,20 @@ describe("mural participation overview and details", () => {
   beforeEach(() => {
     state.authenticated = true;
     state.events = [
-      { id: eventId, category: "kart", status: "open" },
-      { id: closedEventId, category: "kart", status: "closed" },
+      { id: eventId, room_slug: "dtec", category: "kart", status: "open" },
+      { id: closedEventId, room_slug: "dtec", category: "kart", status: "closed" },
     ];
     state.interests = [
       { event_id: eventId, user_id: ana },
       { event_id: eventId, user_id: beto },
       { event_id: closedEventId, user_id: beto },
     ];
-    state.fundraisers = [{ id: fundraiserId, status: "open" }];
+    state.fundraisers = [{ id: fundraiserId, room_slug: "dtec", status: "open" }];
     state.participants = [
       { fundraiser_id: fundraiserId, user_id: ana, active: true },
       { fundraiser_id: fundraiserId, user_id: beto, active: false },
     ];
-    state.messages = [{ id: "66666666-6666-4666-8666-666666666666", author_id: ana }];
+    state.messages = [{ id: "66666666-6666-4666-8666-666666666666", room_slug: "dtec", author_id: ana }];
     state.reactions = [{ message_id: "66666666-6666-4666-8666-666666666666", user_id: beto, reaction: "like" }];
     state.profiles = [
       { user_id: ana, display_name: "Ana Silva", title: "Gestora", avatar_id: "a" },
@@ -117,6 +117,22 @@ describe("mural participation overview and details", () => {
     expect(body.folders.comunicados).toEqual({ count: 0, photos: [] });
     expect(JSON.stringify(body)).not.toContain("Ana Silva");
     expect(JSON.stringify(body)).not.toContain("Beto Lima");
+  });
+
+  it("does not count recados or activities belonging to another room", async () => {
+    const otherMessage = "77777777-7777-4777-8777-777777777777";
+    state.messages.push({ id: otherMessage, room_slug: "amigos", author_id: beto });
+    state.reactions = [{ message_id: otherMessage, user_id: ana, reaction: "like" }];
+    state.events.push({ id: "88888888-8888-4888-8888-888888888888", room_slug: "amigos", category: "futebol", status: "open" });
+    state.fundraisers.push({ id: "foreign-campaign", room_slug: "amigos", status: "open" });
+    state.participants.push({ fundraiser_id: "foreign-campaign", user_id: beto, active: true });
+    const information = await GET(request("information"));
+    const info = await information.json() as { folders: Record<string, { count: number }> };
+    expect(info.folders.recados.count).toBe(1);
+    expect(info.folders.vaquinhas.count).toBe(1);
+    const leisure = await GET(request("leisure"));
+    const activities = await leisure.json() as { folders: Record<string, { count: number }> };
+    expect(activities.folders.futebol.count).toBe(0);
   });
 
   it("shows names only after requesting one folder and excludes closed events", async () => {
@@ -153,7 +169,7 @@ describe("mural participation overview and details", () => {
 
   it("includes people beyond the database page limit and batches photo lookups", async () => {
     const ids = Array.from({ length: 501 }, (_, index) => `00000000-0000-4000-8000-${(index + 1).toString().padStart(12, "0")}`);
-    state.messages = ids.map((id, index) => ({ id: `aaaaaaaa-aaaa-4aaa-8aaa-${(index + 1).toString().padStart(12, "0")}`, author_id: id }));
+    state.messages = ids.map((id, index) => ({ id: `aaaaaaaa-aaaa-4aaa-8aaa-${(index + 1).toString().padStart(12, "0")}`, room_slug: "dtec", author_id: id }));
     state.reactions = [];
     state.profiles = ids.map((id, index) => ({ user_id: id, display_name: `Pessoa ${String(index + 1).padStart(3, "0")}`, title: "" }));
     state.photos = ids.map((id, index) => ({ user_id: id, photo_url: `https://lh3.googleusercontent.com/${index + 1}` }));

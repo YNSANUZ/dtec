@@ -25,6 +25,12 @@ async function getSummary(supabase: NonNullable<Awaited<ReturnType<typeof getMur
   };
 }
 
+async function inDtecRoom(supabase: NonNullable<Awaited<ReturnType<typeof getMuralUserContext>>>["supabase"], messageId: string) {
+  const { data, error } = await supabase.from("mural_messages")
+    .select("id").eq("id", messageId).eq("room_slug", "dtec").maybeSingle();
+  return { exists: Boolean(data), failed: Boolean(error) };
+}
+
 export async function GET(request: Request, context: RouteContext) {
   const user = await getMuralUserContext();
   if (!user) return json({ error: "unauthorized" }, 401);
@@ -34,10 +40,9 @@ export async function GET(request: Request, context: RouteContext) {
   const type = new URL(request.url).searchParams.get("type");
   if (type !== "like" && type !== "dislike") return json({ error: "invalid_reaction_type" }, 400);
 
-  const { data: message, error: messageError } = await user.supabase.from("mural_messages")
-    .select("id").eq("id", messageId).maybeSingle();
-  if (messageError) return json({ error: "mural_reaction_read_failed" }, 500);
-  if (!message) return json({ error: "message_not_found" }, 404);
+  const message = await inDtecRoom(user.supabase, messageId);
+  if (message.failed) return json({ error: "mural_reaction_read_failed" }, 500);
+  if (!message.exists) return json({ error: "message_not_found" }, 404);
 
   const { data: reactions, error } = await user.supabase.from("mural_message_reactions")
     .select("user_id, created_at").eq("message_id", messageId).eq("reaction", type);
@@ -66,6 +71,9 @@ export async function PUT(request: Request, context: RouteContext) {
   } catch (error) {
     return json({ error: error instanceof Error ? error.message : "invalid_reaction" }, 400);
   }
+  const message = await inDtecRoom(user.supabase, messageId);
+  if (message.failed) return json({ error: "mural_reaction_read_failed" }, 500);
+  if (!message.exists) return json({ error: "message_not_found" }, 404);
   const { data: myReaction, error } = await user.supabase.rpc("toggle_mural_reaction", {
     p_message_id: messageId,
     p_reaction: reaction,
@@ -82,6 +90,9 @@ export async function DELETE(_request: Request, context: RouteContext) {
   let messageId: string;
   try { messageId = await getMessageId(context); }
   catch { return json({ error: "message_not_found" }, 400); }
+  const message = await inDtecRoom(user.supabase, messageId);
+  if (message.failed) return json({ error: "mural_reaction_read_failed" }, 500);
+  if (!message.exists) return json({ error: "message_not_found" }, 404);
   const { error } = await user.supabase.rpc("clear_mural_reaction", { p_message_id: messageId });
   if (error) return json({ error: error.code === "P0002" ? "message_not_found" : "mural_reaction_save_failed" }, error.code === "P0002" ? 404 : 500);
   const summary = await getSummary(user.supabase, messageId);
