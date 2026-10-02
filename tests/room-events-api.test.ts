@@ -21,6 +21,15 @@ const ctx=(slug="amigos",id=eventA)=>({params:Promise.resolve({slug,id})});
 const req=(method="GET",body?:unknown)=>new Request("https://cubo.test/api/rooms/amigos/events",{method,...(body===undefined?{}:{headers:{"content-type":"application/json"},body:JSON.stringify(body)})});
 describe("room events API",()=>{
   beforeEach(()=>{state.loggedIn=true;state.staff=[{room_slug:"amigos",user_id:actor,role:"leader"}];state.events=[{id:eventA,room_slug:"amigos",title:"Evento A",description:"",category:"kart",location:"",starts_at:null,status:"open"},{id:eventB,room_slug:"outra",title:"Evento B",status:"open"}];state.interests=[{event_id:eventB,user_id:other}];});
+  it("includes archived events only on explicit request, keeping room scope, counts and authentication",async()=>{
+    const {GET}=await import("@/app/api/rooms/[slug]/events/route");
+    state.events[0].status="closed"; state.events[1].status="closed";
+    state.interests.push({event_id:eventA,user_id:actor});
+    expect(await (await GET(req(),ctx())).json()).toEqual({events:[]});
+    const archive=new Request("https://cubo.test/api/rooms/amigos/events?includeArchived=1");
+    expect(await (await GET(archive,ctx())).json()).toMatchObject({events:[{id:eventA,status:"closed",interestCount:1}]});
+    state.loggedIn=false;expect((await GET(archive,ctx())).status).toBe(401);
+  });
   it("lists only the opened room and ignores room/creator spoofing on creation",async()=>{
     const {GET,POST}=await import("@/app/api/rooms/[slug]/events/route");
     expect(await (await GET(req(),ctx())).json()).toMatchObject({events:[{id:eventA,interestCount:0}]});

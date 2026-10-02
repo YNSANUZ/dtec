@@ -7,13 +7,13 @@ import { getRoomMuralContext } from "@/lib/rooms/mural-server";
 const fields = "id, title, description, category, starts_at, location, status, created_by, created_at, updated_at";
 const json = (body: unknown, status = 200) => NextResponse.json(body, { status, headers: { "Cache-Control": "private, no-store" } });
 
-export async function listRoomEvents(slugInput: string) {
+export async function listRoomEvents(slugInput: string, includeArchived = false) {
   const access = await getRoomMuralContext(slugInput);
   if (!access.ok) return access.response;
   const { context, slug } = access;
-  const { data: rows, error } = await context.supabase.from("room_events").select(fields)
-    .eq("room_slug", slug).eq("status", "open")
-    .order("starts_at", { ascending: true, nullsFirst: false }).order("created_at", { ascending: false });
+  let query = context.supabase.from("room_events").select(fields).eq("room_slug", slug);
+  if (!includeArchived) query = query.eq("status", "open");
+  const { data: rows, error } = await query.order("starts_at", { ascending: true, nullsFirst: false }).order("created_at", { ascending: false });
   if (error) return json({ error: "events_read_failed" }, 500);
   const ids = (rows ?? []).map((r) => r.id);
   const { data: interests, error: interestError } = ids.length

@@ -8,17 +8,16 @@ const json = (body: unknown, status = 200) => NextResponse.json(body, {
   headers: { "Cache-Control": "private, no-store" },
 });
 
-export async function GET() {
+export async function GET(request?: Request) {
   const context = await getMuralUserContext();
   if (!context) return json({ error: "unauthorized" }, 401);
 
-  const { data: rows, error } = await context.supabase
+  let query = context.supabase
     .from("room_events")
     .select("id, title, description, category, starts_at, location, status, created_by, created_at, updated_at")
-    .eq("room_slug", "dtec")
-    .eq("status", "open")
-    .order("starts_at", { ascending: true, nullsFirst: false })
-    .order("created_at", { ascending: false });
+    .eq("room_slug", "dtec");
+  if (!request || new URL(request.url).searchParams.get("includeArchived") !== "1") query = query.eq("status", "open");
+  const { data: rows, error } = await query.order("starts_at", { ascending: true, nullsFirst: false }).order("created_at", { ascending: false });
   if (error) return json({ error: "events_read_failed" }, 500);
 
   const eventIds = (rows ?? []).map((row) => row.id);

@@ -16,6 +16,7 @@ async function expand() { fireEvent.click(await screen.findByRole("button", { na
 it("does not expose management controls to members, or private requests to visitors", async () => {
   const view = render(<EventsFolder currentUserId="ana" roomSlug="amigos" />);
   await expand();
+  expect(transport).toHaveBeenCalledWith("/api/rooms/amigos/events?includeArchived=1", { cache: "no-store" });
   expect(screen.queryByRole("button", { name: "Editar evento" })).toBeNull();
   expect(screen.queryByRole("button", { name: "Encerrar evento" })).toBeNull();
   view.unmount(); transport.mockClear();

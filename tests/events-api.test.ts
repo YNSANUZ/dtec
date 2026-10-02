@@ -103,6 +103,17 @@ function request(path: string, body?: unknown, method = body === undefined ? "GE
 
 describe("event API access and identity", () => {
   beforeEach(() => { authState.context = null; });
+  it("includes DTEC archives only explicitly, with no events from another room", async () => {
+    setContext("member", [
+      { id: eventId, room_slug: "dtec", title: "Kart", status: "closed" },
+      { id: "33333333-3333-4333-8333-333333333333", room_slug: "amigos", title: "Outra", status: "closed" },
+    ], [{ event_id: eventId }]);
+    const archive = request("/api/events?includeArchived=1");
+    expect(await (await GET()).json()).toEqual({ events: [] });
+    expect(await (await GET(archive)).json()).toMatchObject({ events: [{ id: eventId, status: "closed", interestCount: 1 }] });
+    authState.context = null;
+    expect((await GET(archive)).status).toBe(401);
+  });
 
   it("rejects anonymous requests without returning event data", async () => {
     const response = await GET();

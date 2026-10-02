@@ -13,6 +13,7 @@ type EventsResponse = { events?: EventRecord[]; error?: string };
 
 export function EventsFolder({ currentUserId, category, roomSlug, canManage = false }: { currentUserId: string | null; category?: EventRecord["category"]; roomSlug?: string; canManage?: boolean }) {
   const api = roomSlug ? `/api/rooms/${roomSlug}/events` : "/api/events";
+  const listApi = `${api}?includeArchived=1`;
   const [editing, setEditing] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showArchived, setShowArchived] = useState(false);
@@ -28,16 +29,16 @@ export function EventsFolder({ currentUserId, category, roomSlug, canManage = fa
   const rosterRequest = useRef(0);
 
   const loadEvents = useCallback(async () => {
-    const response = await fetch(api, { cache: "no-store" });
+    const response = await fetch(listApi, { cache: "no-store" });
     const body = await response.json() as EventsResponse;
     if (!response.ok) throw new Error(body.error === "unauthorized" ? "Entre com o Google para consultar os eventos." : "Não foi possível carregar os eventos agora.");
     setEvents(body.events ?? []);
-  }, [api]);
+  }, [listApi]);
 
   useEffect(() => {
     if (!currentUserId) { window.setTimeout(() => setLoading(false), 0); return; }
     let active = true;
-    fetch(api, { cache: "no-store" })
+    fetch(listApi, { cache: "no-store" })
       .then(async (response) => {
         const body = await response.json() as EventsResponse;
         if (!response.ok) throw new Error(body.error === "unauthorized" ? "Entre com o Google para consultar os eventos." : "Não foi possível carregar os eventos agora.");
@@ -48,7 +49,7 @@ export function EventsFolder({ currentUserId, category, roomSlug, canManage = fa
     // This is a request counter, not a DOM node: invalidate every in-flight roster.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     return () => { active = false; ++rosterRequest.current; };
-  }, [currentUserId, api]);
+  }, [currentUserId, listApi]);
 
   const loadRoster = async (eventId: string) => {
     const request = ++rosterRequest.current;
