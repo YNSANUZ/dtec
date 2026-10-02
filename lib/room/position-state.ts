@@ -4,6 +4,7 @@ export type RoomPositionState = {
   z: number;
   targetX: number;
   targetZ: number;
+  facing: number;
   automatic: boolean;
   sitting: boolean;
 };
@@ -21,6 +22,7 @@ export function resolveRoomPositionState(
     z: initial.z,
     targetX: initial.x,
     targetZ: initial.z,
+    facing: 0,
     automatic,
     sitting: false,
   };

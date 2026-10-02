@@ -6,6 +6,7 @@ import { clone } from "three/examples/jsm/utils/SkeletonUtils.js";
 import type { MuralId } from "@/lib/mural-types";
 import { getCelebrationState } from "@/lib/birthdays/celebration";
 import { resolveRoomPositionState, type RoomPositionState } from "@/lib/room/position-state";
+import { resolveRoomCameraState, type RoomCameraState } from "@/lib/room/camera-state";
 type Props = {
   name: string;
   avatar: string;
@@ -138,6 +139,7 @@ export default function OfficeScene({
     birthdaySessionStartRef = useRef<number | null>(null),
     birthdayTodayRef = useRef(birthdayToday),
     positionStateRef = useRef<RoomPositionState | null>(null),
+    cameraViewRef = useRef<RoomCameraState | null>(null),
     manualActionUntilRef = useRef(0),
     cameraControlsRef = useRef<{zoom:(direction:number)=>void;reframe:()=>void}>({zoom:()=>{},reframe:()=>{}});
   const [cameraAdjusted,setCameraAdjusted]=useState(false);
@@ -167,7 +169,12 @@ export default function OfficeScene({
     camera.position.set(18, 21, 22);
     camera.lookAt(cameraFocus);
     initialOrbit.setFromVector3(camera.position.clone().sub(cameraFocus));
-    orbit.copy(initialOrbit);
+    const savedCamera = resolveRoomCameraState(cameraViewRef.current, { radius: initialOrbit.radius, phi: initialOrbit.phi, theta: initialOrbit.theta });
+    orbit.set(savedCamera.radius, savedCamera.phi, savedCamera.theta);
+    camera.zoom = savedCamera.zoom;
+    camera.updateProjectionMatrix();
+    camera.position.copy(new THREE.Vector3().setFromSpherical(orbit).add(cameraFocus));
+    camera.lookAt(cameraFocus);
     let cameraChanged = false;
     const updateCamera = () => {
       camera.position.copy(new THREE.Vector3().setFromSpherical(orbit).add(cameraFocus));
@@ -195,6 +202,7 @@ export default function OfficeScene({
       syncCameraButton();
     };
     cameraControlsRef.current={zoom:zoomCamera,reframe:reframeCamera};
+    syncCameraButton();
     const renderer = new THREE.WebGLRenderer({
       antialias: true,
       powerPreference: "high-performance",
@@ -365,6 +373,7 @@ export default function OfficeScene({
         const o = clone(g.scene);
         o.scale.setScalar(0.85);
         o.position.set(x, 0, z);
+        o.rotation.y = savedPosition.facing;
         o.traverse((v) => {
           if ((v as THREE.Mesh).isMesh) (v as THREE.Mesh).castShadow = true;
         });
@@ -601,6 +610,7 @@ export default function OfficeScene({
             z: mine.position.z,
             targetX: target.x,
             targetZ: target.z,
+            facing: mine.rotation.y,
             automatic: auto,
             sitting: seating,
           };
@@ -622,6 +632,7 @@ export default function OfficeScene({
     resize();
     window.addEventListener("resize", resize);
     return () => {
+      cameraViewRef.current = { radius: orbit.radius, phi: orbit.phi, theta: orbit.theta, zoom: camera.zoom };
       cancelAnimationFrame(frameId);
       window.removeEventListener("resize", resize);
       canvas.removeEventListener("pointerdown",onPointerDown);

@@ -12,4 +12,11 @@ describe("office scene lifecycle stability", () => {
     expect(source).toContain("characterClickRef.current");
     expect(source).toContain("muralClickRef.current");
   });
+
+  it("restores the camera and character facing after a scene rebuild", () => {
+    expect(source).toContain("cameraViewRef.current");
+    expect(source).toContain("orbit.set(savedCamera.radius, savedCamera.phi, savedCamera.theta)");
+    expect(source).toContain("o.rotation.y = savedPosition.facing");
+    expect(source).toContain("facing: mine.rotation.y");
+  });
 });
