@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ChevronDown, Crown, HelpCircle, Maximize, Star, Users, X } from "lucide-react";
@@ -14,7 +15,7 @@ import type { AvatarId } from "@/lib/profile/validation";
 const OfficeScene = dynamic(() => import("@/components/office-scene"), { ssr: false });
 const avatars: AvatarId[] = ["a", "c", "f", "j", "n", "r"];
 type ChatMessage = { id: number; name: string; text: string };
-type OnlineUser = { userId: string; name: string; avatar: AvatarId; title: string; role: "owner" | "leader" | "member"; x: number; z: number; action: string; lastSeen: string };
+type OnlineUser = { userId: string; name: string; avatar: AvatarId; title?: string; role?: "owner" | "leader" | "member"; x: number; z: number; action: string; online: boolean };
 type UserCard = Pick<OnlineUser, "userId" | "name" | "avatar" | "title" | "role"> & { bio: string; birthDayMonth: string | null; whatsapp: string };
 type PresenceState = { x: number; z: number; action: string };
 
@@ -35,6 +36,7 @@ export default function Home() {
   const [accountOpen, setAccountOpen] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
   const [onlineOpen, setOnlineOpen] = useState(false);
+  const [loginPromptOpen, setLoginPromptOpen] = useState(false);
   const [onlineUsers, setOnlineUsers] = useState<OnlineUser[]>([]);
   const [selectedUser, setSelectedUser] = useState<UserCard | null>(null);
   const [profileLoading, setProfileLoading] = useState(false);
@@ -48,10 +50,12 @@ export default function Home() {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
   const [action, setAction] = useState<"idle" | "dance" | "wave">("idle");
+  const [sceneStart, setSceneStart] = useState({ x: 0, z: 5 });
   const [chatText, setChatText] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [bubble, setBubble] = useState("");
   const presence = useRef<PresenceState>({ x: 0, z: 5, action: "idle" });
+  const initializedProfile = useRef<string | null>(null);
 
   useEffect(() => {
     const id = window.setTimeout(() => {
@@ -104,30 +108,59 @@ export default function Home() {
     setAccountOpen(false);
   };
 
-  const avatarClick = useCallback(() => { if (ready) setControlsOpen(true); }, [ready]);
-  const muralClick = useCallback((id: MuralId) => setActiveMural(id), []);
+  const characterClick = useCallback((userId: string | null) => {
+    if (auth.state === "anonymous") {
+      setLoginPromptOpen(true);
+      return;
+    }
+    if (!ready) return;
+    if (userId && userId !== auth.user?.id) {
+      const user = onlineUsers.find((entry) => entry.userId === userId);
+      if (!user) return;
+      setSelectedUser({ ...user, title: user.title ?? "", role: user.role ?? "member", bio: "", birthDayMonth: null, whatsapp: "" });
+      setProfileLoading(true);
+      setLeaderError("");
+      return;
+    }
+    setControlsOpen(true);
+  }, [auth.state, auth.user?.id, onlineUsers, ready]);
+  const muralClick = useCallback((id: MuralId) => {
+    if (ready) setActiveMural(id);
+    else if (auth.state === "anonymous") setLoginPromptOpen(true);
+  }, [auth.state, ready]);
   const updatePresence = useCallback((x: number, z: number, nextAction: string) => {
     presence.current = { x, z, action: nextAction === "dance" ? "dance" : ["walk", "sit"].includes(nextAction) ? nextAction : "idle" };
   }, []);
 
   useEffect(() => {
-    if (!ready || !auth.user) return;
     let active = true;
-    const loadUsers = async () => {
+    const loadCharacters = async () => {
       try {
-        const response = await fetch("/api/room/presence", { cache: "no-store" });
+        const response = await fetch("/api/room/characters", { cache: "no-store" });
         if (!response.ok) return;
         const body = await response.json() as { users?: OnlineUser[] };
-        if (active) setOnlineUsers(body.users ?? []);
-      } catch { /* online state will retry on the next interval */ }
+        if (!active) return;
+        const users = body.users ?? [];
+        setOnlineUsers(users);
+        if (!auth.user) initializedProfile.current = null;
+        else if (ready && initializedProfile.current !== auth.user.id) {
+          const own = users.find((user) => user.userId === auth.user?.id);
+          if (own) {
+            presence.current = { x: own.x, z: own.z, action: "idle" };
+            setSceneStart({ x: own.x, z: own.z });
+            initializedProfile.current = auth.user.id;
+          }
+        }
+      } catch { /* retry on the next interval */ }
     };
     const publishPresence = () => {
+      if (!active || !ready || !auth.user || initializedProfile.current !== auth.user.id) return;
       const current = presence.current;
       void fetch("/api/room/presence", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(current), keepalive: true });
     };
-    void loadUsers();
-    publishPresence();
-    const listTimer = window.setInterval(() => void loadUsers(), 5000);
+    void loadCharacters().then(publishPresence);
+    const listTimer = window.setInterval(() => void loadCharacters(), 5000);
+    if (!ready || !auth.user) return () => { active = false; clearInterval(listTimer); };
     const presenceTimer = window.setInterval(publishPresence, 2500);
     return () => {
       active = false;
@@ -180,25 +213,26 @@ export default function Home() {
   };
 
   const chooserOpen = auth.state === "authenticated-needs-profile" || creatorOpen;
-  const remoteUsers = onlineUsers.filter((user) => user.userId !== auth.user?.id).map((user) => ({ ...user, message: "", lastSeen: Date.parse(user.lastSeen) }));
+  const remoteUsers = onlineUsers.filter((user) => user.userId !== auth.user?.id).map((user) => ({ ...user, message: "" }));
+  const onlineCount = onlineUsers.filter((user) => user.online).length;
 
   return <main className="app-shell">
-    <OfficeScene name={sceneName} avatar={sceneAvatar} action={action} message={bubble} created={ready} remoteUsers={remoteUsers} onStateChange={updatePresence} onAvatarClick={avatarClick} onMuralClick={muralClick} />
+    <OfficeScene name={sceneName} avatar={sceneAvatar} action={action} message={bubble} created={ready} initialPosition={sceneStart} remoteUsers={remoteUsers} onStateChange={updatePresence} onCharacterClick={characterClick} onMuralClick={muralClick} />
     <div className="shade" />
     <nav className="legal-links" aria-label="Informações legais"><Link href="/politica-de-privacidade">Privacidade</Link><span aria-hidden="true">·</span><Link href="/termos-de-servico">Termos</Link></nav>
     <header className="topbar">
       <div className="brand">DTEC</div><span className="divider" />
       <div className="online-area">
         <button className="online" type="button" aria-expanded={onlineOpen} onClick={() => { setOnlineOpen((open) => !open); setAccountOpen(false); }}>
-          <Users size={23} /><b>•</b><span>{onlineUsers.length} na sala</span><ChevronDown size={15} />
+          <Users size={23} /><b>•</b><span>{onlineCount} na sala</span><ChevronDown size={15} />
         </button>
         {onlineOpen && <section className="online-menu" aria-label="Pessoas online"><header><strong>Na sala agora</strong><button aria-label="Fechar lista" onClick={() => setOnlineOpen(false)}><X size={16} /></button></header>
-          {onlineUsers.length === 0 ? <p className="online-empty">Aguardando colegas entrarem…</p> : <ul>{onlineUsers.map((user) => <li key={user.userId}><button type="button" onClick={() => { setSelectedUser({ ...user, bio: "", birthDayMonth: null, whatsapp: "" }); setProfileLoading(true); setOnlineOpen(false); setLeaderError(""); }}><span className="online-marker">{user.role === "owner" ? <Crown size={14} aria-label="Dono da sala" /> : user.role === "leader" ? <Star size={14} aria-label="Líder da sala" /> : null}{user.name}{user.userId === auth.user?.id ? " (você)" : ""}</span>{user.title && <small>[{user.title}]</small>}</button></li>)}</ul>}
+          {onlineCount === 0 ? <p className="online-empty">Aguardando colegas entrarem…</p> : <ul>{onlineUsers.filter((user) => user.online).map((user) => <li key={user.userId}><button type="button" onClick={() => { setOnlineOpen(false); if (auth.state === "anonymous") { setLoginPromptOpen(true); return; } if (!ready) return; setSelectedUser({ ...user, title: user.title ?? "", role: user.role ?? "member", bio: "", birthDayMonth: null, whatsapp: "" }); setProfileLoading(true); setLeaderError(""); }}><span className="online-marker">{user.role === "owner" ? <Crown size={14} aria-label="Dono da sala" /> : user.role === "leader" ? <Star size={14} aria-label="Líder da sala" /> : null}{user.name}{user.userId === auth.user?.id ? " (você)" : ""}</span>{user.title && <small>[{user.title}]</small>}</button></li>)}</ul>}
         </section>}
       </div>
       <div className="top-actions"><button aria-label="Tela cheia" onClick={() => document.documentElement.requestFullscreen?.()}><Maximize /></button><button aria-label="Ajuda" onClick={() => setControlsOpen(ready)}><HelpCircle /></button>
         {auth.state === "anonymous" && <a className="profile google-entry" aria-label="Entrar com Google" href="/auth/login"><i className="google-logo" style={{ backgroundImage: 'url("https://img.icons8.com/color/1200/google-logo.jpg")' }} aria-hidden="true" /><span className="login-label">Entrar</span></a>}
-        {ready && <button className="profile" aria-label="Abrir perfil" onClick={() => { setAccountOpen((open) => !open); setOnlineOpen(false); }}>{googlePhoto ? <span className="google-account-avatar" role="img" aria-label="Foto da conta Google" style={{ backgroundImage: `url("${googlePhoto}")` }} /> : <span>{sceneName.slice(0, 2).toUpperCase()}</span>}<ChevronDown size={17} /></button>}
+        {ready && <button className="profile google-entry google-account-entry" type="button" aria-label={`Perfil de ${sceneName.trim().split(/\s+/)[0]}`} aria-expanded={accountOpen} onClick={() => { setAccountOpen((open) => !open); setOnlineOpen(false); }}><span className="google-account-photo">{googlePhoto ? <Image src={googlePhoto} alt="" width={36} height={36} unoptimized referrerPolicy="no-referrer" /> : <i className="google-account-fallback" aria-hidden="true">{sceneName.slice(0, 1).toUpperCase()}</i>}</span><span className="login-label">{sceneName.trim().split(/\s+/)[0]}</span><ChevronDown size={15} aria-hidden="true" /></button>}
       </div>
     </header>
     {auth.error && <div className="auth-notice" role="status">{auth.error}<button aria-label="Fechar aviso" onClick={auth.clearError}>×</button></div>}
@@ -207,6 +241,7 @@ export default function Home() {
     {chatOpen && ready && <form className="chat-pop" onSubmit={sendMessage}><strong>Conversar</strong><input autoFocus value={chatText} onChange={(event) => setChatText(event.target.value)} placeholder="Digite uma mensagem…" maxLength={100} /><button>Enviar</button></form>}
     {messages.length > 0 && <aside className="chat-history" aria-label="Últimas mensagens"><h3>Conversas recentes</h3>{messages.map((message) => <p key={message.id}><strong>{message.name}</strong><span>{message.text}</span></p>)}</aside>}
     {controlsOpen && ready && <div className="avatar-pop"><button className="close-mini" onClick={() => setControlsOpen(false)}><X /></button><strong>{sceneName}</strong><small>Você assumiu o controle.</small><p>Clique no chão para caminhar.</p><button onClick={() => setAction(action === "dance" ? "idle" : "dance")}>Dançar</button><button onClick={editProfile}>Editar personagem</button></div>}
+    <Dialog open={loginPromptOpen} onOpenChange={setLoginPromptOpen}><DialogContent className="login-prompt-dialog" showCloseButton={false}><button type="button" className="login-prompt-close" aria-label="Fechar" onClick={() => setLoginPromptOpen(false)}><X size={17} /></button><DialogHeader><DialogTitle>Entre para interagir com a sala</DialogTitle><DialogDescription>Faça login com Google para conversar, movimentar seu personagem e ver os detalhes dos colegas.</DialogDescription></DialogHeader><a className="login-prompt-google" href="/auth/login"><i className="google-logo" aria-hidden="true" />Entrar com Google</a></DialogContent></Dialog>
     <Dialog open={chooserOpen} onOpenChange={(open) => { if (auth.state !== "authenticated-needs-profile") setCreatorOpen(open); }}>
       <DialogContent className="creator-dialog" overlayClassName="creator-overlay"><DialogHeader><DialogTitle>{auth.profile ? "Edite seu perfil" : "Complete seu perfil DTEC"}</DialogTitle><DialogDescription>{auth.profile ? "Atualize as informações que seus colegas veem na sala." : "Confira seu nome e escolha como aparecerá no escritório."}</DialogDescription></DialogHeader>
         {!auth.profile && <div className="google-profile-card">{googlePhoto ? <span className="google-profile-photo" role="img" aria-label="Foto da sua conta Google" style={{ backgroundImage: `url("${googlePhoto}")` }} /> : <span className="google-profile-photo google-profile-fallback">{googleAccountName.slice(0, 1).toUpperCase()}</span>}<span><strong>{googleAccountName}</strong><small>Conta Google conectada</small></span></div>}

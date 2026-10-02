@@ -68,7 +68,12 @@ export async function POST(request: Request) {
 export async function DELETE() {
   const auth = await context();
   if (!auth) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  const { error } = await auth.supabase.from("room_presence").delete().eq("user_id", auth.userId);
+  // Retain the last room coordinates so the member's character remains in the
+  // office while offline; an old last_seen value removes the green status dot.
+  const { error } = await auth.supabase.from("room_presence").update({
+    action: "idle",
+    last_seen: new Date(0).toISOString(),
+  }).eq("user_id", auth.userId);
   if (error) return NextResponse.json({ error: "presence_clear_failed" }, { status: 500 });
   return new NextResponse(null, { status: 204 });
 }

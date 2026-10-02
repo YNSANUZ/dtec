@@ -8,9 +8,6 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   if (authError || !claims?.claims?.sub) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const { id } = await params;
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) return NextResponse.json({ error: "invalid_user_id" }, { status: 400 });
-  const { data: presence, error: presenceError } = await supabase.from("room_presence")
-    .select("user_id").eq("user_id", id).gt("last_seen", new Date(Date.now() - 45_000).toISOString()).maybeSingle();
-  if (presenceError || !presence) return NextResponse.json({ error: "user_offline" }, { status: 404 });
   const [{ data: profile, error }, { data: role, error: roleError }] = await Promise.all([
     supabase.from("profiles").select("user_id, display_name, avatar_id, title, bio, birth_day_month, whatsapp").eq("user_id", id).maybeSingle(),
     supabase.from("room_roles").select("role").eq("user_id", id).maybeSingle(),

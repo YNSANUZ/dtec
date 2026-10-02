@@ -31,13 +31,15 @@ export default function PrivacyPolicyPage() {
           <li>
             <strong>Perfil do escritório:</strong> nome e avatar são necessários para participar.
             Cargo/descrição, biografia, aniversário (somente dia e mês) e WhatsApp são opcionais.
-            O aniversário aparece na lista do mural para os participantes autenticados; os demais
-            dados opcionais aparecem quando abrem seu perfil. O WhatsApp abre um link wa.me fora do app.
+            Nome e avatar aparecem na sala para qualquer pessoa que tenha o link, inclusive visitantes
+            sem login. O aniversário aparece no mural e os demais dados opcionais aparecem no perfil
+            somente para participantes autenticados. O WhatsApp abre um link wa.me fora do app.
           </li>
           <li>
-            <strong>Presença:</strong> enquanto você usa a sala, o app guarda temporariamente sua
-            posição aproximada, estado do avatar e horário da última atividade para mostrar quem
-            está online e sincronizar personagens. Presenças sem atualização expiram da lista.
+            <strong>Presença:</strong> o app guarda a posição aproximada mais recente do personagem
+            para mantê-lo no escritório mesmo quando estiver offline. O estado de movimento e o
+            horário da última atividade são usados para sincronizar personagens; a indicação de
+            online desaparece após 45 segundos sem atualização.
           </li>
           <li>
             <strong>Interesse em atividades:</strong> se você registrar interesse em Kart, seu nome,
@@ -59,8 +61,9 @@ export default function PrivacyPolicyPage() {
         <h2>2. Finalidades e visibilidade</h2>
         <p>
           Usamos os dados da conta para autenticar você e proteger a associação entre a conta
-          Google e o perfil. O nome e avatar identificam a pessoa na sala. Qualquer participante
-          autenticado pode consultar o diretório básico e abrir os dados opcionais que você
+          Google e o perfil. O nome e avatar identificam a pessoa na sala e podem ser vistos por
+          qualquer visitante com o link. Visitantes não autenticados não podem abrir os dados
+          opcionais nem interagir; participantes autenticados podem consultar os dados que você
           decidiu compartilhar. Não inclua conteúdo sensível na biografia.
         </p>
         <p>
@@ -79,9 +82,9 @@ export default function PrivacyPolicyPage() {
 
         <h2>4. Retenção, segurança e compartilhamento</h2>
         <p>
-          Os dados do perfil permanecem armazenados enquanto a conta e o perfil forem mantidos no
-          aplicativo. A posição da sala é atualizada durante a presença e registros antigos deixam
-          de aparecer após 45 segundos sem atualização. O histórico de conversas local permanece no navegador até ser removido pelo
+          Os dados do perfil e a última posição do personagem permanecem armazenados enquanto a
+          conta e o perfil forem mantidos no aplicativo. A indicação de online deixa de aparecer
+          após 45 segundos sem atualização. O histórico de conversas local permanece no navegador até ser removido pelo
           usuário ou pelo próprio navegador. Aplicamos controles técnicos de autenticação e acesso,
           mas nenhum serviço conectado à internet pode garantir segurança absoluta.
         </p>
