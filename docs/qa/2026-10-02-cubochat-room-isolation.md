@@ -1,6 +1,6 @@
 # CuboChat — validação de isolamento por sala
 
-Data: 02/10/2026. Escopo ampliado estimado em 81%; não é percentual de testes.
+Data: 02/10/2026. Escopo ampliado estimado em 82%; não é percentual de testes.
 
 ## Destinos
 
@@ -97,6 +97,12 @@ Esses testes não executam GPU real nem demonstram duas contas Google independen
 Revisão independente deste diff não encontrou problemas críticos, importantes ou menores; não julgou limpeza global preexistente de recursos, GPU/GLTF reais ou backend de presença fora do incremento. Commit 0a1ad9b enviado somente à branch de testes; deployment Vercel AwANVRFkEv9T7DJR8GH6q6cgafKn, target preview, Ready, alias de staging confirmado via CLI. Inspeção no navegador recuperou a mesma sessão Gestor e o histórico; ampliar a câmera, abrir/fechar o quadro e digitar um rascunho manteve o enquadramento ampliado e o controle Reenquadrar. O recado/reação existentes carregaram. Rascunho limpo sem enviar, sem novos registros de chat ou perfil. Provas outputs/qa/preview-live-labels-board.png e preview-live-labels-scene.png; a primeira registra o carregamento inicial do quadro, que terminou na inspeção seguinte. Esse smoke de uma conta não valida propagação de renomeação entre dois usuários.
 
 Não liberar produção ou DNS apenas com testes locais. Confirmar preview apontando para staging, concluir testes reais acima e solicitar aprovação específica para migração/publicação em produção e domínio.
+
+## Incremento restrito: fotos nos cartões de eventos
+
+Heartbeat 20:17 UTC: acrescentar prévia de até seis fotos Google nos cartões de eventos de salas genéricas, com +N e clique abrindo a lista detalhada existente. As cabeças PNG e nomes continuam nos detalhes. IDs de fotos vêm exclusivamente dos interessados de eventos já filtrados pela sala/autenticação; usar RPC de fotos existente, sem copiar dados de identidade nem pedir contatos. Falha na RPC produz placeholders e não esconde o evento. Contagem deduplicada por pessoa, ordenação estável e leitura paginada dos interesses para não truncar a prévia. Não alterar APIs legadas DTEC, políticas, migrações, perfil, identidade, permissões ou OfficeScene. Este incremento não conclui os resumos globais de recados/vaquinhas; validar isolamento, limite +N, fallback e clique antes de publicar preview.
+
+Implementado: API filtra eventos pela sala, pagina interesses em grupos de IDs, deduplica pessoas, pede somente até seis fotos por evento pela RPC existente, e valida URLs HTTPS Google sem credenciais/portas arbitrárias. Resultados RPC não solicitados descartados; erro de foto usa placeholder sem bloquear evento/contagem. Prévia clicável fora do botão principal (sem botões aninhados), +N pelo restante, detalhes continuam com cabeças PNG. EventsFolder agora descarta imediatamente estado de sala/conta/categoria anterior por chave; respostas tardias não ressuscitam fotos/detalhes privados. Quatro RED de recurso/contagem; GREEN25 direcionados, 310 testes/67 arquivos maxWorkers=2, build/TypeScript, ESLint direcionado e diff check passaram. Testes incluem 205 interessados paginados, 200+5 IDs RPC, URL inválida/unsolicited, falha, visitante e troca de sala/logout. Nenhuma migração/política/presença/câmera alterada. Publicação/QA visual pendentes; estimativa82%, sem declarar resumo de recados/vaquinhas concluído.
 
 ## Incremento restrito: aniversários nas salas gerais
 

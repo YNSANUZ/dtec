@@ -3,6 +3,7 @@ import { normalizeMuralMessageId } from "@/lib/mural-validation";
 import { normalizeRoomEvent, normalizeRoomEventPatch } from "@/lib/events/validation";
 import { hasRoomRole } from "@/lib/rooms/authorization";
 import { getRoomMuralContext } from "@/lib/rooms/mural-server";
+import { readGooglePhotos } from "@/lib/rooms/google-photos";
 
 const fields = "id, title, description, category, starts_at, location, status, created_by, created_at, updated_at";
 const json = (body: unknown, status = 200) => NextResponse.json(body, { status, headers: { "Cache-Control": "private, no-store" } });
@@ -16,14 +17,26 @@ export async function listRoomEvents(slugInput: string, includeArchived = false)
   const { data: rows, error } = await query.order("starts_at", { ascending: true, nullsFirst: false }).order("created_at", { ascending: false });
   if (error) return json({ error: "events_read_failed" }, 500);
   const ids = (rows ?? []).map((r) => r.id);
-  const { data: interests, error: interestError } = ids.length
-    ? await context.supabase.from("room_event_interests").select("event_id").in("event_id", ids)
-    : { data: [], error: null };
-  if (interestError) return json({ error: "event_interests_read_failed" }, 500);
-  const counts = new Map<string, number>();
-  for (const row of interests ?? []) counts.set(row.event_id, (counts.get(row.event_id) ?? 0) + 1);
+  const members = new Map<string, Set<string>>();
+  for (let start = 0; start < ids.length; start += 100) {
+    const group = ids.slice(start, start + 100);
+    for (let from = 0; ; from += 100) {
+      const { data: interests, error: interestError } = await context.supabase.from("room_event_interests")
+        .select("event_id, user_id").in("event_id", group).order("event_id").order("user_id").range(from, from + 99);
+      if (interestError) return json({ error: "event_interests_read_failed" }, 500);
+      for (const row of interests ?? []) {
+        if (!group.includes(row.event_id)) continue;
+        const people = members.get(row.event_id) ?? new Set<string>();
+        people.add(row.user_id); members.set(row.event_id, people);
+      }
+      if ((interests ?? []).length < 100) break;
+    }
+  }
+  const previewIds = new Map([...members].map(([id, people]) => [id, [...people].slice(0, 6)]));
+  const photos = await readGooglePhotos(context.supabase, [...previewIds.values()].flat());
   return json({ events: (rows ?? []).map((r) => ({ id: r.id, title: r.title, description: r.description, category: r.category,
-    startsAt: r.starts_at, location: r.location, status: r.status, interestCount: counts.get(r.id) ?? 0 })) });
+    startsAt: r.starts_at, location: r.location, status: r.status, interestCount: members.get(r.id)?.size ?? 0,
+    photos: (previewIds.get(r.id) ?? []).map((id) => ({ photoUrl: photos.get(id) ?? null })) })) });
 }
 
 export async function createRoomEvent(request: Request, slugInput: string) {

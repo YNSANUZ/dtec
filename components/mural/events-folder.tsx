@@ -5,13 +5,20 @@ import { ChevronRight, MapPin, PartyPopper, UsersRound } from "lucide-react";
 import AvatarPreview from "@/components/avatar-preview";
 import { eventLocalDateTime, toEventCardViewModel, type EventCardInput } from "@/lib/events/presentation";
 import { normalizeRoomEvent } from "@/lib/events/validation";
+import { MuralPeopleStack, type PeoplePreview } from "@/components/mural/people-stack";
 
-type EventRecord = EventCardInput & { status: "open" | "closed" | "cancelled" };
+type EventRecord = EventCardInput & { status: "open" | "closed" | "cancelled"; photos?: PeoplePreview["photos"] };
 type InterestedPerson = { userId: string; name: string; avatar: string; title: string };
 type InterestResponse = { interested?: InterestedPerson[]; isInterested?: boolean; error?: string };
 type EventsResponse = { events?: EventRecord[]; error?: string };
 
-export function EventsFolder({ currentUserId, category, roomSlug, canManage = false }: { currentUserId: string | null; category?: EventRecord["category"]; roomSlug?: string; canManage?: boolean }) {
+type EventProps = { currentUserId: string | null; category?: EventRecord["category"]; roomSlug?: string; canManage?: boolean };
+
+export function EventsFolder(props: EventProps) {
+  return <ScopedEventsFolder key={`${props.roomSlug ?? "dtec"}:${props.currentUserId ?? "visitor"}:${props.category ?? "all"}`} {...props} />;
+}
+
+function ScopedEventsFolder({ currentUserId, category, roomSlug, canManage = false }: EventProps) {
   const api = roomSlug ? `/api/rooms/${roomSlug}/events` : "/api/events";
   const listApi = `${api}?includeArchived=1`;
   const [editing, setEditing] = useState(false);
@@ -142,6 +149,9 @@ export function EventsFolder({ currentUserId, category, roomSlug, canManage = fa
               <span className="event-interest-count">{view.interestLabel}</span>
               {event.status !== "open" && <small>{event.status === "closed" ? "Encerrado" : "Cancelado"}</small>}
             </button>
+            {roomSlug && event.photos && event.interestCount > 0 && <div className="event-photo-preview">
+              <MuralPeopleStack title={event.title} count={event.interestCount} photos={event.photos} onClick={() => { if (!expanded) chooseEvent(event); }} />
+            </div>}
             {expanded && selectedEvent && <div className="event-detail">
               <p>{selectedEvent.description || "Sem descrição adicional."}</p>
               <div className="event-detail-meta"><span><PartyPopper size={14} />{view.whenLabel}</span><span><MapPin size={14} />{view.whereLabel}</span></div>

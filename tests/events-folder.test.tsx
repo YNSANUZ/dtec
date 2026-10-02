@@ -13,6 +13,40 @@ beforeEach(() => {
 });
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 async function expand() { fireEvent.click(await screen.findByRole("button", { name: /Kart QA/ })); await screen.findByText("Ana Silva"); }
+it("previews six Google photos and +N, clicking the stack opens the existing interested roster",async()=>{
+  transport.mockImplementation((url:string)=>response(url.endsWith("/interest")?{interested:[{userId:"ana",name:"Ana Silva",avatar:"a",title:""}]}:{events:[{...activity,interestCount:8,photos:Array.from({length:6},()=>({photoUrl:"https://lh3.googleusercontent.com/photo"}))}]}));
+  const view=render(<EventsFolder currentUserId="ana" roomSlug="amigos" />);
+  const stack=await screen.findByRole("button",{name:"Ver 8 pessoas em Kart QA"});
+  expect(stack.querySelectorAll("img")).toHaveLength(6);
+  expect(stack.textContent).toContain("+2");
+  expect(screen.queryByText("Ana Silva")).toBeNull();
+  fireEvent.click(stack);
+  expect(await screen.findByText("Ana Silva")).toBeTruthy();
+  expect(transport).toHaveBeenCalledWith("/api/rooms/amigos/events/event/interest",{cache:"no-store"});
+  expect(view.container.querySelector("button button")).toBeNull();
+});
+it("does not show a photo stack for zero interest or invent missing legacy photos",async()=>{
+  transport.mockImplementation(()=>response({events:[{...activity,interestCount:0,photos:[]}]}));
+  render(<EventsFolder currentUserId="ana" roomSlug="amigos" />);
+  await screen.findByRole("button",{name:/Kart QA/});
+  expect(screen.queryByRole("button",{name:/Ver .*pessoas? em/})).toBeNull();
+});
+it("clears the old room's photos immediately and ignores its late response",async()=>{
+  let resolveOther!: (value:Response)=>void;
+  let resolveOldRoster!: (value:Response)=>void;
+  transport.mockImplementation((url:string)=>url.startsWith("/api/rooms/outra/")?new Promise(resolve=>{resolveOther=resolve;}):url.endsWith("/interest")?new Promise(resolve=>{resolveOldRoster=resolve;}):response({events:[{...activity,photos:[{photoUrl:"https://lh3.googleusercontent.com/old"}]}]}));
+  const view=render(<EventsFolder currentUserId="ana" roomSlug="amigos" />);
+  fireEvent.click(await screen.findByRole("button",{name:"Ver 1 pessoa em Kart QA"}));
+  view.rerender(<EventsFolder currentUserId="ana" roomSlug="outra" />);
+  expect(screen.queryByRole("button",{name:"Ver 1 pessoa em Kart QA"})).toBeNull();
+  expect(view.container.querySelector('img[src="https://lh3.googleusercontent.com/old"]')).toBeNull();
+  resolveOldRoster(new Response(JSON.stringify({interested:[{userId:"ana",name:"Ana Silva",avatar:"a",title:""}]})));
+  resolveOther(new Response(JSON.stringify({events:[{...activity,title:"Evento da outra sala",photos:[{photoUrl:null}]}]})));
+  expect(await screen.findByRole("button",{name:"Ver 1 pessoa em Evento da outra sala"})).toBeTruthy();
+  expect(screen.queryByText("Ana Silva")).toBeNull();
+  view.rerender(<EventsFolder currentUserId={null} roomSlug="outra" />);
+  expect(screen.queryByRole("button",{name:"Ver 1 pessoa em Evento da outra sala"})).toBeNull();
+});
 it("does not expose management controls to members, or private requests to visitors", async () => {
   const view = render(<EventsFolder currentUserId="ana" roomSlug="amigos" />);
   await expand();
