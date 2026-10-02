@@ -80,6 +80,22 @@
 .mural-window-retro .mural-folder-copy{display:grid;flex:1;gap:3px}
 .mural-window-retro .mural-folder-arrow{align-self:center;margin:0 4px 0 auto}
 .mural-window-retro .mural-folder-card:hover{transform:translateY(-1px);border-color:#fff;background:#f8f7f2;box-shadow:inset 1px 1px #fff,inset -2px -2px #8798ac}
+.mural-window-retro .mural-folder-open{display:flex;min-width:0;min-height:42px;flex:1;align-items:center;gap:11px;padding:0;border:0;background:transparent;color:inherit;text-align:left;cursor:pointer}
+.mural-window-retro .mural-folder-arrow-button{display:grid;flex:none;width:28px;height:34px;place-items:center;border:0;background:transparent;color:#758397;cursor:pointer}
+.mural-people-trigger{flex:none;border:0;background:transparent;padding:4px 0;cursor:pointer}
+.mural-people-stack{display:flex;align-items:center;padding-left:7px}
+.mural-people-photo,.mural-people-remainder{display:grid;position:relative;width:31px;height:31px;flex:none;place-items:center;overflow:hidden;margin-left:-7px;border:2px solid #fff;border-radius:50%;background:#dce7f3;color:#526b88;box-shadow:0 1px 4px #1e334033}
+.mural-people-photo img{width:100%;height:100%;object-fit:cover}
+.mural-people-remainder{width:36px;background:#dce8f4;font-size:.67rem;font-weight:700}
+.mural-people-trigger:hover .mural-people-photo,.mural-people-trigger:focus-visible .mural-people-photo{border-color:#78aee8}
+.mural-people-dialog{width:min(400px,calc(100vw - 28px))!important;max-height:min(70dvh,520px);border:1px solid #fff!important;border-radius:8px!important;background:#efeee8!important;color:#273d5c!important;box-shadow:4px 5px 0 #17243a66,0 20px 60px #07132688!important}
+.mural-people-list{display:grid;gap:7px;max-height:340px;overflow:auto;margin:4px 0 0;padding:0;list-style:none}
+.mural-people-list li{display:flex;align-items:center;gap:11px;padding:6px 8px;border:1px solid #fff;border-radius:4px;background:#f8f7f2}
+.mural-people-list li>span:last-child{display:grid;gap:2px}
+.mural-people-list strong{font-size:.85rem}.mural-people-list small{font-size:.72rem;color:#697890}
+.mural-people-detail-photo{display:grid;width:42px;height:42px;flex:none;place-items:center;overflow:hidden;border-radius:50%;background:#dce7f3}
+.mural-people-detail-photo img{width:100%;height:100%;object-fit:cover}
+@media(max-width:700px){.mural-window-retro .mural-folder-card{gap:5px;padding:7px}.mural-window-retro .mural-folder-open{gap:7px}.mural-people-photo{width:26px;height:26px}.mural-people-remainder{width:31px;height:26px;font-size:.62rem}.mural-window-retro .mural-folder-arrow-button{width:21px}}
 .mural-window-retro .mural-folder-icon{border-radius:4px;background:#dbe8f3}
 .mural-window-retro .mural-statusbar{background:#d2d1cb;border-top:1px solid #fff;color:#58657a}
 .online-area{position:relative}

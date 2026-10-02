@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useState } from "react";
 import {
   ArrowLeft,
@@ -15,6 +16,7 @@ import {
   Trash2,
   ThumbsDown,
   ThumbsUp,
+  UserRound,
   UsersRound,
 } from "lucide-react";
 import {
@@ -28,6 +30,7 @@ import type { MuralId } from "@/lib/mural-types";
 import AvatarPreview from "@/components/avatar-preview";
 import { EventsFolder } from "@/components/mural/events-folder";
 import { FundraisersFolder } from "@/components/mural/fundraisers-folder";
+import { MuralPeopleStack, type PeoplePreview } from "@/components/mural/people-stack";
 import { formatBirthday, orderBirthdays, saoPauloMonthDay } from "@/lib/birthdays/order";
 import type { MuralReaction } from "@/lib/mural-reactions";
 
@@ -85,6 +88,15 @@ const muralInfo: Record<MuralId, MuralInfo> = {
     folders: [],
   },
 };
+
+const participationFolders: Record<MuralId, string[]> = {
+  information: ["recados", "comunicados", "lembretes", "vaquinhas"],
+  demands: ["equipamentos", "solicitacoes", "atividades"],
+  leisure: ["futebol", "paintball", "kart", "confraternizacoes"],
+  birthdays: [],
+};
+
+type ParticipationPerson = { userId: string; name: string; title: string; photoUrl: string | null };
 
 type MuralMessage = {
   id: string;
@@ -306,12 +318,46 @@ export default function MuralWindow({
   isAdminOrMod?: boolean;
 }) {
   const [folderIndex, setFolderIndex] = useState<number | null>(null);
+  const [participation, setParticipation] = useState<Record<string, PeoplePreview>>({});
+  const [peopleTarget, setPeopleTarget] = useState<{ key: string; title: string } | null>(null);
+  const [people, setPeople] = useState<ParticipationPerson[]>([]);
+  const [peopleLoading, setPeopleLoading] = useState(false);
+  const [peopleError, setPeopleError] = useState("");
   const mural = muralInfo[muralId];
   const folder = folderIndex === null ? null : mural.folders[folderIndex];
   const Icon = mural.Icon;
   const FolderIcon = folder?.Icon;
 
+  useEffect(() => {
+    if (!currentUserId || muralId === "birthdays" || folderIndex !== null) return;
+    let active = true;
+    fetch(`/api/mural/participation?mural=${muralId}`, { cache: "no-store" })
+      .then(async (response) => {
+        if (!response.ok) throw new Error("participation_unavailable");
+        return response.json() as Promise<{ folders: Record<string, PeoplePreview> }>;
+      })
+      .then((body) => { if (active) setParticipation(body.folders); })
+      .catch(() => { if (active) setParticipation({}); });
+    return () => { active = false; };
+  }, [currentUserId, muralId, folderIndex]);
+
+  const openPeople = async (key: string, title: string) => {
+    setPeopleTarget({ key, title });
+    setPeople([]);
+    setPeopleError("");
+    setPeopleLoading(true);
+    try {
+      const response = await fetch(`/api/mural/participation?mural=${muralId}&folder=${key}`, { cache: "no-store" });
+      if (!response.ok) throw new Error("Não foi possível carregar a lista agora.");
+      const body = await response.json() as { people: ParticipationPerson[] };
+      setPeople(body.people);
+    } catch (error) {
+      setPeopleError(error instanceof Error ? error.message : "Não foi possível carregar a lista agora.");
+    } finally { setPeopleLoading(false); }
+  };
+
   return (
+    <>
     <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
       <DialogContent className="mural-dialog mural-window-retro" overlayClassName="mural-overlay">
         <div className="mural-titlebar">
@@ -355,23 +401,25 @@ export default function MuralWindow({
               <div><strong>{mural.title}</strong><small>Escolha uma seção para consultar.</small></div>
             </div>
             <div className="mural-folder-list">
-            {mural.folders.map((item, index) => (
-              <button
-                className="mural-folder-card"
-                key={item.title}
-                onClick={() => setFolderIndex(index)}
-                type="button"
-              >
-                <span className="mural-folder-icon"><item.Icon aria-hidden="true" /></span>
-                <span className="mural-folder-copy">
-                  <strong>{item.title}</strong>
-                  <small>{item.summary}</small>
-                </span>
-                <ChevronRight className="mural-folder-arrow" size={16} aria-hidden="true" />
-              </button>
-            ))}
+            {mural.folders.map((item, index) => {
+              const key = participationFolders[muralId][index];
+              const preview = currentUserId ? participation[key] : undefined;
+              return <div className="mural-folder-card" key={item.title}>
+                <button className="mural-folder-open" onClick={() => setFolderIndex(index)} type="button">
+                  <span className="mural-folder-icon"><item.Icon aria-hidden="true" /></span>
+                  <span className="mural-folder-copy"><strong>{item.title}</strong><small>{item.summary}</small></span>
+                </button>
+                {preview && preview.count > 0 && <MuralPeopleStack title={item.title} count={preview.count} photos={preview.photos}
+                  onClick={() => void openPeople(key, item.title)} />}
+                <button className="mural-folder-arrow-button" type="button" aria-label={`Abrir ${item.title}`} onClick={() => setFolderIndex(index)}>
+                  <ChevronRight className="mural-folder-arrow" size={16} aria-hidden="true" />
+                </button>
+              </div>;
+            })}
             </div>
-            <div className="mural-notice"><Megaphone size={16} aria-hidden="true"/><span>As informações aparecerão aqui quando forem cadastradas.</span></div>
+            <div className="mural-notice"><Megaphone size={16} aria-hidden="true"/><span>{currentUserId && Object.values(participation).some((item) => item.count > 0)
+              ? "Toque nas fotos para ver quem participa; abra a seção para ler os detalhes."
+              : "As informações aparecerão aqui quando forem cadastradas."}</span></div>
           </div>
         )}
 
@@ -381,9 +429,29 @@ export default function MuralWindow({
             ? "Lista opcional · apenas dia e mês · ordenada pelo próximo aniversário"
             : muralId === "information" && folderIndex === 0
             ? "Recados compartilhados entre contas Google autenticadas"
+            : folderIndex === null && currentUserId && Object.values(participation).some((item) => item.count > 0)
+            ? "Prévia de participação · toque nas fotos para ver detalhes"
             : "Interface 2D leve · Esta seção ainda não possui dados cadastrados"}</span>
         </footer>
       </DialogContent>
     </Dialog>
+    <Dialog open={peopleTarget !== null && Boolean(currentUserId)} onOpenChange={(open) => { if (!open) setPeopleTarget(null); }}>
+      <DialogContent className="mural-people-dialog">
+        <DialogHeader>
+          <DialogTitle>Pessoas em {peopleTarget?.title}</DialogTitle>
+          <DialogDescription>{peopleTarget?.key === "recados" ? "Autores e pessoas que reagiram aos recados." : peopleTarget?.key === "vaquinhas" ? "Participantes ativos das vaquinhas." : "Pessoas interessadas nos eventos abertos."}</DialogDescription>
+        </DialogHeader>
+        {peopleLoading ? <p className="mural-loading">Carregando pessoas…</p>
+          : peopleError ? <p className="mural-form-error" role="alert">{peopleError}</p>
+          : <ul className="mural-people-list">{people.map((person) => <li key={person.userId}>
+            <span className="mural-people-detail-photo">
+              {person.photoUrl ? <Image src={person.photoUrl} alt="" width={42} height={42} unoptimized referrerPolicy="no-referrer" />
+                : <UserRound size={22} aria-hidden="true" />}
+            </span>
+            <span><strong>{person.name}</strong>{person.title && <small>{person.title}</small>}</span>
+          </li>)}</ul>}
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }
