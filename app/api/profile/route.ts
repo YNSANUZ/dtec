@@ -59,22 +59,41 @@ export async function PUT(request: Request) {
     );
   }
 
-  const { data, error } = await context.supabase
+  const profileFields = {
+    display_name: profile.displayName,
+    avatar_id: profile.avatarId,
+    title: profile.title,
+    bio: profile.bio,
+    birth_day_month: profile.birthDayMonth,
+    whatsapp: profile.whatsapp,
+    updated_at: new Date().toISOString(),
+  };
+
+  // Keep INSERT and UPDATE separate: the database intentionally does not grant
+  // UPDATE on user_id, while PostgREST upsert may include it in the UPDATE set.
+  const { data: existingProfile, error: lookupError } = await context.supabase
     .from("profiles")
-    .upsert({
-      user_id: context.userId,
-      display_name: profile.displayName,
-      avatar_id: profile.avatarId,
-      title: profile.title,
-      bio: profile.bio,
-      birth_day_month: profile.birthDayMonth,
-      whatsapp: profile.whatsapp,
-      updated_at: new Date().toISOString(),
-    }, { onConflict: "user_id" })
+    .select("user_id")
+    .eq("user_id", context.userId)
+    .maybeSingle();
+
+  if (lookupError) {
+    console.error("Profile lookup before save failed", lookupError);
+    return NextResponse.json({ error: "profile_save_failed" }, { status: 500 });
+  }
+
+  const saveQuery = existingProfile
+    ? context.supabase.from("profiles").update(profileFields).eq("user_id", context.userId)
+    : context.supabase.from("profiles").insert({ user_id: context.userId, ...profileFields });
+
+  const { data, error } = await saveQuery
     .select("display_name, avatar_id, title, bio, birth_day_month, whatsapp")
     .single();
 
-  if (error) return NextResponse.json({ error: "profile_save_failed" }, { status: 500 });
+  if (error) {
+    console.error("Profile save failed", error);
+    return NextResponse.json({ error: "profile_save_failed" }, { status: 500 });
+  }
   return NextResponse.json({
     profile: { displayName: data.display_name, avatarId: data.avatar_id, title: data.title ?? "", bio: data.bio ?? "", birthDayMonth: data.birth_day_month ? `${data.birth_day_month.slice(3, 5)}/${data.birth_day_month.slice(0, 2)}` : null, whatsapp: data.whatsapp ?? "" },
   });
