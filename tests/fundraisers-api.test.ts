@@ -38,6 +38,7 @@ function makeSupabase() {
         update(row: Row) { mode = "update"; payload = row; return chain; },
         upsert(row: Row) { mode = "upsert"; payload = row; return chain; },
         maybeSingle(): Promise<{ data: Row | null; error: null }> {
+          if (table === "rooms") return Promise.resolve({ data: filters.slug === "dtec" ? { slug: "dtec" } : null, error: null });
           if (table === "room_staff") return Promise.resolve({ data: filters.room_slug === "dtec" && state.role ? { role: state.role } : null, error: null });
           return Promise.resolve({ data: rows.find((row) => matches(row, filters)) ?? null, error: null });
         },
@@ -69,8 +70,8 @@ function makeSupabase() {
     },
     async rpc(name: string, params: Row) {
       state.calls.push({ method: name, table: "rpc", row: params, filters: {} });
-      if (name === "ensure_fundraiser_current_cycle") return { data: "2026-10-10", error: null };
-      if (name === "set_fundraiser_payment") return { data: true, error: null };
+      if (name === "ensure_room_fundraiser_current_cycle") return { data: "2026-10-10", error: null };
+      if (name === "set_room_fundraiser_payment") return { data: true, error: null };
       return { data: null, error: null };
     },
   };
@@ -83,7 +84,7 @@ import { POST as setPayment } from "@/app/api/fundraisers/[id]/contributions/[us
 
 const fundraiserId = "22222222-2222-4222-8222-222222222222";
 const otherUserId = "44444444-4444-4444-8444-444444444444";
-const baseFundraiser = { id: fundraiserId, title: "Passeio", description: "", monthly_amount_cents: 2500, due_day: 10, pix_key: "pix-private", payment_instructions: "Pague até o dia 10", status: "open" };
+const baseFundraiser = { id: fundraiserId, room_slug: "dtec", title: "Passeio", description: "", monthly_amount_cents: 2500, due_day: 10, pix_key: "pix-private", payment_instructions: "Pague até o dia 10", status: "open" };
 const request = (path: string, body?: unknown, method = body === undefined ? "GET" : "POST") => new Request(`https://dtec.test${path}`, { method, headers: { "content-type": "application/json" }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
 const idContext = { params: Promise.resolve({ id: fundraiserId }) };
 const paymentContext = { params: Promise.resolve({ id: fundraiserId, userId: otherUserId }) };
@@ -131,7 +132,7 @@ describe("fundraiser APIs", () => {
     expect(body.fundraisers[0]?.paid).toEqual([{ userId: state.userId, name: "Ana Silva", avatar: "a", title: "Analista", markedAt: "2026-10-01T12:00:00Z" }]);
     expect(body.fundraisers[0]?.pending).toEqual([{ userId: otherUserId, name: "Beto Lima", avatar: "c", title: "", markedAt: null }]);
     expect(Object.keys(body.fundraisers[0] ?? {})).not.toContain("totalCollected");
-    expect(state.calls.some((call) => call.method === "ensure_fundraiser_current_cycle")).toBe(true);
+    expect(state.calls.some((call) => call.method === "ensure_room_fundraiser_current_cycle" && call.row?.p_room_slug === "dtec")).toBe(true);
   });
 
   it("lets a member join and leave only their own campaign participation", async () => {
@@ -148,7 +149,7 @@ describe("fundraiser APIs", () => {
     const ownContext = { params: Promise.resolve({ id: fundraiserId, userId: state.userId }) };
     const own = await setPayment(request(`/api/fundraisers/${fundraiserId}/contributions/${state.userId}`, { paid: true }), ownContext);
     expect(own.status).toBe(200);
-    expect(state.calls.some((call) => call.method === "set_fundraiser_payment" && call.row?.p_participant_id === state.userId)).toBe(true);
+    expect(state.calls.some((call) => call.method === "set_room_fundraiser_payment" && call.row?.p_room_slug === "dtec" && call.row?.p_participant_id === state.userId)).toBe(true);
     const denied = await setPayment(request(`/api/fundraisers/${fundraiserId}/contributions/${otherUserId}`, { paid: true }), paymentContext);
     expect(denied.status).toBe(403);
     state.role = "leader";
