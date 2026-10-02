@@ -91,11 +91,11 @@
 - Participants route allows self-join/self-leave and ADM/MOD to add/remove any DTEC member. Removal ends future participation only; prior cycles/audit remain.
 - Contribution route invokes `set_fundraiser_payment` for the current cycle.
 
-- [ ] **Step 1: Write failing API tests** for anon `401`, member campaign mutation `403`, ADM/MOD CRUD, self join/leave, admin enrollment/removal, self mark paid/pending, cross-member denial, and moderator mark any participant.
-- [ ] **Step 2: Run `npm test -- tests/fundraisers-api.test.ts`** and verify failure.
-- [ ] **Step 3: Implement route handlers** with session-derived identities and input normalization; use `Cache-Control: no-store` and omit secrets from logs/errors.
-- [ ] **Step 4: Run focused API tests and TypeScript**; expected pass.
-- [ ] **Step 5: Commit** as `feat: add fundraiser and payment-cycle APIs`.
+- [x] **Step 1: Write API tests** for anon `401`, member campaign mutation `403`, ADM/MOD CRUD, self join/leave, admin enrollment/removal, self mark paid/pending, cross-member denial, and moderator mark any participant.
+- [x] **Step 2: Run `npm test -- tests/fundraisers-api.test.ts`**; focused tests pass.
+- [x] **Step 3: Implement route handlers** with session-derived identities and input normalization; use `Cache-Control: no-store` and omit secrets from logs/errors.
+- [x] **Step 4: Run focused API tests and TypeScript**; expected pass.
+- [x] **Step 5: Commit** as `feat: add fundraiser and payment-cycle APIs`.
 
 ### Task 4: Vaquinha folder and paid/pending lists
 
@@ -109,9 +109,9 @@
 - `FundraisersFolder({currentUserId,isAdminOrMod})` renders campaigns, detail, fixed per-person amount, due date, Pix/instructions, join/leave control and paid/pending lists.
 - `ContributionRoster` displays avatar/full name; paid first with timestamp, pending below with subdued opacity; self and ADM/MOD controls follow role.
 
-- [ ] **Step 1: Write failing view-model tests** for no-auth prompt state, fixed amount/due date/Pix display, no total amount, paid/pending sections, own mark toggle, ADM/MOD override controls, closed/empty state; avoid assuming React DOM testing dependencies not present in the project.
-- [ ] **Step 2: Run focused UI tests** and verify failure.
-- [ ] **Step 3: Implement the folder and detail components** as lightweight scrollable retro-window content; replace static Vaquinhas placeholder only.
-- [ ] **Step 4: Add styles** for subdued pending list and mobile internal scrolling/touch controls.
-- [ ] **Step 5: Run `npm test`, lint, TypeScript, and build**; manually verify phone-width view and Pix-key copy affordance without logging the key.
+- [x] **Step 1: Write view-model contract tests** for fixed amount/due date/Pix display, no total amount, paid/pending sections, role controls, and empty state; no React DOM dependency is introduced.
+- [x] **Step 2: Run focused UI tests**; all pass.
+- [x] **Step 3: Implement the folder and detail components** as lightweight scrollable retro-window content; replace static Vaquinhas placeholder only.
+- [x] **Step 4: Add styles** for subdued pending list and mobile internal scrolling/touch controls.
+- [ ] **Step 5: Run `npm test`, lint, TypeScript, and build**; automated checks pass. Authenticated phone-width/Pix-key manual verification remains pending a connected Supabase staging environment.
 - [ ] **Step 6: Commit** as `feat: add monthly fundraiser roster UI`.

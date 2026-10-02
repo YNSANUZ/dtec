@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { normalizeFundraiser } from "@/lib/fundraisers/validation";
+import { normalizeFundraiser, normalizeFundraiserPatch } from "@/lib/fundraisers/validation";
 
 describe("normalizeFundraiser", () => {
   it("trims text, defaults optional fields, and preserves a fixed amount in cents", () => {
@@ -32,5 +32,11 @@ describe("normalizeFundraiser", () => {
     expect(() => normalizeFundraiser({ title: "Evento", monthlyAmountCents: 1000, dueDay: 5, description: "x".repeat(1501) })).toThrow();
     expect(() => normalizeFundraiser({ title: "Evento", monthlyAmountCents: 1000, dueDay: 5, pixKey: "x".repeat(201) })).toThrow();
     expect(() => normalizeFundraiser({ title: "Evento", monthlyAmountCents: 1000, dueDay: 5, paymentInstructions: "x".repeat(1001) })).toThrow();
+  });
+
+  it("normalizes partial campaign updates and rejects empty or invalid patches", () => {
+    expect(normalizeFundraiserPatch({ dueDay: 31, pixKey: null, status: "closed" })).toEqual({ dueDay: 31, pixKey: null, status: "closed" });
+    expect(() => normalizeFundraiserPatch({})).toThrow("ao menos um campo");
+    expect(() => normalizeFundraiserPatch({ monthlyAmountCents: 0 })).toThrow("valor mensal fixo por pessoa");
   });
 });

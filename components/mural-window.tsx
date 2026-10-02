@@ -25,6 +25,7 @@ import {
 import type { MuralId } from "@/lib/mural-types";
 import AvatarPreview from "@/components/avatar-preview";
 import { EventsFolder } from "@/components/mural/events-folder";
+import { FundraisersFolder } from "@/components/mural/fundraisers-folder";
 import { formatBirthday, orderBirthdays, saoPauloMonthDay } from "@/lib/birthdays/order";
 
 type FolderInfo = {
@@ -235,10 +236,12 @@ export default function MuralWindow({
   muralId,
   onClose,
   currentUserId,
+  isAdminOrMod = false,
 }: {
   muralId: MuralId;
   onClose: () => void;
   currentUserId: string | null;
+  isAdminOrMod?: boolean;
 }) {
   const [folderIndex, setFolderIndex] = useState<number | null>(null);
   const mural = muralInfo[muralId];
@@ -266,6 +269,8 @@ export default function MuralWindow({
           <BirthdayDirectory currentUserId={currentUserId} />
         ) : folder && muralId === "information" && folderIndex === 0 ? (
           <RecadosContent currentUserId={currentUserId} />
+        ) : folder && muralId === "information" && folder.title === "Vaquinhas" ? (
+          <FundraisersFolder currentUserId={currentUserId} isAdminOrMod={isAdminOrMod} />
         ) : folder && muralId === "leisure" && folder.title === "Futebol" ? (
           <EventsFolder currentUserId={currentUserId} category="futebol" />
         ) : folder && muralId === "leisure" && folder.title === "Paintball" ? (

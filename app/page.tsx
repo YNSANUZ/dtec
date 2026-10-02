@@ -82,7 +82,9 @@ export default function Home() {
 
   const sceneName = auth.profile?.displayName ?? name;
   const sceneAvatar = auth.profile?.avatarId ?? avatar;
-  const canManageRoomRoles = canAppointModerator(onlineUsers.find((user) => user.userId === auth.user?.id)?.role);
+  const currentRole = onlineUsers.find((user) => user.userId === auth.user?.id)?.role;
+  const canManageRoomRoles = canAppointModerator(currentRole);
+  const isAdminOrMod = currentRole === "owner" || currentRole === "leader";
 
   const save = async () => {
     setSaving(true);
@@ -267,6 +269,6 @@ export default function Home() {
       {canManageRoomRoles && selectedUser.role !== "owner" && <button className="leader-toggle" onClick={() => void toggleLeader()}>{selectedUser.role === "leader" ? "Remover MOD" : "⭐ Designar MOD"}</button>}
       {leaderError && <p className="person-error" role="alert">{leaderError}</p>}
     </DialogContent></Dialog>}
-    {activeMural && <MuralWindow key={activeMural} muralId={activeMural} currentUserId={auth.user?.id ?? null} onClose={() => setActiveMural(null)} />}
+    {activeMural && <MuralWindow key={activeMural} muralId={activeMural} currentUserId={auth.user?.id ?? null} isAdminOrMod={isAdminOrMod} onClose={() => setActiveMural(null)} />}
   </main>;
 }

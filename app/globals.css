@@ -176,6 +176,67 @@
 .event-roster-person small{color:#718098;font-size:.62rem}
 .event-roster-empty,.event-interest-note{margin:0;color:#718098;font-size:.68rem}
 @media(max-width:700px){.event-card-summary{gap:7px;padding:8px}.event-card-copy strong{font-size:.76rem}.event-card-copy small,.event-card-copy>span{font-size:.64rem}.event-interest-count{font-size:.62rem}.event-detail{padding:8px}.event-roster-person{min-width:100px}}
+.fundraiser-folder{overflow:auto;background:#deddd7}
+.fundraiser-list,.fundraiser-detail,.fundraiser-editor{display:flex;min-height:0;flex:1;flex-direction:column;gap:10px;overflow:auto;overscroll-behavior:contain}
+.fundraiser-list-heading{display:flex;align-items:center;justify-content:space-between;gap:9px}
+.fundraiser-list-heading>div{display:flex;flex-direction:column;gap:3px}
+.fundraiser-list-heading strong{color:#253d5c;font-size:.9rem}
+.fundraiser-list-heading small{color:#718098;font-size:.69rem}
+.fundraiser-list-heading button,.fundraiser-add-member button{display:inline-flex;min-height:32px;align-items:center;justify-content:center;gap:5px;padding:6px 9px;border:1px solid #fff;border-radius:4px;background:#e5eaf0;color:#2b4a6d;font-size:.7rem;font-weight:750;box-shadow:inset 1px 1px white,inset -2px -2px #aab2bc;cursor:pointer}
+.fundraiser-card{display:flex;min-height:60px;align-items:center;gap:9px;padding:8px;border:1px solid #fff;border-radius:4px;background:#efeee8;color:inherit;text-align:left;box-shadow:inset 1px 1px white,inset -2px -2px #b3b3ad;cursor:pointer}
+.fundraiser-card:hover{background:#e4edf6}
+.fundraiser-card-icon{display:grid;width:34px;height:34px;flex:none;place-items:center;border:1px solid #fff;border-radius:4px;background:#e4edf5;color:#315a84}
+.fundraiser-card>span:nth-child(2){display:flex;min-width:0;flex:1;flex-direction:column;gap:4px}
+.fundraiser-card strong{overflow:hidden;color:#253d5c;font-size:.78rem;text-overflow:ellipsis;white-space:nowrap}
+.fundraiser-card small{color:#718098;font-size:.66rem}
+.fundraiser-card-status{color:#47724f;font-size:.65rem;font-weight:750}
+.fundraiser-detail-heading{display:flex;align-items:center;gap:9px;padding-bottom:8px;border-bottom:1px solid #c4c6c8}
+.fundraiser-detail-heading>button{display:grid;width:30px;height:30px;flex:none;place-items:center;border:1px solid #fff;border-radius:4px;background:#e5eaf0;color:#304c6a;box-shadow:inset 1px 1px white,inset -2px -2px #aab2bc;cursor:pointer}
+.fundraiser-detail-heading>div{display:flex;min-width:0;flex:1;flex-direction:column;gap:3px}
+.fundraiser-detail-heading h3{margin:0;color:#253d5c;font-size:.9rem}
+.fundraiser-detail-heading span{color:#718098;font-size:.68rem;line-height:1.4}
+.fundraiser-payment-info{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.fundraiser-payment-info>div,.fundraiser-pix{display:flex;flex-direction:column;gap:4px;padding:9px;border:1px solid #fff;border-radius:4px;background:#f0efe9}
+.fundraiser-payment-info small,.fundraiser-pix small{color:#718098;font-size:.65rem}
+.fundraiser-payment-info strong{color:#244b79;font-size:.9rem}
+.fundraiser-payment-info span{color:#718098;font-size:.65rem}
+.fundraiser-pix{flex-direction:row;align-items:center;justify-content:space-between;gap:9px}
+.fundraiser-pix>div{display:flex;min-width:0;flex-direction:column;gap:4px}
+.fundraiser-pix strong{overflow-wrap:anywhere;color:#29496b;font-size:.72rem}
+.fundraiser-pix button,.fundraiser-participation button,.contribution-person button{display:inline-flex;min-height:31px;align-items:center;justify-content:center;gap:4px;padding:5px 8px;border:1px solid #fff;border-radius:4px;background:#e4ebf2;color:#315276;font-size:.65rem;font-weight:750;box-shadow:inset 1px 1px white,inset -2px -2px #aab2bc;cursor:pointer}
+.fundraiser-pix button{flex:none}
+.fundraiser-instructions{margin:0;padding:8px 9px;border-left:3px solid #7596b9;background:#ecebe5;color:#5f7084;font-size:.69rem;line-height:1.4}
+.fundraiser-participation{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 9px;border:1px solid #fff;border-radius:4px;background:#e8edf1}
+.fundraiser-participation span{color:#526b84;font-size:.69rem}
+.fundraiser-add-member{display:flex;flex-direction:column;gap:5px}
+.fundraiser-add-member label{color:#314c68;font-size:.7rem;font-weight:750}
+.fundraiser-add-member>div{display:flex;gap:6px}
+.fundraiser-add-member select,.fundraiser-editor input,.fundraiser-editor textarea,.fundraiser-editor select{width:100%;min-height:34px;padding:7px;border:1px solid #aeb9c6;border-radius:4px;background:#fff;color:#31445c;font:inherit;font-size:.72rem}
+.fundraiser-editor textarea{resize:vertical}
+.fundraiser-add-member button:disabled{opacity:.45;cursor:not-allowed}
+.contribution-roster{display:flex;min-height:0;flex:1;flex-direction:column;gap:10px;overflow:auto}
+.contribution-roster section{display:flex;flex-direction:column;gap:5px}
+.contribution-roster h4{display:flex;align-items:center;gap:6px;margin:0;color:#285a3a;font-size:.73rem}
+.contribution-roster h4 span{display:grid;min-width:20px;height:20px;place-items:center;border-radius:50%;background:#dce9dc;color:#42694b;font-size:.63rem}
+.contribution-roster section>p{margin:0;color:#758397;font-size:.67rem}
+.contribution-pending h4{color:#6c7682}
+.contribution-pending h4 span{background:#e4e4e1;color:#747d87}
+.contribution-person{display:flex;min-height:44px;align-items:center;gap:7px;padding:5px;border:1px solid #fff;border-radius:4px;background:#f5f4ef}
+.contribution-person.pending{opacity:.58;background:#e8e7e2}
+.contribution-person .avatar-head-only{width:34px;height:34px;flex:none;overflow:hidden;border:1px solid #fff;border-radius:50%;background:#d7e5f3}
+.contribution-person .avatar-head-only canvas{width:34px!important;height:34px!important}
+.contribution-person-copy{display:flex;min-width:0;flex:1;flex-direction:column;gap:2px}
+.contribution-person-copy strong{overflow:hidden;color:#263d5b;font-size:.69rem;text-overflow:ellipsis;white-space:nowrap}
+.contribution-person-copy small,.contribution-person-copy time{color:#718098;font-size:.6rem}
+.contribution-person button{min-height:28px;padding:4px 6px;font-size:.59rem}
+.contribution-person .contribution-remove{width:24px;padding:2px;color:#7a3b3b;font-size:.9rem}
+.fundraiser-payment-note{margin:0;color:#798697;font-size:.62rem;line-height:1.4}
+.fundraiser-editor{padding:2px}
+.fundraiser-editor label{display:flex;flex-direction:column;gap:4px;color:#314c68;font-size:.7rem;font-weight:750}
+.fundraiser-editor label .optional-label{font-weight:450}
+.fundraiser-form-row{display:grid;grid-template-columns:1fr 100px;gap:8px}
+.fundraiser-form-actions{display:flex;justify-content:flex-end;gap:7px;padding:5px 0}
+@media(max-width:700px){.fundraiser-folder{padding:12px}.fundraiser-list{gap:8px}.fundraiser-card{min-height:54px;padding:7px}.fundraiser-payment-info{gap:6px}.fundraiser-payment-info>div,.fundraiser-pix{padding:7px}.fundraiser-payment-info strong{font-size:.8rem}.fundraiser-participation{align-items:flex-start;flex-direction:column}.contribution-person{gap:5px;padding:4px}.contribution-person button{font-size:.56rem}.fundraiser-editor{gap:8px}.fundraiser-form-row{grid-template-columns:1fr 86px}}
 .mural-breadcrumb{display:flex;align-items:center;gap:7px;padding-bottom:13px;border-bottom:1px solid #e6ebf1;color:#8793a3;font-size:.78rem}
 .mural-breadcrumb strong{color:#3e526d;font-weight:650}
 .mural-empty-state{display:flex;flex:1;min-height:190px;flex-direction:column;align-items:center;justify-content:center;text-align:center}

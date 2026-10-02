@@ -9,6 +9,10 @@ const fundraiserInput = z.object({
   paymentInstructions: z.string().trim().max(1000, "As instruções devem ter até 1000 caracteres.").default(""),
 }).strip();
 
+const fundraiserPatchInput = fundraiserInput.extend({
+  status: z.enum(["open", "closed", "cancelled"]).optional(),
+}).partial().refine((value) => Object.keys(value).length > 0, "Informe ao menos um campo para atualizar.");
+
 export type NormalizedFundraiser = {
   title: string;
   description: string;
@@ -27,6 +31,23 @@ export function normalizeFundraiser(input: unknown): NormalizedFundraiser {
     if (field === "pixKey") throw new Error("A chave Pix deve ter até 200 caracteres.");
     if (field === "paymentInstructions") throw new Error("As instruções devem ter até 1000 caracteres.");
     throw new Error(result.error.issues[0]?.message ?? "Informe os dados da vaquinha.");
+  }
+  return result.data;
+}
+
+export type NormalizedFundraiserPatch = Partial<NormalizedFundraiser> & {
+  status?: "open" | "closed" | "cancelled";
+};
+
+export function normalizeFundraiserPatch(input: unknown): NormalizedFundraiserPatch {
+  const result = fundraiserPatchInput.safeParse(input);
+  if (!result.success) {
+    const field = result.error.issues[0]?.path[0];
+    if (field === "monthlyAmountCents") throw new Error("Informe um valor mensal fixo por pessoa, em centavos e maior que zero.");
+    if (field === "dueDay") throw new Error("Informe um dia de vencimento entre 1 e 31.");
+    if (field === "pixKey") throw new Error("A chave Pix deve ter até 200 caracteres.");
+    if (field === "paymentInstructions") throw new Error("As instruções devem ter até 1000 caracteres.");
+    throw new Error(result.error.issues[0]?.message ?? "Informe uma atualização válida.");
   }
   return result.data;
 }
