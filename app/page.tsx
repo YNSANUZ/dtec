@@ -16,7 +16,7 @@ import type { AvatarId } from "@/lib/profile/validation";
 const OfficeScene = dynamic(() => import("@/components/office-scene"), { ssr: false });
 const avatars: AvatarId[] = ["a", "c", "f", "j", "n", "r"];
 type ChatMessage = { id: number; name: string; text: string };
-type OnlineUser = { userId: string; name: string; avatar: AvatarId; title?: string; role?: "owner" | "leader" | "member"; x: number; z: number; action: string; online: boolean };
+type OnlineUser = { userId: string; name: string; avatar: AvatarId; title?: string; role?: "owner" | "leader" | "member"; x: number; z: number; action: string; online: boolean; birthdayToday: boolean };
 type UserCard = Pick<OnlineUser, "userId" | "name" | "avatar" | "title" | "role"> & { bio: string; birthDayMonth: string | null; whatsapp: string };
 type PresenceState = { x: number; z: number; action: string };
 
@@ -217,10 +217,11 @@ export default function Home() {
 
   const chooserOpen = auth.state === "authenticated-needs-profile" || creatorOpen;
   const remoteUsers = onlineUsers.filter((user) => user.userId !== auth.user?.id).map((user) => ({ ...user, message: "" }));
+  const ownBirthdayToday = Boolean(auth.user && onlineUsers.find((user) => user.userId === auth.user?.id)?.birthdayToday);
   const onlineCount = onlineUsers.filter((user) => user.online).length;
 
   return <main className="app-shell">
-    <OfficeScene name={sceneName} avatar={sceneAvatar} action={action} message={bubble} created={ready} initialPosition={sceneStart} remoteUsers={remoteUsers} onStateChange={updatePresence} onCharacterClick={characterClick} onMuralClick={muralClick} />
+    <OfficeScene name={sceneName} avatar={sceneAvatar} action={action} message={bubble} created={ready} initialPosition={sceneStart} remoteUsers={remoteUsers} birthdayToday={ownBirthdayToday} onStateChange={updatePresence} onCharacterClick={characterClick} onMuralClick={muralClick} />
     <div className="shade" />
     <nav className="legal-links" aria-label="Informações legais"><Link href="/politica-de-privacidade">Privacidade</Link><span aria-hidden="true">·</span><Link href="/termos-de-servico">Termos</Link></nav>
     <header className="topbar">

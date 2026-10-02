@@ -4,6 +4,7 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { clone } from "three/examples/jsm/utils/SkeletonUtils.js";
 import type { MuralId } from "@/lib/mural-types";
+import { getCelebrationState } from "@/lib/birthdays/celebration";
 type Props = {
   name: string;
   avatar: string;
@@ -11,7 +12,8 @@ type Props = {
   message: string;
   created: boolean;
   initialPosition: { x: number; z: number };
-  remoteUsers: Array<{userId:string;name:string;avatar:string;x:number;z:number;action:string;message:string;online:boolean}>;
+  remoteUsers: Array<{userId:string;name:string;avatar:string;x:number;z:number;action:string;message:string;online:boolean;birthdayToday:boolean}>;
+  birthdayToday: boolean;
   onStateChange: (x:number,z:number,action:string) => void;
   onCharacterClick: (userId:string|null) => void;
   onMuralClick: (id: MuralId) => void;
@@ -52,6 +54,40 @@ function card(text: string, bubble = false, online = false) {
   s.scale.set(bubble ? 4.5 : 2.6, bubble ? 1.15 : 0.65, 1);
   return s;
 }
+function birthdayBadge() {
+  const canvas = document.createElement("canvas");
+  canvas.width = 256;
+  canvas.height = 256;
+  const ctx = canvas.getContext("2d")!;
+  ctx.shadowColor = "rgba(32, 45, 68, .25)";
+  ctx.shadowBlur = 14;
+  ctx.fillStyle = "#fff";
+  ctx.beginPath();
+  ctx.arc(128, 122, 104, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+  for (const [x, y, color] of [[49, 82, "#f7c843"], [201, 68, "#ff8b3d"], [202, 154, "#9b5de5"], [57, 175, "#f45c93"]] as const) {
+    ctx.fillStyle = color;
+    ctx.fillRect(x, y, 12, 22);
+  }
+  ctx.font = "132px Arial";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText("🎉", 128, 126);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, transparent: true, depthTest: false }));
+  sprite.scale.set(0.01, 0.01, 1);
+  sprite.userData.popStartedAt = performance.now();
+  return sprite;
+}
+
+function animateBirthdayBadge(sprite: THREE.Sprite, now: number) {
+  const progress = Math.min(1, Math.max(0, (now - Number(sprite.userData.popStartedAt ?? now)) / 260));
+  const scale = (progress < 0.65 ? progress / 0.65 * 1.12 : 1.12 - (progress - 0.65) / 0.35 * 0.12) * 1.08;
+  sprite.scale.set(scale, scale, 1);
+}
+
 function canvasPlane(
   draw: (ctx: CanvasRenderingContext2D) => void,
   w: number,
@@ -82,6 +118,7 @@ export default function OfficeScene({
   created,
   initialPosition,
   remoteUsers,
+  birthdayToday,
   onStateChange,
   onCharacterClick,
   onMuralClick,
@@ -92,9 +129,12 @@ export default function OfficeScene({
     messageRef = useRef(message),
     remoteRef = useRef(remoteUsers),
     stateCallbackRef = useRef(onStateChange),
+    birthdaySessionStartRef = useRef<number | null>(null),
+    manualActionUntilRef = useRef(0),
     cameraControlsRef = useRef<{zoom:(direction:number)=>void;reframe:()=>void}>({zoom:()=>{},reframe:()=>{}});
   const [cameraAdjusted,setCameraAdjusted]=useState(false);
   useEffect(() => {
+    if (actionRef.current !== action) manualActionUntilRef.current = performance.now() + 3_000;
     actionRef.current = action;
   }, [action]);
   useEffect(() => {
@@ -104,6 +144,7 @@ export default function OfficeScene({
   useEffect(() => { stateCallbackRef.current = onStateChange; }, [onStateChange]);
   useEffect(() => {
     if (!host.current) return;
+    if (birthdaySessionStartRef.current === null) birthdaySessionStartRef.current = performance.now();
     const el = host.current,
       scene = new THREE.Scene();
     scene.background = new THREE.Color(0xbcc7d3);
@@ -283,6 +324,8 @@ export default function OfficeScene({
       label: THREE.Sprite;
       online: boolean;
       message: string;
+      birthdayBadge: THREE.Sprite | null;
+      birthdayVisible: boolean;
     };
     const loader = new GLTFLoader(),
       mixers: THREE.AnimationMixer[] = [],
@@ -291,6 +334,8 @@ export default function OfficeScene({
       mineMixer: THREE.AnimationMixer | null = null,
       current: THREE.AnimationAction | null = null,
       bubble: THREE.Sprite | null = null,
+      selfBirthdayBadge: THREE.Sprite | null = null,
+      selfBirthdayVisible = false,
       shownMessage = "",
       auto = created,
       seating = false,
@@ -327,7 +372,7 @@ export default function OfficeScene({
       if(remoteAgents.has(u.userId))return;
       const o=clone(g.scene);o.scale.setScalar(.85);o.position.set(u.x,0,u.z);o.traverse(v=>{if((v as THREE.Mesh).isMesh)(v as THREE.Mesh).castShadow=true});
       const label=card(u.name,false,u.online);label.position.y=2.65;o.add(label);o.userData.roomUserId=u.userId;scene.add(o);
-      const mixer=new THREE.AnimationMixer(o);mixers.push(mixer);remoteAgents.set(u.userId,{object:o,mixer,clips:new Map(g.animations.map(c=>[c.name.toLowerCase(),c])),action:null,target:new THREE.Vector3(u.x,0,u.z),bubble:null,label,online:u.online,message:""});
+      const mixer=new THREE.AnimationMixer(o);mixers.push(mixer);remoteAgents.set(u.userId,{object:o,mixer,clips:new Map(g.animations.map(c=>[c.name.toLowerCase(),c])),action:null,target:new THREE.Vector3(u.x,0,u.z),bubble:null,label,online:u.online,message:"",birthdayBadge:null,birthdayVisible:false});
     });
     const ray = new THREE.Raycaster(),
       pointer = new THREE.Vector2(),
@@ -373,6 +418,7 @@ export default function OfficeScene({
       const seat = ray.intersectObjects(chairs, false)[0];
       if (seat) {
         auto = false;
+        manualActionUntilRef.current = performance.now() + 3_000;
         seating = true;
         const p = seat.object.userData.seat;
         target.set(p.x, 0, p.z);
@@ -380,6 +426,7 @@ export default function OfficeScene({
       }
       if (ray.ray.intersectPlane(floor, hit)) {
         auto = false;
+        manualActionUntilRef.current = performance.now() + 3_000;
         seating = false;
         target.set(
           THREE.MathUtils.clamp(hit.x, -12.5, 12.5),
@@ -476,9 +523,36 @@ export default function OfficeScene({
         const dt = Math.min(clock.getDelta(), 0.04),
           now = performance.now() / 1000;
         mixers.forEach((m) => m.update(dt));
+        const sessionStart = birthdaySessionStartRef.current ?? performance.now();
         if(now-lastRemoteRefresh>1){lastRemoteRefresh=now;const ids=new Set(remoteRef.current.map(u=>u.userId));remoteAgents.forEach((a,id)=>{if(!ids.has(id)){scene.remove(a.object);remoteAgents.delete(id)}});remoteRef.current.forEach(u=>{const a=remoteAgents.get(u.userId);if(!a)addRemote(u);else{a.target.set(u.x,0,u.z);if(a.online!==u.online){a.object.remove(a.label);a.online=u.online;a.label=card(u.name,false,u.online);a.label.position.y=2.65;a.object.add(a.label)}if(u.message!==a.message){if(a.bubble)a.object.remove(a.bubble);a.message=u.message;a.bubble=u.message?card(u.message,true):null;if(a.bubble){a.bubble.position.y=3.65;a.object.add(a.bubble)}}}})}
-        remoteAgents.forEach((a,id)=>{const d=a.target.clone().sub(a.object.position),presence=remoteRef.current.find(u=>u.userId===id);if(d.length()>.08){playRemote(a,"walk");d.normalize();a.object.position.addScaledVector(d,dt*2.4);a.object.rotation.y=Math.atan2(d.x,d.z)}else if(presence?.online&&presence.action==="dance")playRemote(a,"emote-yes");else if(presence?.online&&presence.action==="sit")playRemote(a,"sit");else playRemote(a,"idle")});
+        remoteAgents.forEach((a,id)=>{
+          const d=a.target.clone().sub(a.object.position);
+          const presence=remoteRef.current.find(u=>u.userId===id);
+          const celebration=getCelebrationState(Boolean(presence?.birthdayToday),sessionStart,performance.now());
+          if(celebration.visible!==a.birthdayVisible){
+            a.birthdayVisible=celebration.visible;
+            if(a.birthdayBadge){a.object.remove(a.birthdayBadge);a.birthdayBadge=null}
+            if(celebration.visible){a.birthdayBadge=birthdayBadge();a.birthdayBadge.position.y=3.55;a.object.add(a.birthdayBadge)}
+          }
+          if(a.birthdayBadge)animateBirthdayBadge(a.birthdayBadge,performance.now());
+          if(d.length()>.08){playRemote(a,"walk");d.normalize();a.object.position.addScaledVector(d,dt*2.4);a.object.rotation.y=Math.atan2(d.x,d.z)}
+          else if(presence?.online&&presence.action==="dance")playRemote(a,"emote-yes");
+          else if(presence?.online&&presence.action==="sit")playRemote(a,"sit");
+          else if(celebration.dancing)playRemote(a,"emote-yes");
+          else playRemote(a,"idle");
+        });
         if (mine && mineMixer) {
+          const ownCelebration = getCelebrationState(birthdayToday, sessionStart, performance.now());
+          if (ownCelebration.visible !== selfBirthdayVisible) {
+            selfBirthdayVisible = ownCelebration.visible;
+            if (selfBirthdayBadge) { mine.remove(selfBirthdayBadge); selfBirthdayBadge = null; }
+            if (ownCelebration.visible) {
+              selfBirthdayBadge = birthdayBadge();
+              selfBirthdayBadge.position.y = 3.55;
+              mine.add(selfBirthdayBadge);
+            }
+          }
+          if (selfBirthdayBadge) animateBirthdayBadge(selfBirthdayBadge, performance.now());
           if (messageRef.current !== shownMessage) {
             if (bubble) mine.remove(bubble);
             shownMessage = messageRef.current;
@@ -506,7 +580,8 @@ export default function OfficeScene({
               d.normalize();
               mine.position.addScaledVector(d, dt * (auto ? 0.72 : 2.4));
               mine.rotation.y = Math.atan2(d.x, d.z);
-            } else play(seating ? "sit" : "idle");
+            } else if (ownCelebration.dancing && !seating && performance.now() >= manualActionUntilRef.current) play("emote-yes");
+            else play(seating ? "sit" : "idle");
           }
           if(created&&now-lastPresencePush>.9&&now-started>1){lastPresencePush=now;stateCallbackRef.current(mine.position.x,mine.position.z,actionRef.current==="dance"?"dance":mode||"idle")}
         }
@@ -537,6 +612,6 @@ export default function OfficeScene({
       renderer.dispose();
       el.replaceChildren();
     };
-  }, [assetBase, avatar, created, initialPosition.x, initialPosition.z, name, onCharacterClick, onMuralClick]);
+  }, [assetBase, avatar, birthdayToday, created, initialPosition.x, initialPosition.z, name, onCharacterClick, onMuralClick]);
   return <><div ref={host} className="office-canvas"/><nav className="camera-controls" aria-label="Controles da câmera"><button type="button" aria-label="Aumentar zoom" onClick={()=>cameraControlsRef.current.zoom(1)}>+</button><button type="button" aria-label="Diminuir zoom" onClick={()=>cameraControlsRef.current.zoom(-1)}>−</button>{cameraAdjusted&&<button className="camera-reframe" type="button" aria-label="Reenquadrar cenário" onClick={()=>cameraControlsRef.current.reframe()}>Reenquadrar</button>}</nav></>;
 }

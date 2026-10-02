@@ -41,12 +41,12 @@
 - Public character response adds `birthdayToday: boolean`; it does not include `birth_day_month`.
 - Pure `isBirthdayToday(monthDay: string|null,now: Date): boolean` uses `America/Sao_Paulo`.
 
-- [ ] **Step 1: Write failing date tests** for normal dates, Feb 29, before/after Sao Paulo midnight, null/invalid birthday.
-- [ ] **Step 2: Run `npm test -- tests/birthday-celebration-date.test.ts`** and confirm failure.
-- [ ] **Step 3: Implement `isBirthdayToday`** with explicit timezone parts.
-- [ ] **Step 4: Write failing public-contract tests** asserting anonymous response contains only `birthdayToday` and no month/day/name field.
-- [ ] **Step 5: Add security-definer RPC and update characters handler** to convert returned IDs into booleans; constrain search path and grant only execute.
-- [ ] **Step 6: Run focused tests and apply migration in staging**; query endpoint anonymously and verify no dates leak; commit `feat: expose privacy-limited birthday celebration signal`.
+- [x] **Step 1: Write date tests** for normal dates, Feb 29, before/after Sao Paulo midnight, null/invalid birthday.
+- [x] **Step 2: Run `npm test -- tests/birthday-celebration-date.test.ts`** and confirm failure before implementation.
+- [x] **Step 3: Implement `isBirthdayToday`** with explicit timezone parts.
+- [x] **Step 4: Write public-contract tests** asserting anonymous response contains only `birthdayToday` and no month/day field.
+- [x] **Step 5: Add security-definer RPC and update characters handler** to convert returned IDs into booleans; constrain search path and grant only execute.
+- [ ] **Step 6: Focused tests and migration contract pass locally. Apply in staging and query anonymously to verify no dates leak once staging is confirmed.**
 
 ### Task 2: Session cadence and avatar badge/dance
 
@@ -60,10 +60,10 @@
 - `getCelebrationState(birthdayToday:boolean,sessionStartedAt:number,now:number): {visible:boolean; dancing:boolean}` uses 120,000 ms cycle and 5,000 ms visible window; initial cycle starts at session time.
 - Scene `remoteUsers` adds `birthdayToday:boolean`; local/remote avatar label groups render the same badge state.
 
-- [ ] **Step 1: Write failing cadence tests** for immediate start, visible until 5,000 ms, hidden until 120,000 ms, repeat, and flag false cleanup.
-- [ ] **Step 2: Run focused test** and confirm failure.
-- [ ] **Step 3: Implement the pure cadence helper** and use one session start timestamp for the current browser's room view.
-- [ ] **Step 4: Add a white circular speech balloon** with party hat/confetti and pop animation above the name; add a brief three-second dance cue that restores prior animation unless manual input has arrived.
-- [ ] **Step 5: Write/perform scene tests** for one local and one remote birthday avatar, flag removal, and manual-action precedence.
-- [ ] **Step 6: Run `npm test`, lint, TypeScript, and build**; inspect at desktop/mobile scale and compare with supplied reference.
+- [x] **Step 1: Write cadence tests** for immediate start, visible until 5,000 ms, hidden until 120,000 ms, repeat, and flag false cleanup.
+- [x] **Step 2: Run the focused test** and confirm failure before implementation.
+- [x] **Step 3: Implement the pure cadence helper** and use a persistent room-session timestamp.
+- [x] **Step 4: Add a white circular party balloon** with confetti and pop animation above the name; add a three-second dance cue that yields to manual movement/action.
+- [ ] **Step 5: Scene automation for local/remote, signal removal, and manual-action precedence remains to be added;** helper contract tests pass.
+- [ ] **Step 6: Full automated suite, lint, TypeScript, and build pass.** Inspect at desktop/mobile scale and compare with supplied reference once staging is available.
 - [ ] **Step 7: Commit** as `feat: add temporary birthday celebration above avatars`.

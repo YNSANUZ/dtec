@@ -18,6 +18,8 @@ export async function GET() {
   if (profileResult.error || presenceResult.error) {
     return NextResponse.json({ error: "room_characters_read_failed" }, { status: 500 });
   }
+  const { data: birthdayUsers, error: birthdayError } = await supabase.rpc("birthday_today_user_ids");
+  if (birthdayError) return NextResponse.json({ error: "room_birthday_signal_read_failed" }, { status: 500 });
 
   const profiles = (profileResult.data ?? []) as Array<{
     user_id: string;
@@ -26,6 +28,7 @@ export async function GET() {
     title?: string | null;
   }>;
   const presences = presenceResult.data ?? [];
+  const birthdayIds = new Set(((birthdayUsers ?? []) as Array<{ user_id: string }>).map((entry) => entry.user_id));
   const presenceById = new Map(presences.map((presence) => [presence.user_id, presence]));
   const rolesById = new Map<string, RoomRole>();
   if (authenticated) {
@@ -51,6 +54,7 @@ export async function GET() {
       z: presence?.z ?? spawn.z,
       action: online ? presence!.action : "idle",
       online,
+      birthdayToday: birthdayIds.has(profile.user_id),
     };
   });
 
