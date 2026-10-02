@@ -7,15 +7,20 @@ export type RoomPositionState = {
   facing: number;
   automatic: boolean;
   sitting: boolean;
+  interactive: boolean;
 };
 
 export function resolveRoomPositionState(
   saved: RoomPositionState | null,
   ownerId: string,
   initial: { x: number; z: number },
-  automatic: boolean,
+  interactive: boolean,
 ): RoomPositionState {
-  if (saved?.ownerId === ownerId) return saved;
+  // A loading/visitor frame is not the authenticated character's restored
+  // position. Once restoration finishes, replace that temporary snapshot.
+  if (saved?.ownerId === ownerId && !(interactive && !saved.interactive)) {
+    return saved.interactive === interactive ? saved : { ...saved, interactive };
+  }
   return {
     ownerId,
     x: initial.x,
@@ -23,7 +28,8 @@ export function resolveRoomPositionState(
     targetX: initial.x,
     targetZ: initial.z,
     facing: 0,
-    automatic,
+    automatic: interactive,
     sitting: false,
+    interactive,
   };
 }

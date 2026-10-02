@@ -161,6 +161,8 @@ export default function OfficeScene({
     if (!host.current) return;
     if (birthdaySessionStartRef.current === null) birthdaySessionStartRef.current = performance.now();
     const savedPosition = resolveRoomPositionState(positionStateRef.current, positionOwnerId, initialPosition, created);
+    // Record the restoration phase even while the GLTF is still loading.
+    positionStateRef.current = savedPosition;
     const el = host.current,
       scene = new THREE.Scene();
     scene.background = new THREE.Color(0xbcc7d3);
@@ -711,6 +713,7 @@ export default function OfficeScene({
             facing: mine.rotation.y,
             automatic: auto,
             sitting: seating,
+            interactive: created,
           };
           if(created&&now-lastPresencePush>.9&&now-started>1){lastPresencePush=now;stateCallbackRef.current(mine.position.x,mine.position.z,actionRef.current==="dance"?"dance":mode||"idle")}
         }

@@ -107,6 +107,31 @@ function finishAsset(path: string) {
 }
 
 describe("live remote labels", () => {
+  it("restores the new position even if the loading phase's avatar has not finished loading", () => {
+    const view = render(<OfficeScene {...props} remoteUsers={[]} />);
+    tick(2_000);
+    assets.deferred = true;
+    view.rerender(<OfficeScene {...props} created={false} avatar="c" initialPosition={{ x: 0, z: 5 }} remoteUsers={[]} />);
+    assets.deferred = false;
+    view.rerender(<OfficeScene {...props} created avatar="f" initialPosition={{ x: 8, z: -2 }} remoteUsers={[]} />);
+    const mine = gpu.scene!.children.find(object => object.type === "Group" && !object.userData.roomUserId)!;
+    expect(mine.position.toArray()).toEqual([8, 0, -2]);
+  });
+
+  it("restores persisted coordinates after the loading visitor frame instead of publishing the temporary spawn", () => {
+    const publish = vi.fn();
+    const view = render(<OfficeScene {...props} created={false} initialPosition={{ x: 0, z: 5 }} remoteUsers={[]} onStateChange={publish} />);
+    tick(2_000);
+    fireEvent.click(screen.getByRole("button", { name: "Aumentar zoom" }));
+    const projection = gpu.camera!.projectionMatrix.clone();
+    view.rerender(<OfficeScene {...props} created initialPosition={{ x: 8, z: -2 }} remoteUsers={[]} onStateChange={publish} />);
+    const mine = gpu.scene!.children.find(object => object.type === "Group" && !object.userData.roomUserId)!;
+    expect(mine.position.toArray()).toEqual([8, 0, -2]);
+    expect(gpu.camera!.projectionMatrix.equals(projection)).toBe(true);
+    tick(4_000);
+    expect(publish).toHaveBeenCalledWith(8, -2, "idle");
+  });
+
   it("continues a click-to-walk path and keeps zoom when chat and presence refresh", () => {
     const view = render(<OfficeScene {...props} remoteUsers={[remote]} />);
     tick(2_000);

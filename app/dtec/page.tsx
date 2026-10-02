@@ -53,6 +53,9 @@ export default function DtecRoom() {
   const [saveError, setSaveError] = useState("");
   const [action, setAction] = useState<"idle" | "dance" | "wave">("idle");
   const [sceneStart, setSceneStart] = useState({ x: 0, z: 5 });
+  // Authentication may be ready before saved coordinates arrive. Keep the
+  // scene non-interactive until this authenticated session has been restored.
+  const [restoredUser, setRestoredUser] = useState<typeof auth.user>(null);
   const [chatText, setChatText] = useState("");
   const [chatSending, setChatSending] = useState(false);
   const [chatError, setChatError] = useState("");
@@ -60,7 +63,7 @@ export default function DtecRoom() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [bubble, setBubble] = useState("");
   const presence = useRef<PresenceState>({ x: 0, z: 5, action: "idle" });
-  const initializedProfile = useRef<string | null>(null);
+  const initializedProfile = useRef<typeof auth.user>(null);
 
   useEffect(() => {
     let active = true;
@@ -175,18 +178,19 @@ export default function DtecRoom() {
         const users = body.users ?? [];
         setOnlineUsers(users);
         if (!auth.user) initializedProfile.current = null;
-        else if (ready && initializedProfile.current !== auth.user.id) {
+        else if (ready && initializedProfile.current !== auth.user) {
           const own = users.find((user) => user.userId === auth.user?.id);
           if (own) {
             presence.current = { x: own.x, z: own.z, action: "idle" };
             setSceneStart({ x: own.x, z: own.z });
-            initializedProfile.current = auth.user.id;
+            initializedProfile.current = auth.user;
+            setRestoredUser(auth.user);
           }
         }
       } catch { /* retry on the next interval */ }
     };
     const publishPresence = () => {
-      if (!active || !ready || !auth.user || initializedProfile.current !== auth.user.id) return;
+      if (!active || !ready || !auth.user || initializedProfile.current !== auth.user) return;
       const current = presence.current;
       void fetch("/api/room/presence", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(current), keepalive: true });
     };
@@ -262,7 +266,7 @@ export default function DtecRoom() {
   const onlineCount = onlineUsers.filter((user) => user.online).length;
 
   return <main className="app-shell">
-    <OfficeScene name={sceneName} avatar={sceneAvatar} action={action} message={bubble} created={ready} initialPosition={sceneStart} remoteUsers={remoteUsers} birthdayToday={ownBirthdayToday} positionOwnerId={auth.user?.id ?? "visitor"} onStateChange={updatePresence} onCharacterClick={characterClick} onMuralClick={muralClick} />
+    <OfficeScene name={sceneName} avatar={sceneAvatar} action={action} message={bubble} created={ready && Boolean(auth.user) && restoredUser === auth.user} initialPosition={sceneStart} remoteUsers={remoteUsers} birthdayToday={ownBirthdayToday} positionOwnerId={auth.user?.id ?? "visitor"} onStateChange={updatePresence} onCharacterClick={characterClick} onMuralClick={muralClick} />
     <div className="shade" />
     <nav className="legal-links" aria-label="Informações legais"><Link href="/politica-de-privacidade">Privacidade</Link><span aria-hidden="true">·</span><Link href="/termos-de-servico">Termos</Link></nav>
     <header className="topbar">
