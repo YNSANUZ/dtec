@@ -64,8 +64,14 @@ export default function DtecRoom() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const chatRevision = useRef(0);
   const [bubble, setBubble] = useState("");
+  const bubbleTimer = useRef<number | null>(null);
   const presence = useRef<PresenceState>({ x: 0, z: 5, action: "idle" });
   const initializedProfile = useRef<typeof auth.user>(null);
+
+  useEffect(() => () => {
+    if (bubbleTimer.current !== null) window.clearTimeout(bubbleTimer.current);
+    bubbleTimer.current = null;
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -243,7 +249,11 @@ export default function DtecRoom() {
       setBubble(body.message.text);
       setChatText("");
       setAction("wave");
-      window.setTimeout(() => { setBubble(""); setAction((current) => current === "wave" ? "idle" : current); }, 5000);
+      if (bubbleTimer.current !== null) window.clearTimeout(bubbleTimer.current);
+      bubbleTimer.current = window.setTimeout(() => {
+        bubbleTimer.current = null;
+        setBubble(""); setAction((current) => current === "wave" ? "idle" : current);
+      }, 5000);
     } catch (error) {
       setChatError(error instanceof Error ? error.message : "Não foi possível enviar a mensagem.");
     } finally { setChatSending(false); }

@@ -24,6 +24,7 @@ export default function GenericRoom({ room }: { room: { slug: string; title: str
   const [bubbleCutoff, setBubbleCutoff] = useState(0);
   const [chatText, setChatText] = useState("");
   const [bubble, setBubble] = useState("");
+  const bubbleTimer = useRef<number | null>(null);
   const [chatError, setChatError] = useState("");
   const [sending, setSending] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -43,6 +44,11 @@ export default function GenericRoom({ room }: { room: { slug: string; title: str
     ...character,
     message: [...messages].reverse().find((message) => message.authorId === character.userId && Date.parse(message.createdAt) > bubbleCutoff)?.text ?? "",
   }));
+
+  useEffect(() => () => {
+    if (bubbleTimer.current !== null) window.clearTimeout(bubbleTimer.current);
+    bubbleTimer.current = null;
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -117,7 +123,8 @@ export default function GenericRoom({ room }: { room: { slug: string; title: str
       const sentMessage = body.message;
       setMessages((current) => [...current.filter((message) => message.id !== sentMessage.id), sentMessage].slice(-5));
       setBubble(body.message.text);
-      window.setTimeout(() => setBubble(""), 5000);
+      if (bubbleTimer.current !== null) window.clearTimeout(bubbleTimer.current);
+      bubbleTimer.current = window.setTimeout(() => { bubbleTimer.current = null; setBubble(""); }, 5000);
       setChatText("");
     } catch (failure) {
       setChatError(failure instanceof Error ? failure.message : "Falha ao enviar.");
