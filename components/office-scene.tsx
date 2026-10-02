@@ -1,8 +1,9 @@
 "use client";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { clone } from "three/examples/jsm/utils/SkeletonUtils.js";
+import type { MuralId } from "@/lib/mural-types";
 type Props = {
   name: string;
   avatar: string;
@@ -12,7 +13,7 @@ type Props = {
   remoteUsers: Array<{userId:string;name:string;avatar:string;x:number;z:number;action:string;message:string;lastSeen:number}>;
   onStateChange: (x:number,z:number,action:string) => void;
   onAvatarClick: () => void;
-  onBirthdayClick: () => void;
+  onMuralClick: (id: MuralId) => void;
 };
 const people = [
   { n: "Helio", m: "a", x: -6, z: 2 },
@@ -83,14 +84,16 @@ export default function OfficeScene({
   remoteUsers,
   onStateChange,
   onAvatarClick,
-  onBirthdayClick,
+  onMuralClick,
 }: Props) {
   const assetBase = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
   const host = useRef<HTMLDivElement>(null),
     actionRef = useRef(action),
     messageRef = useRef(message),
     remoteRef = useRef(remoteUsers),
-    stateCallbackRef = useRef(onStateChange);
+    stateCallbackRef = useRef(onStateChange),
+    cameraControlsRef = useRef<{zoom:(direction:number)=>void;reframe:()=>void}>({zoom:()=>{},reframe:()=>{}});
+  const [cameraAdjusted,setCameraAdjusted]=useState(false);
   useEffect(() => {
     actionRef.current = action;
   }, [action]);
@@ -104,9 +107,41 @@ export default function OfficeScene({
     const el = host.current,
       scene = new THREE.Scene();
     scene.background = new THREE.Color(0xbcc7d3);
-    const camera = new THREE.OrthographicCamera(-15, 15, 9, -9, 0.1, 100);
+    const camera = new THREE.OrthographicCamera(-15, 15, 9, -9, 0.1, 100),
+      cameraFocus = new THREE.Vector3(0, 0, 2),
+      initialOrbit = new THREE.Spherical(),
+      orbit = new THREE.Spherical();
     camera.position.set(18, 21, 22);
-    camera.lookAt(0, 0, 2);
+    camera.lookAt(cameraFocus);
+    initialOrbit.setFromVector3(camera.position.clone().sub(cameraFocus));
+    orbit.copy(initialOrbit);
+    let cameraChanged = false;
+    const updateCamera = () => {
+      camera.position.copy(new THREE.Vector3().setFromSpherical(orbit).add(cameraFocus));
+      camera.lookAt(cameraFocus);
+    };
+    const syncCameraButton = () => {
+      const changed = camera.zoom !== 1 || Math.abs(orbit.theta - initialOrbit.theta) > 0.01 || Math.abs(orbit.phi - initialOrbit.phi) > 0.01;
+      if (changed !== cameraChanged) {
+        cameraChanged = changed;
+        setCameraAdjusted(changed);
+      }
+    };
+    const zoomCamera = (direction:number) => {
+      const next=THREE.MathUtils.clamp(camera.zoom*(direction>0?1.12:1/1.12),0.55,2.8);
+      if(next===camera.zoom)return;
+      camera.zoom=next;
+      camera.updateProjectionMatrix();
+      syncCameraButton();
+    };
+    const reframeCamera = () => {
+      orbit.copy(initialOrbit);
+      camera.zoom=1;
+      camera.updateProjectionMatrix();
+      updateCamera();
+      syncCameraButton();
+    };
+    cameraControlsRef.current={zoom:zoomCamera,reframe:reframeCamera};
     const renderer = new THREE.WebGLRenderer({
       antialias: true,
       powerPreference: "high-performance",
@@ -173,46 +208,52 @@ export default function OfficeScene({
       g.position.set(p.position.x, 0.9, p.position.z);
       scene.add(g);
     }
-    const board = box(5.8, 3.05, 0.18, 0xb57a3d, 2.2, 2.35, -7.05),
-      panel = box(5.35, 2.62, 0.08, 0xf3e4bd, 2.2, 2.35, -6.93);
-    const mural = canvasPlane(
-      (ctx) => {
-        ctx.fillStyle = "#f3e4bd";
-        ctx.fillRect(0, 0, 1024, 640);
-        ctx.fillStyle = "#153a6b";
-        ctx.font = "900 56px Arial";
-        ctx.fillText("MURAL DE INFORMAÇÕES", 65, 92);
-        ctx.strokeStyle = "#c69a57";
-        ctx.lineWidth = 5;
+    const muralBoards: THREE.Object3D[] = [];
+    const muralSpecs: Array<{id:MuralId;title:string;rows:string[];color:number}> = [
+      {id:"information",title:"INFORMAÇÕES",rows:["Comunicados","Recados","Lembretes","Vaquinhas"],color:0x48a07b},
+      {id:"demands",title:"DEMANDAS",rows:["Equipamentos","Solicitações","Atividades","Acompanhamento"],color:0x3c73bd},
+      {id:"leisure",title:"LAZER",rows:["Futebol","Paintball","Kart","Confraternizações"],color:0x4b9b72},
+      {id:"birthdays",title:"ANIVERSARIANTES",rows:["Próximos aniversários","Datas especiais"],color:0x9b70ce},
+    ];
+    muralSpecs.forEach((spec,index)=>{
+      const x=-3.2+index*4.85;
+      const frame=box(4.58,2.85,0.18,0xb57a3d,x,2.35,-7.05);
+      const panel=box(4.3,2.58,0.08,0xf3e4bd,x,2.35,-6.93);
+      const mural=canvasPlane((ctx)=>{
+        ctx.fillStyle="#f3e4bd";
+        ctx.fillRect(0,0,1024,640);
+        ctx.fillStyle="#153a6b";
+        ctx.textAlign="center";
+        ctx.font="900 54px Arial";
+        ctx.fillText(spec.title,512,85,930);
+        ctx.strokeStyle="#c69a57";
+        ctx.lineWidth=5;
         ctx.beginPath();
-        ctx.moveTo(64, 118);
-        ctx.lineTo(960, 118);
+        ctx.moveTo(55,112);
+        ctx.lineTo(969,112);
         ctx.stroke();
-        const rows = [
-          ["TAXA GOOGLE", "#e7f3c3"],
-          ["PAINTBALL", "#cde5ff"],
-          ["FUTEBOL", "#d9f3d2"],
-          ["KART", "#ffd9bd"],
-        ];
-        rows.forEach(([text, color], i) => {
-          const y = 150 + i * 112;
-          ctx.fillStyle = color;
-          ctx.roundRect(72, y, 880, 88, 18);
+        spec.rows.forEach((text,row)=>{
+          const y=145+row*112;
+          ctx.fillStyle=["#e7f3c3","#cde5ff","#d9f3d2","#ffd9bd"][row%4];
+          ctx.roundRect(54,y,916,88,18);
           ctx.fill();
-          ctx.fillStyle = "#17335d";
-          ctx.font = "800 48px Arial";
-          ctx.fillText(String(text), 125, y + 59);
-          ctx.fillStyle = i % 2 ? "#f1a51d" : "#dd5b54";
+          ctx.fillStyle="#17335d";
+          ctx.textAlign="left";
+          ctx.font="800 42px Arial";
+          ctx.fillText(text,88,y+57,790);
+          ctx.fillStyle=`#${spec.color.toString(16).padStart(6,"0")}`;
           ctx.beginPath();
-          ctx.arc(900, y + 43, 10, 0, Math.PI * 2);
+          ctx.arc(922,y+44,11,0,Math.PI*2);
           ctx.fill();
         });
-      },
-      5.15,
-      2.48,
-    );
-    mural.position.set(2.2, 2.35, -6.82);
-    scene.add(mural);
+      },4.25,2.52);
+      mural.position.set(x,2.35,-6.82);
+      frame.userData.muralIndex=index;
+      panel.userData.muralIndex=index;
+      mural.userData.muralIndex=index;
+      scene.add(mural);
+      muralBoards.push(frame,panel,mural);
+    });
     const sector = canvasPlane(
       (ctx) => {
         ctx.clearRect(0, 0, 1024, 640);
@@ -317,8 +358,11 @@ export default function OfficeScene({
         onAvatarClick();
         return;
       }
-      if (ray.intersectObjects([board, panel], false).length) {
-        onBirthdayClick();
+      const muralHit=ray.intersectObjects(muralBoards,false)[0];
+      if (muralHit) {
+        const muralIndex=Math.floor(muralHit.object.userData.muralIndex as number);
+        const muralId: MuralId[]=["information","demands","leisure","birthdays"];
+        onMuralClick(muralId[muralIndex]);
         return;
       }
       const seat = ray.intersectObjects(chairs, false)[0];
@@ -339,7 +383,73 @@ export default function OfficeScene({
         );
       }
     };
-    renderer.domElement.addEventListener("pointerup", click);
+    const canvas=renderer.domElement;
+    const pointers=new Map<number,{x:number;y:number}>();
+    let gesture:{id:number;startX:number;startY:number;lastX:number;lastY:number;moved:boolean}|null=null;
+    let lastPinchDistance=0;
+    const distance=(a:{x:number;y:number},b:{x:number;y:number})=>Math.hypot(a.x-b.x,a.y-b.y);
+    const onPointerDown=(e:PointerEvent)=>{
+      if(e.pointerType==="mouse"&&e.button!==0)return;
+      pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
+      canvas.setPointerCapture(e.pointerId);
+      if(pointers.size===1)gesture={id:e.pointerId,startX:e.clientX,startY:e.clientY,lastX:e.clientX,lastY:e.clientY,moved:false};
+      else if(pointers.size===2&&gesture){
+        gesture.moved=true;
+        const pair=Array.from(pointers.values()) as [{x:number;y:number},{x:number;y:number}];
+        lastPinchDistance=distance(pair[0],pair[1]);
+      }
+    };
+    const onPointerMove=(e:PointerEvent)=>{
+      if(!pointers.has(e.pointerId))return;
+      pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
+      if(pointers.size>=2){
+        const pair=Array.from(pointers.values()).slice(0,2) as [{x:number;y:number},{x:number;y:number}];
+        const nextDistance=distance(pair[0],pair[1]);
+        if(lastPinchDistance>0&&nextDistance>0){
+          const factor=nextDistance/lastPinchDistance;
+          const next=THREE.MathUtils.clamp(camera.zoom*factor,0.55,2.8);
+          if(next!==camera.zoom){camera.zoom=next;camera.updateProjectionMatrix();syncCameraButton();}
+        }
+        lastPinchDistance=nextDistance;
+        if(gesture)gesture.moved=true;
+        return;
+      }
+      if(!gesture||gesture.id!==e.pointerId)return;
+      const totalDistance=Math.hypot(e.clientX-gesture.startX,e.clientY-gesture.startY);
+      if(totalDistance>5){
+        gesture.moved=true;
+        el.classList.add("is-dragging");
+      }
+      if(gesture.moved){
+        orbit.theta-= (e.clientX-gesture.lastX)*0.008;
+        orbit.phi=THREE.MathUtils.clamp(orbit.phi+(e.clientY-gesture.lastY)*0.006,0.16,Math.PI-0.16);
+        updateCamera();
+        syncCameraButton();
+      }
+      gesture.lastX=e.clientX;
+      gesture.lastY=e.clientY;
+    };
+    const onPointerUp=(e:PointerEvent)=>{
+      const shouldClick=Boolean(gesture&&gesture.id===e.pointerId&&!gesture.moved&&pointers.size===1);
+      const wasPinching=pointers.size>1;
+      pointers.delete(e.pointerId);
+      if(shouldClick)click(e);
+      if(pointers.size===0){gesture=null;lastPinchDistance=0;el.classList.remove("is-dragging");}
+      else if(wasPinching&&gesture){
+        gesture.id=Array.from(pointers.keys())[0];
+        const point=pointers.get(gesture.id)!;
+        gesture.lastX=point.x;gesture.lastY=point.y;gesture.startX=point.x;gesture.startY=point.y;gesture.moved=true;lastPinchDistance=0;
+      }
+    };
+    const onWheel=(e:WheelEvent)=>{
+      e.preventDefault();
+      zoomCamera(e.deltaY<0?1:-1);
+    };
+    canvas.addEventListener("pointerdown",onPointerDown);
+    canvas.addEventListener("pointermove",onPointerMove);
+    canvas.addEventListener("pointerup",onPointerUp);
+    canvas.addEventListener("pointercancel",onPointerUp);
+    canvas.addEventListener("wheel",onWheel,{passive:false});
     let mode = "",
       frameId = 0;
     const play = (key: string) => {
@@ -454,10 +564,15 @@ export default function OfficeScene({
     return () => {
       cancelAnimationFrame(frameId);
       window.removeEventListener("resize", resize);
-      renderer.domElement.removeEventListener("pointerup", click);
+      canvas.removeEventListener("pointerdown",onPointerDown);
+      canvas.removeEventListener("pointermove",onPointerMove);
+      canvas.removeEventListener("pointerup",onPointerUp);
+      canvas.removeEventListener("pointercancel",onPointerUp);
+      canvas.removeEventListener("wheel",onWheel);
+      cameraControlsRef.current={zoom:()=>{},reframe:()=>{}};
       renderer.dispose();
       el.replaceChildren();
     };
-  }, [assetBase, avatar, created, name, onAvatarClick, onBirthdayClick]);
-  return <div ref={host} className="office-canvas" />;
+  }, [assetBase, avatar, created, name, onAvatarClick, onMuralClick]);
+  return <><div ref={host} className="office-canvas"/><nav className="camera-controls" aria-label="Controles da câmera"><button type="button" aria-label="Aumentar zoom" onClick={()=>cameraControlsRef.current.zoom(1)}>+</button><button type="button" aria-label="Diminuir zoom" onClick={()=>cameraControlsRef.current.zoom(-1)}>−</button>{cameraAdjusted&&<button className="camera-reframe" type="button" aria-label="Reenquadrar cenário" onClick={()=>cameraControlsRef.current.reframe()}>Reenquadrar</button>}</nav></>;
 }
