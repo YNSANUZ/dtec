@@ -80,10 +80,10 @@
 - `POST /api/events/[id]/interest` adds the current user; `DELETE` removes only the current user; `GET` returns roster `{userId,name,avatar,title}` plus `isInterested`.
 - `EventsFolder({currentUserId, category?})` renders active event cards, counts, detail, and the “Tenho interesse/Remover meu interesse” control.
 
-- [ ] **Step 1: Write failing API/contract tests** for own add/remove, duplicate add idempotence, cross-user attempt rejection, unauthorized access, and closed-event rejection.
-- [ ] **Step 2: Run the focused test** and confirm failure.
-- [ ] **Step 3: Implement the interest handler** with `userId` sourced from session and RLS as a second boundary.
-- [ ] **Step 4: Add focused tests for extracted event-card view-model/formatting helpers**; this repository has no React DOM test renderer installed, so do not introduce a UI-test dependency just for this task.
-- [ ] **Step 5: Implement `EventsFolder`** as a light 2D folder; replace hard-coded event placeholder content in `MuralWindow` while preserving other folders.
+- [x] **Step 1: Write failing API/contract tests** for own add/remove, duplicate add idempotence, cross-user attempt rejection, unauthorized access, and closed-event rejection.
+- [x] **Step 2: Run the focused test** and confirm failure.
+- [x] **Step 3: Implement the interest handler** with `userId` sourced from session and RLS as a second boundary.
+- [x] **Step 4: Add focused tests for extracted event-card view-model/formatting helpers**; this repository has no React DOM test renderer installed, so do not introduce a UI-test dependency just for this task.
+- [x] **Step 5: Implement `EventsFolder`** as a light 2D folder; replace hard-coded event placeholder content in `MuralWindow` while preserving other folders.
 - [ ] **Step 6: Run `npm test`, `npm run lint`, `npx tsc --noEmit`, and `npm run build`**; manually verify loading, empty, auth-required, roster names/avatars, count, add/remove, and one phone-width viewport.
 - [ ] **Step 7: Commit** as `feat: add event interest rosters`.

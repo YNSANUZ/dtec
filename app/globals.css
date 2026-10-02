@@ -150,6 +150,31 @@
 .mural-notice{display:flex;align-items:center;gap:9px;padding:12px 14px;border-radius:9px;background:#f3f6f9;color:#6a7b90;font-size:.78rem;line-height:1.4}
 .mural-notice svg{flex:none;color:#6b83a2}
 .mural-folder-content{align-items:stretch;justify-content:flex-start;gap:16px;padding:18px 22px;text-align:left}
+.events-folder{background:#deddd7}
+.events-list{display:flex;min-height:0;flex:1;flex-direction:column;gap:8px;overflow:auto;overscroll-behavior:contain;padding:2px}
+.event-card{overflow:hidden;border:1px solid #fff;border-radius:4px;background:#efeee8;box-shadow:inset 1px 1px #fff,inset -2px -2px #b3b3ad}
+.event-card-summary{display:flex;width:100%;align-items:center;gap:10px;padding:10px;border:0;background:transparent;color:inherit;text-align:left;cursor:pointer}
+.event-card-summary:hover,.event-card.expanded .event-card-summary{background:#e5eaf1}
+.event-card-icon{display:grid;flex:0 0 34px;height:34px;place-items:center;border:1px solid #fff;border-radius:4px;background:#e4edf5;color:#315a84}
+.event-card-copy{display:flex;min-width:0;flex:1;flex-direction:column;gap:3px}
+.event-card-copy strong{color:#253d5c;font-size:.82rem}
+.event-card-copy small,.event-card-copy>span{overflow:hidden;color:#718098;font-size:.7rem;text-overflow:ellipsis;white-space:nowrap}
+.event-interest-count{flex:0 0 auto;color:#385a80;font-size:.69rem;font-weight:700}
+.event-detail{display:flex;flex-direction:column;gap:8px;padding:10px 12px;border-top:1px solid #c4c6c8}
+.event-detail>p{margin:0;color:#596b80;font-size:.76rem;line-height:1.4}
+.event-detail-meta{display:flex;flex-wrap:wrap;gap:12px;color:#6f7e8f;font-size:.69rem}
+.event-detail-meta span{display:inline-flex;align-items:center;gap:4px}
+.event-roster-heading{display:flex;align-items:center;justify-content:space-between;color:#263d5b;font-size:.78rem}
+.event-roster-heading>span{min-width:22px;padding:3px 6px;border-radius:10px;background:#e3eaf2;text-align:center;font-size:.68rem;font-weight:800}
+.event-roster{display:flex;flex-wrap:wrap;gap:7px}
+.event-roster-person{display:flex;min-width:110px;align-items:center;gap:7px;padding:5px;border:1px solid #fff;border-radius:4px;background:#f7f6f1}
+.event-roster-person .avatar-head-only{width:34px;height:34px;overflow:hidden;border:1px solid #fff;border-radius:50%;background:#d7e5f3}
+.event-roster-person .avatar-head-only canvas{width:34px!important;height:34px!important}
+.event-roster-person>span{display:flex;min-width:0;flex-direction:column;gap:2px}
+.event-roster-person strong,.event-roster-person small{max-width:160px;overflow:hidden;color:#263d5b;font-size:.68rem;text-overflow:ellipsis;white-space:nowrap}
+.event-roster-person small{color:#718098;font-size:.62rem}
+.event-roster-empty,.event-interest-note{margin:0;color:#718098;font-size:.68rem}
+@media(max-width:700px){.event-card-summary{gap:7px;padding:8px}.event-card-copy strong{font-size:.76rem}.event-card-copy small,.event-card-copy>span{font-size:.64rem}.event-interest-count{font-size:.62rem}.event-detail{padding:8px}.event-roster-person{min-width:100px}}
 .mural-breadcrumb{display:flex;align-items:center;gap:7px;padding-bottom:13px;border-bottom:1px solid #e6ebf1;color:#8793a3;font-size:.78rem}
 .mural-breadcrumb strong{color:#3e526d;font-weight:650}
 .mural-empty-state{display:flex;flex:1;min-height:190px;flex-direction:column;align-items:center;justify-content:center;text-align:center}

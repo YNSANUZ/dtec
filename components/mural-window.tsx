@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/dialog";
 import type { MuralId } from "@/lib/mural-types";
 import AvatarPreview from "@/components/avatar-preview";
+import { EventsFolder } from "@/components/mural/events-folder";
 import { formatBirthday, orderBirthdays, saoPauloMonthDay } from "@/lib/birthdays/order";
 
 type FolderInfo = {
@@ -188,60 +189,6 @@ function RecadosContent({ currentUserId }: { currentUserId: string | null }) {
   );
 }
 
-type InterestedPerson = { userId: string; name: string; avatar: string; title: string };
-
-function KartInterested({ currentUserId }: { currentUserId: string | null }) {
-  const [people, setPeople] = useState<InterestedPerson[]>([]);
-  const [isInterested, setIsInterested] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
-
-  useEffect(() => {
-    if (!currentUserId) { window.setTimeout(() => setLoading(false), 0); return; }
-    let active = true;
-    const load = async () => {
-      try {
-        const response = await fetch("/api/mural/interests?activity=kart", { cache: "no-store" });
-        const body = await response.json() as { interested?: InterestedPerson[]; isInterested?: boolean };
-        if (!response.ok) throw new Error("Não foi possível carregar os interessados.");
-        if (active) { setPeople(body.interested ?? []); setIsInterested(Boolean(body.isInterested)); }
-      } catch (reason) { if (active) setError(reason instanceof Error ? reason.message : "Falha ao carregar."); }
-      finally { if (active) setLoading(false); }
-    };
-    void load();
-    const refresh = window.setInterval(() => void load(), 12000);
-    return () => { active = false; clearInterval(refresh); };
-  }, [currentUserId]);
-
-  const toggleInterest = async () => {
-    if (!currentUserId || saving) return;
-    setSaving(true); setError("");
-    try {
-      const response = await fetch(isInterested ? "/api/mural/interests?activity=kart" : "/api/mural/interests", {
-        method: isInterested ? "DELETE" : "POST",
-        headers: isInterested ? undefined : { "Content-Type": "application/json" },
-        body: isInterested ? undefined : JSON.stringify({ activity: "kart" }),
-      });
-      if (!response.ok) throw new Error("Não foi possível atualizar seu interesse.");
-      setIsInterested(!isInterested);
-      const refreshed = await fetch("/api/mural/interests?activity=kart", { cache: "no-store" });
-      const data = await refreshed.json() as { interested?: InterestedPerson[] };
-      setPeople(data.interested ?? []);
-    } catch (reason) { setError(reason instanceof Error ? reason.message : "Falha ao atualizar."); }
-    finally { setSaving(false); }
-  };
-
-  return <section className="kart-interest-panel">
-    <div className="mural-breadcrumb"><span>Lazer</span><ChevronRight size={14} /><strong>Kart</strong></div>
-    <div className="kart-interest-heading"><div><h3>Interessados</h3><p>Mostre que gostaria de participar. Isso não confirma presença.</p></div><span>{people.length}</span></div>
-    {currentUserId && <button className={isInterested ? "kart-interest-button selected" : "kart-interest-button"} onClick={() => void toggleInterest()} disabled={saving}>{saving ? "Salvando…" : isInterested ? "Remover meu interesse" : "Tenho interesse"}</button>}
-    {!currentUserId && <p className="mural-access-note">Entre com o Google para ver e registrar interesse.</p>}
-    {error && <p className="mural-form-error" role="alert">{error}</p>}
-    {loading ? <p className="mural-loading">Carregando interessados…</p> : people.length === 0 ? <div className="mural-no-messages"><UsersRound size={21} /><strong>Ninguém demonstrou interesse ainda</strong><span>Seu interesse pode iniciar a lista.</span></div> : <div className="kart-interested-grid">{people.map((person) => <article key={person.userId} className="kart-interested-person"><AvatarPreview model={person.avatar} headOnly /><strong>{person.name}</strong>{person.title && <small>{person.title}</small>}</article>)}</div>}
-  </section>;
-}
-
 type BirthdayPerson = { userId: string; name: string; avatar: string; title: string; birthDayMonth: string };
 
 function BirthdayDirectory({ currentUserId }: { currentUserId: string | null }) {
@@ -319,8 +266,12 @@ export default function MuralWindow({
           <BirthdayDirectory currentUserId={currentUserId} />
         ) : folder && muralId === "information" && folderIndex === 0 ? (
           <RecadosContent currentUserId={currentUserId} />
+        ) : folder && muralId === "leisure" && folder.title === "Futebol" ? (
+          <EventsFolder currentUserId={currentUserId} category="futebol" />
+        ) : folder && muralId === "leisure" && folder.title === "Paintball" ? (
+          <EventsFolder currentUserId={currentUserId} category="paintball" />
         ) : folder && muralId === "leisure" && folder.title === "Kart" ? (
-          <KartInterested currentUserId={currentUserId} />
+          <EventsFolder currentUserId={currentUserId} category="kart" />
         ) : folder ? (
           <section className="mural-folder-content" aria-live="polite">
             <div className="mural-breadcrumb"><span>{mural.title}</span><ChevronRight size={14} /><strong>{folder.title}</strong></div>
