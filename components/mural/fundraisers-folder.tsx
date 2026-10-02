@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, Check, Clipboard, CreditCard, Plus, Settings, UsersRound } from "lucide-react";
 import AvatarPreview from "@/components/avatar-preview";
 import { canChangeFundraiserPayment, toFundraiserCardViewModel, type ContributionPerson } from "@/lib/fundraisers/presentation";
@@ -54,7 +54,9 @@ function CampaignEditor({
   </form>;
 }
 
-export function FundraisersFolder({ currentUserId, isAdminOrMod }: { currentUserId: string | null; isAdminOrMod: boolean }) {
+export function FundraisersFolder({ currentUserId, isAdminOrMod, roomSlug }: { currentUserId: string | null; isAdminOrMod: boolean; roomSlug?: string }) {
+  const api = roomSlug ? `/api/rooms/${roomSlug}/fundraisers` : "/api/fundraisers";
+  const directoryApi = roomSlug ? `/api/rooms/${roomSlug}/presence` : "/api/room/characters";
   const [fundraisers, setFundraisers] = useState<Fundraiser[]>([]);
   const [directory, setDirectory] = useState<DirectoryUser[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -66,32 +68,32 @@ export function FundraisersFolder({ currentUserId, isAdminOrMod }: { currentUser
   const [copied, setCopied] = useState(false);
 
   const load = async () => {
-    const body = await parseResponse<ResponseBody>(await fetch("/api/fundraisers", { cache: "no-store" }));
+    const body = await parseResponse<ResponseBody>(await fetch(api, { cache: "no-store" }));
     setFundraisers(body.fundraisers ?? []);
   };
 
   useEffect(() => {
     if (!currentUserId) { window.setTimeout(() => setLoading(false), 0); return; }
     let active = true;
-    fetch("/api/fundraisers", { cache: "no-store" })
+    fetch(api, { cache: "no-store" })
       .then(async (response) => parseResponse<ResponseBody>(response))
       .then((body) => { if (active) setFundraisers(body.fundraisers ?? []); })
       .catch((reason: unknown) => { if (active) setError(reason instanceof Error ? reason.message : "Falha ao carregar as vaquinhas."); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [currentUserId]);
+  }, [currentUserId, api]);
 
   useEffect(() => {
     if (!currentUserId || !isAdminOrMod) return;
     let active = true;
-    fetch("/api/room/characters", { cache: "no-store" })
+    fetch(directoryApi, { cache: "no-store" })
       .then(async (response) => {
         const body = await response.json() as { users?: DirectoryUser[] };
         if (response.ok && active) setDirectory(body.users ?? []);
       })
       .catch(() => { if (active) setDirectory([]); });
     return () => { active = false; };
-  }, [currentUserId, isAdminOrMod]);
+  }, [currentUserId, isAdminOrMod, directoryApi]);
 
   const selected = fundraisers.find((campaign) => campaign.id === selectedId) ?? null;
   const view = selected ? toFundraiserCardViewModel(selected) : null;
@@ -102,7 +104,7 @@ export function FundraisersFolder({ currentUserId, isAdminOrMod }: { currentUser
     if (!selected) return;
     setSaving(true); setError("");
     try {
-      await parseResponse(await fetch(`/api/fundraisers/${selected.id}/participants`, {
+      await parseResponse(await fetch(`${api}/${selected.id}/participants`, {
         method,
         headers: userId ? { "Content-Type": "application/json" } : undefined,
         body: userId ? JSON.stringify({ userId }) : undefined,
@@ -117,10 +119,10 @@ export function FundraisersFolder({ currentUserId, isAdminOrMod }: { currentUser
     if (!selected || !currentUserId || !canChangeFundraiserPayment(currentUserId, isAdminOrMod, person.userId)) return;
     setSaving(true); setError("");
     try {
-      await parseResponse(await fetch(`/api/fundraisers/${selected.id}/contributions/${person.userId}`, {
+      await parseResponse(await fetch(`${api}/${selected.id}/contributions/${person.userId}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ paid }),
+        body: JSON.stringify({ paid, cycleDueDate: selected.currentCycleDueDate }),
       }));
       await load();
     } catch (reason) { setError(reason instanceof Error ? reason.message : "Não foi possível atualizar o pagamento."); }
@@ -142,7 +144,7 @@ export function FundraisersFolder({ currentUserId, isAdminOrMod }: { currentUser
     };
     setSaving(true); setError("");
     try {
-      const response = await fetch(formCampaign ? `/api/fundraisers/${formCampaign.id}` : "/api/fundraisers", {
+      const response = await fetch(formCampaign ? `${api}/${formCampaign.id}` : api, {
         method: formCampaign ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -191,7 +193,7 @@ export function FundraisersFolder({ currentUserId, isAdminOrMod }: { currentUser
           <section className="contribution-pending"><h4>Ainda não marcaram <span>{view.pending.length}</span></h4>{view.pending.length ? view.pending.map((person) => <ContributionRow key={person.userId} person={person} paid={false} saving={saving} canChange={canChangeFundraiserPayment(currentUserId, isAdminOrMod, person.userId)} onToggle={() => void setPayment(person, true)} onRemove={isAdminOrMod ? () => void changeParticipant("DELETE", person.userId) : undefined} />) : <p>Todas as pessoas participantes marcaram pagamento.</p>}</section>
         </div>
         <p className="fundraiser-payment-note">O registro de pagamento é manual; o app não processa nem confirma transferências Pix.</p>
-      </div> : fundraisers.length === 0 ? <div className="mural-no-messages"><UsersRound size={22} /><strong>Ainda não há vaquinhas abertas</strong><span>Quando uma iniciativa for criada, ela aparecerá nesta pasta.</span></div>
+      </div> : fundraisers.length === 0 ? <div className="mural-no-messages"><UsersRound size={22} /><strong>Ainda não há vaquinhas abertas</strong><span>Quando uma iniciativa for criada, ela aparecerá nesta pasta.</span>{isAdminOrMod && <button type="button" className="mural-primary-button" onClick={() => setFormCampaign(null)}>Criar vaquinha</button>}</div>
       : <div className="fundraiser-list"><div className="fundraiser-list-heading"><div><strong>Contribuições mensais</strong><small>Valor individual e situação de pagamento.</small></div>{isAdminOrMod && <button type="button" onClick={() => setFormCampaign(null)}><Plus size={14} />Criar vaquinha</button>}</div>{fundraisers.map((campaign) => { const card = toFundraiserCardViewModel(campaign); return <button type="button" className="fundraiser-card" key={campaign.id} onClick={() => setSelectedId(campaign.id)}><span className="fundraiser-card-icon"><CreditCard size={18} /></span><span><strong>{card.title}</strong><small>{card.monthlyAmountLabel} por pessoa · {card.dueDayLabel}</small></span><span className="fundraiser-card-status">{campaign.isParticipant ? "Participante" : "Aberta"}</span></button>; })}</div>}
     {error && fundraisers.length > 0 && <p className="mural-form-error" role="alert">{error}</p>}
   </section>;

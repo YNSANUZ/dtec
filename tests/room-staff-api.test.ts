@@ -69,6 +69,15 @@ describe("room staff API", () => {
     expect(state.staff).toEqual([{ room_slug: "amigos", user_id: ownerId, role: "owner" }]);
   });
 
+  it("returns only the actor's capabilities in the requested room", async () => {
+    const { GET } = await import("@/app/api/rooms/[slug]/staff/route");
+    const get = (slug: string) => GET(new Request(`https://cubo.test/api/rooms/${slug}/staff`), { params: Promise.resolve({ slug }) });
+    expect(await (await get("amigos")).json()).toEqual({ role: "owner", canManage: true });
+    expect(await (await get("outra")).json()).toEqual({ role: null, canManage: false });
+    state.authenticated = false;
+    expect((await get("amigos")).status).toBe(401);
+  });
+
   it("rejects an ADM of another room and preserves its staff", async () => {
     const { POST } = await import("@/app/api/rooms/[slug]/staff/route");
     const result = await POST(request("outra", leaderId, "POST"), { params: Promise.resolve({ slug: "outra" }) });

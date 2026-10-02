@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { ChevronRight, MapPin, PartyPopper, UsersRound } from "lucide-react";
 import AvatarPreview from "@/components/avatar-preview";
 import { toEventCardViewModel, type EventCardInput } from "@/lib/events/presentation";
@@ -10,7 +10,10 @@ type InterestedPerson = { userId: string; name: string; avatar: string; title: s
 type InterestResponse = { interested?: InterestedPerson[]; isInterested?: boolean; error?: string };
 type EventsResponse = { events?: EventRecord[]; error?: string };
 
-export function EventsFolder({ currentUserId, category }: { currentUserId: string | null; category?: EventRecord["category"] }) {
+export function EventsFolder({ currentUserId, category, roomSlug, canManage = false }: { currentUserId: string | null; category?: EventRecord["category"]; roomSlug?: string; canManage?: boolean }) {
+  const api = roomSlug ? `/api/rooms/${roomSlug}/events` : "/api/events";
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState({ title: "", description: "", location: "", startsAt: "" });
   const [events, setEvents] = useState<EventRecord[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [people, setPeople] = useState<InterestedPerson[]>([]);
@@ -21,16 +24,16 @@ export function EventsFolder({ currentUserId, category }: { currentUserId: strin
   const [error, setError] = useState("");
 
   const loadEvents = useCallback(async () => {
-    const response = await fetch("/api/events", { cache: "no-store" });
+    const response = await fetch(api, { cache: "no-store" });
     const body = await response.json() as EventsResponse;
     if (!response.ok) throw new Error(body.error === "unauthorized" ? "Entre com o Google para consultar os eventos." : "Não foi possível carregar os eventos agora.");
     setEvents(body.events ?? []);
-  }, []);
+  }, [api]);
 
   useEffect(() => {
     if (!currentUserId) { window.setTimeout(() => setLoading(false), 0); return; }
     let active = true;
-    fetch("/api/events", { cache: "no-store" })
+    fetch(api, { cache: "no-store" })
       .then(async (response) => {
         const body = await response.json() as EventsResponse;
         if (!response.ok) throw new Error(body.error === "unauthorized" ? "Entre com o Google para consultar os eventos." : "Não foi possível carregar os eventos agora.");
@@ -39,12 +42,12 @@ export function EventsFolder({ currentUserId, category }: { currentUserId: strin
       .catch((reason: unknown) => { if (active) setError(reason instanceof Error ? reason.message : "Falha ao carregar eventos."); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [currentUserId]);
+  }, [currentUserId, api]);
 
   const loadRoster = async (eventId: string) => {
     setRosterLoading(true);
     try {
-      const response = await fetch(`/api/events/${eventId}/interest`, { cache: "no-store" });
+      const response = await fetch(`${api}/${eventId}/interest`, { cache: "no-store" });
       const body = await response.json() as InterestResponse;
       if (!response.ok) throw new Error("Não foi possível carregar os interessados.");
       setPeople(body.interested ?? []);
@@ -66,7 +69,7 @@ export function EventsFolder({ currentUserId, category }: { currentUserId: strin
     setSaving(true);
     setError("");
     try {
-      const response = await fetch(`/api/events/${event.id}/interest`, { method: isInterested ? "DELETE" : "POST" });
+      const response = await fetch(`${api}/${event.id}/interest`, { method: isInterested ? "DELETE" : "POST" });
       if (!response.ok) throw new Error(response.status === 409 ? "Este evento não está mais recebendo interessados." : "Não foi possível atualizar seu interesse.");
       await Promise.all([loadEvents(), loadRoster(event.id)]);
     } catch (reason) { setError(reason instanceof Error ? reason.message : "Falha ao atualizar interesse."); }
@@ -76,8 +79,29 @@ export function EventsFolder({ currentUserId, category }: { currentUserId: strin
   const visibleEvents = events.filter((event) => event.status === "open" && (!category || event.category === category));
   const selectedEvent = visibleEvents.find((event) => event.id === selectedId);
 
+  const saveEvent = async () => {
+    if (!currentUserId || !canManage || saving) return;
+    setSaving(true); setError("");
+    try {
+      const response = await fetch(api, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({
+        ...draft, category: category ?? "outro", startsAt: draft.startsAt ? new Date(draft.startsAt).toISOString() : null,
+      }) });
+      if (!response.ok) throw new Error("Não foi possível criar o evento.");
+      await loadEvents(); setEditing(false); setDraft({ title: "", description: "", location: "", startsAt: "" });
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "Falha ao criar evento."); }
+    finally { setSaving(false); }
+  };
+
   return <section className="mural-folder-content events-folder" aria-live="polite">
     <div className="mural-breadcrumb"><span>Lazer</span><ChevronRight size={14} /><strong>{category ? category[0].toUpperCase() + category.slice(1) : "Eventos"}</strong></div>
+    {currentUserId && canManage && <button type="button" className="mural-secondary-button" onClick={() => setEditing(!editing)}>{editing ? "Cancelar" : "Criar evento"}</button>}
+    {editing && currentUserId && canManage && <form className="fundraiser-editor" onSubmit={(event) => { event.preventDefault(); void saveEvent(); }}>
+      <label>Título<input required maxLength={80} value={draft.title} onChange={(event) => setDraft({ ...draft, title: event.target.value })} /></label>
+      <label>Descrição<textarea maxLength={1000} value={draft.description} onChange={(event) => setDraft({ ...draft, description: event.target.value })} /></label>
+      <label>Local<input maxLength={160} value={draft.location} onChange={(event) => setDraft({ ...draft, location: event.target.value })} /></label>
+      <label>Data e hora (opcional)<input type="datetime-local" value={draft.startsAt} onChange={(event) => setDraft({ ...draft, startsAt: event.target.value })} /></label>
+      <button className="mural-primary-button" disabled={saving}>Salvar evento</button>
+    </form>}
     {!currentUserId ? <div className="mural-access-note"><UsersRound aria-hidden="true" /><strong>Entre com o Google para acessar os eventos.</strong><span>Qualquer conta Google autenticada pode consultar e demonstrar interesse.</span></div>
       : loading ? <p className="mural-loading">Carregando eventos…</p>
       : error && !events.length ? <p className="mural-form-error" role="alert">{error}</p>

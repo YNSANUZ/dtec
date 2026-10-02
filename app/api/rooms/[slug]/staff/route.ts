@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getMuralUserContext } from "@/lib/mural-server";
 import { hasRoomRole, type MuralUser } from "@/lib/rooms/authorization";
 import { normalizeRoomSlug } from "@/lib/rooms/slug";
+import { getRoomMuralContext } from "@/lib/rooms/mural-server";
 
 type RouteContext = { params: Promise<{ slug: string }> };
 const userIdPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -30,6 +31,15 @@ async function authorize(context: RouteContext): Promise<Access> {
 async function targetId(request: Request) {
   const body = await request.json().catch(() => null) as { userId?: unknown } | null;
   return typeof body?.userId === "string" && userIdPattern.test(body.userId) ? body.userId : null;
+}
+
+export async function GET(_request: Request, context: RouteContext) {
+  const access = await getRoomMuralContext((await context.params).slug);
+  if (!access.ok) return access.response;
+  const { data, error } = await access.context.supabase.from("room_staff")
+    .select("role").eq("room_slug", access.slug).eq("user_id", access.context.userId).maybeSingle();
+  if (error) return json({ error: "room_role_read_failed" }, 500);
+  return json({ role: data?.role ?? null, canManage: data?.role === "owner" || data?.role === "leader" });
 }
 
 export async function POST(request: Request, context: RouteContext) {
