@@ -11,7 +11,20 @@ Escritório virtual interativo da DTEC, desenvolvido como projeto independente d
 - balões de conversa e histórico local das cinco mensagens mais recentes;
 - mural de informações e quadro de aniversariantes.
 
-Esta versão é uma demonstração pública. Sincronização entre computadores, autenticação e dados compartilhados exigem a conexão de um backend público, como Supabase ou Firebase.
+Esta versão é uma demonstração pública. A autenticação Google e os perfis usam Supabase; presença, movimentos e mensagens compartilhados entre computadores ainda são etapas futuras.
+
+## Autenticação Google em produção
+
+O aplicativo usa Supabase Auth com OAuth Google, PKCE e sessão persistente em cookies. Nenhum segredo deve ser adicionado ao repositório.
+
+1. No Supabase, habilite **Authentication → Providers → Google**.
+2. No Google Cloud, crie um cliente OAuth do tipo **Web application** e use como URI de redirecionamento autorizado a callback exibida pelo próprio painel do Supabase, no formato `https://<project-ref>.supabase.co/auth/v1/callback`.
+3. Cadastre o Client ID e o Client Secret do Google exclusivamente no painel do Supabase.
+4. Em **Supabase → Authentication → URL Configuration**, defina `https://dtec-kappa.vercel.app` como Site URL e permita `https://dtec-kappa.vercel.app/auth/callback` em Redirect URLs. Para desenvolvimento, permita também `http://localhost:3000/auth/callback`.
+5. Execute `supabase/migrations/202610010001_profiles.sql` no SQL Editor do projeto Supabase.
+6. No projeto Vercel, configure `NEXT_PUBLIC_SUPABASE_URL` e `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` para Production, Preview e Development.
+
+A chave `service_role`, o Client Secret do Google e tokens do provedor nunca pertencem às variáveis públicas do Vercel. Depois de aplicar a migração, confirme que um usuário autenticado consegue criar/alterar somente a linha cujo `user_id` seja igual a `auth.uid()`.
 
 ## Desenvolvimento
 
