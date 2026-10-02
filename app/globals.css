@@ -10,8 +10,10 @@
 .room-board-body { min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 16px; }
 .room-board-body .mural-folder-content { padding: 0; }
 .event-photo-preview { display: flex; justify-content: flex-end; padding: 0 12px 8px; }
-.fundraiser-card-group { display: grid; gap: 4px; }
-.fundraiser-photo-preview { display: flex; justify-content: flex-end; padding: 0 8px 4px; }
+.fundraiser-card-group { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; padding-right: 8px; border: 1px solid #fff; border-radius: 4px; background: #efeee8; box-shadow: inset 1px 1px white, inset -2px -2px #b3b3ad; }
+.fundraiser-card-group:hover { background: #e4edf6; }
+.fundraiser-card-group .fundraiser-card { flex: 1 1 220px; min-width: 0; border: 0; background: transparent; box-shadow: none; }
+.fundraiser-photo-preview { display: flex; justify-content: flex-end; margin-left: auto; padding: 0; }
 .room-notice-form { display: grid; gap: 8px; margin-bottom: 20px; }
 .room-notice-form textarea { width: 100%; padding: 8px; border: 1px solid #a7acb2; background: #f8f8f5; border-radius: 4px; resize: vertical; }
 .room-notice-form > div, .room-notice-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
