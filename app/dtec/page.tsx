@@ -68,17 +68,22 @@ export default function DtecRoom() {
 
   useEffect(() => {
     let active = true;
+    let loading = false;
+    const controller = new AbortController();
     const loadChat = async () => {
+      if (!active || loading) return;
+      loading = true;
       try {
-        const response = await fetch("/api/rooms/dtec/chat", { cache: "no-store" });
+        const response = await fetch("/api/rooms/dtec/chat", { cache: "no-store", signal: controller.signal });
         if (!response.ok) return;
         const body = await response.json() as { messages?: ChatMessage[] };
         if (active) setMessages(body.messages ?? []);
       } catch { /* retry on next poll */ }
+      finally { loading = false; }
     };
     void loadChat();
     const timer = window.setInterval(() => void loadChat(), 2000);
-    return () => { active = false; clearInterval(timer); };
+    return () => { active = false; controller.abort(); clearInterval(timer); };
   }, []);
 
   useEffect(() => {

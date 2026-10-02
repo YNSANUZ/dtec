@@ -45,17 +45,22 @@ export default function GenericRoom({ room }: { room: { slug: string; title: str
 
   useEffect(() => {
     let active = true;
+    let loading = false;
+    const controller = new AbortController();
     const refresh = async () => {
+      if (!active || loading) return;
+      loading = true;
       try {
-        const response = await fetch(chatUrl, { cache: "no-store" });
+        const response = await fetch(chatUrl, { cache: "no-store", signal: controller.signal });
         if (!response.ok) return;
         const body = await response.json() as { messages?: ChatMessage[] };
         if (active) { setMessages(body.messages ?? []); setBubbleCutoff(Date.now() - 5000); }
       } catch { /* retry on the next poll */ }
+      finally { loading = false; }
     };
     void refresh();
     const timer = window.setInterval(() => void refresh(), 2000);
-    return () => { active = false; window.clearInterval(timer); };
+    return () => { active = false; controller.abort(); window.clearInterval(timer); };
   }, [chatUrl]);
 
   useEffect(() => {
