@@ -20,6 +20,7 @@ export default function GenericRoom({ room }: { room: { slug: string; title: str
   const [boardOpen, setBoardOpen] = useState(false);
   const [selectedPerson, setSelectedPerson] = useState<{ scope: string; id: string } | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const chatRevision = useRef(0);
   const [bubbleCutoff, setBubbleCutoff] = useState(0);
   const [chatText, setChatText] = useState("");
   const [bubble, setBubble] = useState("");
@@ -50,11 +51,12 @@ export default function GenericRoom({ room }: { room: { slug: string; title: str
     const refresh = async () => {
       if (!active || loading) return;
       loading = true;
+      const revision = chatRevision.current;
       try {
         const response = await fetch(chatUrl, { cache: "no-store", signal: controller.signal });
         if (!response.ok) return;
         const body = await response.json() as { messages?: ChatMessage[] };
-        if (active) { setMessages(body.messages ?? []); setBubbleCutoff(Date.now() - 5000); }
+        if (active && revision === chatRevision.current) { setMessages(body.messages ?? []); setBubbleCutoff(Date.now() - 5000); }
       } catch { /* retry on the next poll */ }
       finally { loading = false; }
     };
@@ -110,7 +112,10 @@ export default function GenericRoom({ room }: { room: { slug: string; title: str
       const response = await fetch(chatUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: chatText }) });
       const body = await response.json() as { message?: ChatMessage; error?: string };
       if (!response.ok || !body.message) throw new Error("Não foi possível enviar a mensagem.");
-      setMessages((current) => [...current, body.message!].slice(-5));
+      // A read started before this acknowledgement cannot undo the send.
+      chatRevision.current++;
+      const sentMessage = body.message;
+      setMessages((current) => [...current.filter((message) => message.id !== sentMessage.id), sentMessage].slice(-5));
       setBubble(body.message.text);
       window.setTimeout(() => setBubble(""), 5000);
       setChatText("");

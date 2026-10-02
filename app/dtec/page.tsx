@@ -62,6 +62,7 @@ export default function DtecRoom() {
   const [chatError, setChatError] = useState("");
   const { rootRef: chatRootRef, onFocus: chatOnFocus, onBlur: chatOnBlur } = useRoomChatViewport();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const chatRevision = useRef(0);
   const [bubble, setBubble] = useState("");
   const presence = useRef<PresenceState>({ x: 0, z: 5, action: "idle" });
   const initializedProfile = useRef<typeof auth.user>(null);
@@ -73,11 +74,12 @@ export default function DtecRoom() {
     const loadChat = async () => {
       if (!active || loading) return;
       loading = true;
+      const revision = chatRevision.current;
       try {
         const response = await fetch("/api/rooms/dtec/chat", { cache: "no-store", signal: controller.signal });
         if (!response.ok) return;
         const body = await response.json() as { messages?: ChatMessage[] };
-        if (active) setMessages(body.messages ?? []);
+        if (active && revision === chatRevision.current) setMessages(body.messages ?? []);
       } catch { /* retry on next poll */ }
       finally { loading = false; }
     };
@@ -235,6 +237,8 @@ export default function DtecRoom() {
       });
       if (!response.ok) throw new Error("Não foi possível enviar a mensagem.");
       const body = await response.json() as { message: ChatMessage };
+      // Ignore any snapshot that began before this confirmed send.
+      chatRevision.current++;
       setMessages((current) => [...current.filter((message) => message.id !== body.message.id), body.message].slice(-5));
       setBubble(body.message.text);
       setChatText("");
