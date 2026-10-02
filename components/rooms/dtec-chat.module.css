@@ -6,6 +6,10 @@
 .shell .composer small { flex-basis: 100%; color: #ffc8bd; font-size: 12px; line-height: 1.35; }
 .shell .composer :is(input, button):focus-visible { outline: 2px solid #8ceacc; outline-offset: 2px; }
 @media (max-width: 700px) {
+  .shell .composer { left: 12px; transform: none; width: calc(100vw - 84px); }
+  .shell :global(nav.camera-controls) { width: 56px; flex-direction: column; align-items: stretch; bottom: calc(max(72px, var(--room-chat-bottom, 12px)) + env(safe-area-inset-bottom)); }
+  .shell :global(.camera-controls button) { width: 100%; padding: 5px; }
+  .shell :global(.camera-controls .camera-reframe) { height: auto; min-height: 35px; font-size: 10px; overflow-wrap: anywhere; }
   .shell .composer input { font-size: 16px; }
   .title { display: none; }
 }

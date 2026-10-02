@@ -1,6 +1,6 @@
 # CuboChat — validação de isolamento por sala
 
-Data: 02/10/2026. Escopo ampliado estimado em 87%; não é percentual de testes.
+Data: 02/10/2026. Escopo ampliado estimado em 88%; não é percentual de testes.
 
 ## Destinos
 
@@ -97,6 +97,14 @@ Esses testes não executam GPU real nem demonstram duas contas Google independen
 Revisão independente deste diff não encontrou problemas críticos, importantes ou menores; não julgou limpeza global preexistente de recursos, GPU/GLTF reais ou backend de presença fora do incremento. Commit 0a1ad9b enviado somente à branch de testes; deployment Vercel AwANVRFkEv9T7DJR8GH6q6cgafKn, target preview, Ready, alias de staging confirmado via CLI. Inspeção no navegador recuperou a mesma sessão Gestor e o histórico; ampliar a câmera, abrir/fechar o quadro e digitar um rascunho manteve o enquadramento ampliado e o controle Reenquadrar. O recado/reação existentes carregaram. Rascunho limpo sem enviar, sem novos registros de chat ou perfil. Provas outputs/qa/preview-live-labels-board.png e preview-live-labels-scene.png; a primeira registra o carregamento inicial do quadro, que terminou na inspeção seguinte. Esse smoke de uma conta não valida propagação de renomeação entre dois usuários.
 
 Não liberar produção ou DNS apenas com testes locais. Confirmar preview apontando para staging, concluir testes reais acima e solicitar aprovação específica para migração/publicação em produção e domínio.
+
+## QA restrito: MOD e layout estreito
+
+Fixture local usa RoomPeople real com respostas fictícias de fetch e bloqueia toda escrita/rede desconhecida; não usa conta/Supabase. Conferidos cartão desktop, Designar MOD → confirmação explícita → Cancelar alteração, contador de escritas0, sem clicar Confirmar. Cartão MOD atual com estrela após nome e Remover MOD coube em iframe390×844. Chat genérico/DTEC conferidos com seus módulos CSS reais em iframes390×844 apresentados a75% para caber na captura desktop; não é viewport da aplicação autenticada nem teclado físico. Primeiro caminho da fixture começou com underscore e retornou404 (pasta privada Next), renomeado. Primeira captura recortou a parte inferior por overflow global, ajustada só apresentação da fixture. Classe da barra de ações corrigida de actions-bar para actionbar antes da captura válida.
+
+RED visual: DTEC composer cheio cobriu câmera horizontal em largura390; genérico reservou faixa lateral corretamente. Desenho restrito antes da correção: CSS DTEC mobile reserva84px, composer left12/sem transform e controles verticais56px à direita acompanhando o mesmo bottom/inset/safe-area. Sem alterar hooks, cena, movimento, API, auth, perfil ou papéis. Validar nova captura e testes/build antes do checkpoint; fixtures serão removidas e não publicadas. Nenhum grant real ou dado externo alterado.
+
+GREEN visual: captura dos dois chats mostra controles verticais separados, campo/Enviar/X sem sobreposição com câmera ou barra de ações.29 testes direcionados (DTEC chat/hook/RoomPeople) passaram; diff check passou. Build inicial após remover fixtures falhou porque validator gerado de next dev ainda importava essas páginas; removido SOMENTE .next/dev/types/validator.ts obsoleto, novo build/TypeScript passou com nenhuma rota fixture no resultado. Quatro páginas temporárias e dois arquivos de instrução gerados nesta execução removidos; servidor local parado e aba temporária fechada, originais preservadas. Nenhum dado externo gravado nesta execução. Verificação MOD foi visual com fetch fictício, não autoridade real entre contas; layout foi CSS em iframe, não aplicação autenticada mobile/WebGL/teclado físico. Estimativa88%; publicar somente correção CSS e registro na branch de testes, sem produção/DNS/RLS/auth.
 
 ## Incremento restrito: paridade do teclado no chat DTEC
 
