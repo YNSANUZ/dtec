@@ -60,9 +60,14 @@ export default function GenericRoom({ room }: { room: { slug: string; title: str
 
   useEffect(() => {
     let active = true;
+    let loading = false;
+    const controller = new AbortController();
     const loadPresence = async () => {
+      // A delayed snapshot must finish before another poll can overtake it.
+      if (!active || loading) return;
+      loading = true;
       try {
-        const response = await fetch(presenceUrl, { cache: "no-store" });
+        const response = await fetch(presenceUrl, { cache: "no-store", signal: controller.signal });
         if (!response.ok) return;
         const body = await response.json() as { users?: RoomCharacter[] };
         if (!active) return;
@@ -77,10 +82,11 @@ export default function GenericRoom({ room }: { room: { slug: string; title: str
           setRestoredKey(positionKey);
         }
       } catch { /* retry on the next poll */ }
+      finally { loading = false; }
     };
     void loadPresence();
     const timer = window.setInterval(() => void loadPresence(), 2500);
-    return () => { active = false; window.clearInterval(timer); };
+    return () => { active = false; controller.abort(); window.clearInterval(timer); };
   }, [auth.user, presenceUrl, positionKey]);
 
   useEffect(() => {

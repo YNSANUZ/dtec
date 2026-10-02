@@ -1,6 +1,6 @@
 # CuboChat — validação de isolamento por sala
 
-Data: 02/10/2026. Escopo ampliado estimado em 88%; não é percentual de testes.
+Data: 02/10/2026. Escopo ampliado estimado em 89%; não é percentual de testes.
 
 ## Destinos
 
@@ -97,6 +97,12 @@ Esses testes não executam GPU real nem demonstram duas contas Google independen
 Revisão independente deste diff não encontrou problemas críticos, importantes ou menores; não julgou limpeza global preexistente de recursos, GPU/GLTF reais ou backend de presença fora do incremento. Commit 0a1ad9b enviado somente à branch de testes; deployment Vercel AwANVRFkEv9T7DJR8GH6q6cgafKn, target preview, Ready, alias de staging confirmado via CLI. Inspeção no navegador recuperou a mesma sessão Gestor e o histórico; ampliar a câmera, abrir/fechar o quadro e digitar um rascunho manteve o enquadramento ampliado e o controle Reenquadrar. O recado/reação existentes carregaram. Rascunho limpo sem enviar, sem novos registros de chat ou perfil. Provas outputs/qa/preview-live-labels-board.png e preview-live-labels-scene.png; a primeira registra o carregamento inicial do quadro, que terminou na inspeção seguinte. Esse smoke de uma conta não valida propagação de renomeação entre dois usuários.
 
 Não liberar produção ou DNS apenas com testes locais. Confirmar preview apontando para staging, concluir testes reais acima e solicitar aprovação específica para migração/publicação em produção e domínio.
+
+## Incremento restrito: presença sem consultas sobrepostas
+
+Inspeção antes do código: GET de personagens DTEC (5s) e presença genérica (2,5s) usam setInterval sem trava; rede ou parse lento permite duas consultas simultâneas no mesmo escopo e resposta antiga pode substituir o snapshot remoto mais recente. Não confundir com reset local já corrigido, nem afirmar que isso reproduz todo teletransporte relatado. Desenho restrito: trava por efeito até fetch+JSON finalizar, AbortController ao trocar sala/conta/desmontar, guarda active existente e finally liberando retry. Preservar intervalos, restauração por sessão, pose local e OfficeScene/callbacks; não alterar POST/DELETE/políticas/banco. Testes RED/GREEN em ambas páginas para fetch/parse pendentes, abort/late result ignorado, retry depois de falha e cena sem remount. Não é concorrência real de duas contas. Percentual88% até validação.
+
+RED6/8: ambas páginas iniciaram três GETs em vez de um enquanto fetch ou JSON pendiam, e não abortavam o request antigo ao trocar de conta. Dois testes de retry já eram verdes. Correção adiciona trava por efeito cobrindo fetch+JSON, controller e abort no cleanup; active continua ignorando resultado atrasado mesmo se transporte não respeita abort. GETs mantêm intervalos/URLs/no-store; POST/DELETE/restauração e OfficeScene não mudam.20 direcionados passaram, suite357/73arquivos maxWorkers2 e build/TypeScript passaram. ESLint genérico/teste limpo; DTEC mantém os DOIS ERROS OAuth anchors preexistentes, sem suprimir regra nem declarar lint geral limpo. Diff check passou. Testes usam timers/transporte/cena substituídos, não GPU/duas pessoas/concorrência de banco. Consulta lenta agora reduz frequência em vez de acumular requests; nenhuma garantia de todas causas de salto em todo frame. Estimativa89%; publicação de teste e smoke pendentes.
 
 ## QA restrito: MOD e layout estreito
 

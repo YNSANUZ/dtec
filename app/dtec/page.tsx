@@ -157,9 +157,15 @@ export default function DtecRoom() {
 
   useEffect(() => {
     let active = true;
+    let loading = false;
+    const controller = new AbortController();
     const loadCharacters = async () => {
+      // Serialize the whole read, including JSON parsing, to prevent old polls
+      // from replacing a newer remote-character snapshot on slow connections.
+      if (!active || loading) return;
+      loading = true;
       try {
-        const response = await fetch("/api/room/characters", { cache: "no-store" });
+        const response = await fetch("/api/room/characters", { cache: "no-store", signal: controller.signal });
         if (!response.ok) return;
         const body = await response.json() as { users?: OnlineUser[] };
         if (!active) return;
@@ -176,6 +182,7 @@ export default function DtecRoom() {
           }
         }
       } catch { /* retry on the next interval */ }
+      finally { loading = false; }
     };
     const publishPresence = () => {
       if (!active || !ready || !auth.user || initializedProfile.current !== auth.user) return;
@@ -184,10 +191,11 @@ export default function DtecRoom() {
     };
     void loadCharacters().then(publishPresence);
     const listTimer = window.setInterval(() => void loadCharacters(), 5000);
-    if (!ready || !auth.user) return () => { active = false; clearInterval(listTimer); };
+    if (!ready || !auth.user) return () => { active = false; controller.abort(); clearInterval(listTimer); };
     const presenceTimer = window.setInterval(publishPresence, 2500);
     return () => {
       active = false;
+      controller.abort();
       clearInterval(listTimer);
       clearInterval(presenceTimer);
       void fetch("/api/room/presence", { method: "DELETE", keepalive: true });
