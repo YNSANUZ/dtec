@@ -38,7 +38,7 @@ function makeSupabase() {
         update(row: Row) { mode = "update"; payload = row; return chain; },
         upsert(row: Row) { mode = "upsert"; payload = row; return chain; },
         maybeSingle(): Promise<{ data: Row | null; error: null }> {
-          if (table === "room_roles") return Promise.resolve({ data: state.role ? { role: state.role } : null, error: null });
+          if (table === "room_staff") return Promise.resolve({ data: filters.room_slug === "dtec" && state.role ? { role: state.role } : null, error: null });
           return Promise.resolve({ data: rows.find((row) => matches(row, filters)) ?? null, error: null });
         },
         single(): Promise<{ data: Row; error: null }> {

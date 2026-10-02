@@ -32,7 +32,7 @@ export async function GET() {
   const presenceById = new Map(presences.map((presence) => [presence.user_id, presence]));
   const rolesById = new Map<string, RoomRole>();
   if (authenticated) {
-    const { data: roles, error } = await supabase.from("room_roles").select("user_id, role");
+    const { data: roles, error } = await supabase.from("room_staff").select("user_id, role").eq("room_slug", "dtec");
     if (error) return NextResponse.json({ error: "room_roles_read_failed" }, { status: 500 });
     for (const role of roles ?? []) {
       const normalizedRole = normalizeRoomRole(role.role);

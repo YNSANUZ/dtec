@@ -12,9 +12,9 @@ vi.mock("@/lib/supabase/server", () => ({
       const chain = {
         select: vi.fn(() => chain),
         eq: vi.fn((column: string, value: unknown) => { filters[column] = value; return chain; }),
-        maybeSingle: vi.fn(async () => table === "room_roles"
-          ? { data: state.role ? { role: state.role } : null, error: null }
-          : { data: state.profileExists ? { user_id: filters.user_id } : null, error: null }),
+        maybeSingle: vi.fn(async () => table === "room_staff"
+          ? { data: filters.room_slug === "dtec" && state.role ? { role: state.role } : null, error: null }
+          : { data: state.profileExists ? { user_id: filters.user_id, display_name: "Beto Lima", avatar_id: "c", title: "", bio: "", birth_day_month: null, whatsapp: "" } : null, error: null }),
         insert: vi.fn((value: Record<string, unknown>) => { isInsert = true; row = value; return chain; }),
         delete: vi.fn(() => chain),
         then(resolve: (value: unknown) => unknown, reject?: (reason: unknown) => unknown) {
@@ -28,6 +28,7 @@ vi.mock("@/lib/supabase/server", () => ({
 }));
 
 import { POST } from "@/app/api/room/users/[id]/leader/route";
+import { GET as getProfile } from "@/app/api/room/users/[id]/route";
 
 const targetId = "22222222-2222-4222-8222-222222222222";
 const routeContext = { params: Promise.resolve({ id: targetId }) };
@@ -43,7 +44,7 @@ describe("ADM moderator assignment API", () => {
   it("allows only ADM to assign MOD to an existing profile", async () => {
     const response = await POST(makeRequest(true), routeContext);
     expect(response.status).toBe(200);
-    expect(state.inserted).toEqual([{ user_id: targetId, role: "leader", appointed_by: "11111111-1111-4111-8111-111111111111" }]);
+    expect(state.inserted).toEqual([{ room_slug: "dtec", user_id: targetId, role: "leader", appointed_by: "11111111-1111-4111-8111-111111111111" }]);
   });
 
   it.each(["leader", null])("rejects appointment when actor role is %s", async (role) => {
@@ -64,5 +65,11 @@ describe("ADM moderator assignment API", () => {
     const response = await POST(makeRequest(false), routeContext);
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ ok: true, isLeader: false });
+  });
+
+  it("shows the DTEC role from room staff on a colleague profile", async () => {
+    const response = await getProfile(new Request(`https://dtec.test/api/room/users/${targetId}`), routeContext);
+    expect(response.status).toBe(200);
+    expect(((await response.json()) as { user: { role: string } }).user.role).toBe("owner");
   });
 });

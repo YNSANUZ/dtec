@@ -10,7 +10,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) return NextResponse.json({ error: "invalid_user_id" }, { status: 400 });
   const [{ data: profile, error }, { data: role, error: roleError }] = await Promise.all([
     supabase.from("profiles").select("user_id, display_name, avatar_id, title, bio, birth_day_month, whatsapp").eq("user_id", id).maybeSingle(),
-    supabase.from("room_roles").select("role").eq("user_id", id).maybeSingle(),
+    supabase.from("room_staff").select("role").eq("room_slug", "dtec").eq("user_id", id).maybeSingle(),
   ]);
   if (error || roleError) return NextResponse.json({ error: "profile_read_failed" }, { status: 500 });
   if (!profile) return NextResponse.json({ error: "not_found" }, { status: 404 });

@@ -20,7 +20,7 @@ export async function GET() {
   if (!ids.length) return NextResponse.json({ users: [] });
   const [{ data: profiles, error: profileError }, { data: roles, error: roleError }] = await Promise.all([
     auth.supabase.from("profiles").select("user_id, display_name, avatar_id, title").in("user_id", ids),
-    auth.supabase.from("room_roles").select("user_id, role").in("user_id", ids),
+    auth.supabase.from("room_staff").select("user_id, role").eq("room_slug", "dtec").in("user_id", ids),
   ]);
   if (profileError || roleError) return NextResponse.json({ error: "presence_profiles_read_failed" }, { status: 500 });
   const profileById = new Map((profiles ?? []).map((profile) => [profile.user_id, profile]));
