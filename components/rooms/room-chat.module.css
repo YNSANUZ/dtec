@@ -18,6 +18,9 @@
 .info a { color: #8ceacc; }
 .panel :is(button, input, summary, a):focus-visible { outline: 2px solid #8ceacc; outline-offset: 2px; }
 @media (max-width: 700px) {
+  .shell :global(nav.camera-controls) { width: 56px; flex-direction: column; align-items: stretch; bottom: var(--room-chat-bottom, 12px); }
+  .shell :global(.camera-controls button) { width: 100%; padding: 5px; }
+  .shell :global(.camera-controls .camera-reframe) { height: auto; min-height: 35px; font-size: 10px; overflow-wrap: anywhere; }
   .panel { left: 10px; bottom: var(--room-chat-bottom, 12px); width: calc(100vw - 84px); padding: 8px 9px; max-height: min(240px, var(--room-chat-space, calc(100dvh - 140px))); }
   .header h1 { font-size: 12px; }
   .header button { font-size: 10px; }
