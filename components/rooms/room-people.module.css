@@ -1,0 +1,6 @@
+.area{position:relative;pointer-events:auto;margin-right:auto}
+.counter{border:0;border-radius:7px;padding:7px 10px;background:#17243acc;color:white;font-size:.8rem;cursor:pointer;white-space:nowrap}
+.area>section{z-index:40}
+.profile{max-height:80dvh;overflow:auto}
+.contacts{display:flex;gap:8px;flex-wrap:wrap}
+@media(max-width:600px){.counter{font-size:.72rem;padding:6px}.area>section{left:-90px}}

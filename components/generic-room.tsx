@@ -6,6 +6,7 @@ import React, { useEffect, useRef, useState, type FormEvent } from "react";
 import { useDtecAuth } from "@/hooks/use-dtec-auth";
 import { RoomBoard } from "@/components/rooms/room-board";
 import { AccountControls } from "@/components/profile/account-controls";
+import { RoomPeople } from "@/components/rooms/room-people";
 
 const OfficeScene = dynamic(() => import("@/components/office-scene"), { ssr: false });
 const roomStart = { x: 0, z: 5 };
@@ -15,6 +16,7 @@ type RoomCharacter = { userId: string; name: string; avatar: string; x: number; 
 export default function GenericRoom({ room }: { room: { slug: string; title: string; description: string } }) {
   const auth = useDtecAuth();
   const [boardOpen, setBoardOpen] = useState(false);
+  const [selectedPerson, setSelectedPerson] = useState<{ scope: string; id: string } | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [bubbleCutoff, setBubbleCutoff] = useState(0);
   const [chatText, setChatText] = useState("");
@@ -29,6 +31,7 @@ export default function GenericRoom({ room }: { room: { slug: string; title: str
   const chatUrl = `/api/rooms/${room.slug}/chat`;
   const presenceUrl = `/api/rooms/${room.slug}/presence`;
   const positionKey = `${room.slug}:${auth.user?.id ?? "visitor"}`;
+  const peopleScope = `${positionKey}:${auth.state}`;
   const presenceReady = restoredKey === positionKey;
   const visibleCharacters = characters.filter((character) => character.userId !== auth.user?.id).map((character) => ({
     ...character,
@@ -100,11 +103,11 @@ export default function GenericRoom({ room }: { room: { slug: string; title: str
     } finally { setSending(false); }
   };
   return <main className="lobby-shell">
-    <OfficeScene environment="lobby" name={auth.profile?.displayName ?? "Visitante"} avatar={auth.profile?.avatarId ?? "r"} action="idle" message={bubble} created={auth.state === "ready" && presenceReady} initialPosition={sceneStart} remoteUsers={visibleCharacters} birthdayToday={false} positionOwnerId={positionKey} onStateChange={(x, z, action) => { ownPosition.current = { x, z, action: action === "dance" ? "dance" : ["walk", "sit"].includes(action) ? action : "idle" }; }} onCharacterClick={() => {}} onMuralClick={() => {}} />
+    <OfficeScene environment="lobby" name={auth.profile?.displayName ?? "Visitante"} avatar={auth.profile?.avatarId ?? "r"} action="idle" message={bubble} created={auth.state === "ready" && presenceReady} initialPosition={sceneStart} remoteUsers={visibleCharacters} birthdayToday={false} positionOwnerId={positionKey} onStateChange={(x, z, action) => { ownPosition.current = { x, z, action: action === "dance" ? "dance" : ["walk", "sit"].includes(action) ? action : "idle" }; }} onCharacterClick={(id) => setSelectedPerson({ scope: peopleScope, id: id ?? auth.user?.id ?? "visitor" })} onMuralClick={() => {}} />
     <div className="shade" aria-hidden="true" />
     {boardOpen && <RoomBoard roomSlug={room.slug} currentUserId={auth.state === "ready" ? auth.user?.id ?? null : null} onClose={() => setBoardOpen(false)} />}
     <button type="button" className="room-board-open" onClick={() => setBoardOpen(true)}>Quadro de avisos</button>
-    <header className="lobby-header"><Link href="/" className="lobby-brand">CuboChat</Link><AccountControls auth={auth} loginNext={`/${room.slug}`} /></header>
+    <header className="lobby-header"><Link href="/" className="lobby-brand">CuboChat</Link><RoomPeople roomSlug={room.slug} currentUserId={auth.state === "ready" ? auth.user?.id ?? null : null} characters={characters} selectedUserId={selectedPerson?.scope === peopleScope ? selectedPerson.id : null} onSelect={(id) => setSelectedPerson({ scope: peopleScope, id })} onClose={() => setSelectedPerson(null)} /><AccountControls auth={auth} loginNext={`/${room.slug}`} /></header>
     <section className="lobby-panel" aria-labelledby="room-title"><p className="lobby-eyebrow">Sala /{room.slug}</p><h1 id="room-title">{room.title}</h1><p>{room.description || "Um espaço para reunir pessoas."}</p><div className="lobby-chat-history" aria-label="Últimas mensagens">{messages.length ? messages.map((message) => <p key={message.id}><strong>{message.name}:</strong> {message.text}</p>) : <small>Nenhuma mensagem nesta sala.</small>}</div>{auth.state === "ready" ? <form className="lobby-chat-form" onSubmit={(event) => void sendMessage(event)}><input value={chatText} onChange={(event) => setChatText(event.target.value)} maxLength={100} placeholder="Escreva uma mensagem" aria-label="Mensagem" /><button disabled={sending || !chatText.trim()}>Enviar</button></form> : <small>Entre com Google para conversar.</small>}{chatError && <small role="alert">{chatError}</small>}<small>Os personagens desta sala atualizam a posição periodicamente; outras interações ainda estão em preparação.</small><div className="lobby-actions"><Link href="/" className="lobby-secondary">Voltar à entrada</Link></div></section>
   </main>;
 }

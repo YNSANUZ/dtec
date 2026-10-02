@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const memberId = "11111111-1111-4111-8111-111111111111";
 const state = vi.hoisted(() => ({
   signedIn: true,
+  lastSeenAge: 0,
   queried: [] as string[],
   saved: [] as Array<{ room_slug: string; user_id: string; x: number; z: number; action: string }>,
 }));
@@ -15,7 +16,7 @@ vi.mock("@/lib/supabase/server", () => ({
         select: () => query,
         eq: async (_field: string, slug: string) => {
           state.queried.push(slug);
-          return { data: slug === "amigos" ? [{ user_id: memberId, x: 2, z: 3, action: "walk", last_seen: new Date().toISOString() }] : [], error: null };
+          return { data: slug === "amigos" ? [{ user_id: memberId, x: 2, z: 3, action: "walk", last_seen: new Date(Date.now() - state.lastSeenAge).toISOString() }] : [], error: null };
         },
         in: async () => ({ data: [{ user_id: memberId, display_name: "Ana Silva", avatar_id: "a" }], error: null }),
         upsert: async (row: { room_slug: string; user_id: string; x: number; z: number; action: string }) => {
@@ -36,7 +37,7 @@ const post = (body: unknown) => new Request("https://cubo.test/api/rooms/amigos/
 });
 
 describe("room-specific presence API", () => {
-  beforeEach(() => { state.signedIn = true; state.queried = []; state.saved = []; });
+  beforeEach(() => { state.signedIn = true; state.lastSeenAge = 0; state.queried = []; state.saved = []; });
 
   it("reads only the requested room and marks a recent character online", async () => {
     const response = await GET(new Request("https://cubo.test/api/rooms/amigos/presence"), context("amigos"));
@@ -59,6 +60,15 @@ describe("room-specific presence API", () => {
   it("rejects invalid coordinates and IDs", async () => {
     expect((await POST(post({ x: 99, z: 5, action: "walk" }), context("amigos"))).status).toBe(400);
     expect((await GET(new Request("https://cubo.test/api/rooms/a1/presence"), context("a1"))).status).toBe(400);
+    expect(state.saved).toEqual([]);
+  });
+
+  it("keeps an offline member's character and saved position visible to anonymous visitors", async () => {
+    state.signedIn = false;
+    state.lastSeenAge = 24 * 60 * 60 * 1000;
+    const response = await GET(new Request("https://cubo.test/api/rooms/amigos/presence"), context("amigos"));
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ users: [{ userId: memberId, name: "Ana Silva", avatar: "a", x: 2, z: 3, action: "idle", online: false, birthdayToday: false, message: "" }] });
     expect(state.saved).toEqual([]);
   });
 });

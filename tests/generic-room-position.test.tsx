@@ -4,7 +4,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import GenericRoom from "@/components/generic-room";
 const sceneMount = vi.hoisted(() => vi.fn());
-vi.mock("next/dynamic", () => ({ default: () => function SceneFixture() { React.useEffect(() => { sceneMount(); }, []); return <div aria-label="Cenário" />; } }));
+vi.mock("next/dynamic", () => ({ default: () => function SceneFixture({ onCharacterClick }: { onCharacterClick: (id: string | null) => void }) { React.useEffect(() => { sceneMount(); }, []); return <div aria-label="Cenário"><button onClick={() => onCharacterClick(null)}>Clicar no próprio boneco</button></div>; } }));
 vi.mock("@/hooks/use-dtec-auth", () => {
   const auth = { state: "ready", user: { id: "member" }, profile: { displayName: "Ana Silva", avatarId: "a" } };
   return { useDtecAuth: () => auth };
@@ -43,4 +43,20 @@ it("keeps the scene mounted while opening, typing and cancelling profile editing
   await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   expect(sceneMount).toHaveBeenCalledOnce();
   expect(transport.mock.calls.some(([, init]) => init?.method === "PUT")).toBe(false);
+});
+
+it("connects character and online-name clicks to the room profile without remounting the scene", async () => {
+  transport.mockImplementation((url: string) => Promise.resolve(response(url.endsWith("/presence") ? { users: [{ userId: "member", x: 7, z: 2, name: "Ana Silva", avatar: "a", online: true }] }
+    : url.endsWith("/users/member") ? { user: { userId: "member", name: "Ana Silva", avatar: "a", role: "member", title: "", bio: "Perfil por clique", birthDayMonth: null, whatsapp: "", instagram: "" } }
+      : { messages: [], users: [] })));
+  render(<GenericRoom room={{ slug: "amigos", title: "Amigos", description: "" }} />);
+  fireEvent.click(await screen.findByRole("button", { name: "1 online" }));
+  fireEvent.click(screen.getByRole("button", { name: "Ana Silva" }));
+  expect(await screen.findByText("Perfil por clique")).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "Fechar perfil" }));
+  fireEvent.click(screen.getByRole("button", { name: "Clicar no próprio boneco" }));
+  expect(await screen.findByText("Perfil por clique")).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "Fechar perfil" }));
+  expect(sceneMount).toHaveBeenCalledOnce();
+  expect(transport).toHaveBeenCalledWith("/api/rooms/amigos/users/member", expect.objectContaining({ cache: "no-store" }));
 });
