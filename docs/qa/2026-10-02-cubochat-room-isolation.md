@@ -1,6 +1,6 @@
 # CuboChat — validação de isolamento por sala
 
-Data: 02/10/2026. Escopo ampliado estimado em 75%; não é percentual de testes.
+Data: 02/10/2026. Escopo ampliado estimado em 77%; não é percentual de testes.
 
 ## Destinos
 
@@ -69,6 +69,14 @@ Um primeiro envio do lote pelo editor reutilizou texto anterior e abortou com sc
 As miniaturas foram substituídas por doze PNGs locais transparentes (176×176, 107236 bytes no conjunto): cabeça e corpo dos seis modelos existentes. Nenhum WebGL/GLTF/RAF por miniatura na interface; os utilitários de geração ficam apenas em scripts, fora do componente. O CSS agora respeita círculos de 34/38/42/58/64 px e centraliza o rosto. Fixture local confirmou todos os modelos e foi removida antes do build; prova em outputs/qa/avatar-thumbnails-local.png. Validação: 221 testes em 57 arquivos, ESLint dos arquivos novos/alterados, build/TypeScript e diff check passaram. Um primeiro build encontrou referência gerada à fixture já removida; removido somente .next/dev/types/validator.ts obsoleto, o build passou.
 
 Administração de eventos, fotos do Google e perfil global ainda precisam QA de paridade visual/funcional. O ajuste ad7ce5b foi publicado somente na branch de testes: deployment GaiDWN4n4veSwkLbLourdsJbpKn3 Ready. Preview da sala qa20261002 recuperou sessão e dados; contribuição mostrou PNG character-r-head.png carregado (176 px naturais), círculo 34×34 e zero canvas na miniatura, centralizado visualmente. Screenshot em outputs/qa/preview-static-heads.png. Nenhum novo pagamento, migração ou alteração de produção/DNS.
+
+## Checkpoint de perfil e eventos
+
+Menu compartilhado no lobby e salas gerais: foto circular do Google (URL HTTPS googleusercontent validada, fallback inicial, sem referrer), primeiro nome escolhido, formulário sob demanda, criação de sala, instalação explicitamente desativada e saída. Perfil global editável na própria sala: seis miniaturas numeradas, dois nomes, cargo, biografia, aniversário DD/MM sem ano e WhatsApp/Instagram opcionais. Dados não são gravados ao cancelar; erros preservam o formulário. Perfil inicial continua condicionado à autenticação; visitante não recebe formulário aberto.
+
+Eventos: ADM/MOD pode editar campos/categoria/data, encerrar, cancelar e reabrir sem apagar interesses. Membros podem consultar arquivo encerrado/cancelado, mas não recebem controles administrativos nem podem adicionar interesse a evento fechado. Datas do editor usam horário local, convertido de volta ao instante ISO; respostas antigas do roster são descartadas ao trocar de evento. Permissões continuam verificadas pela API/RLS existente, sem migração.
+
+Validação local: 241 testes/61 arquivos, build/TypeScript, ESLint dos arquivos alterados e diff check passaram. Regressão DOM confirmou que abrir, digitar e cancelar o perfil mantém OfficeScene montado; isso não equivale a verificar movimento WebGL em duas contas. Conferência deste checkpoint no preview ainda pendente.
 
 Fixtures da interface permanecem somente no staging, identificadas como QA: salas qa20261002 e qa20261002b, um recado, um evento, duas mensagens (uma por sala) e uma vaquinha fictícia de R$10 sem chave Pix, com instrução explícita para não pagar. Não houve transferência. Screenshots em outputs/qa/preview-payment-qa.png e preview-camera-qa.png (ignorados no Git). O botão fechar do novo quadro ficou desalinhado pela regra global herdada; ajuste local usa grid/place-items/line-height com seletor do botão para centralizar o X; 6 testes do quadro e build passaram.
 

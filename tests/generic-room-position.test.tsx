@@ -1,16 +1,17 @@
 // @vitest-environment happy-dom
 import React from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { cleanup, render, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import GenericRoom from "@/components/generic-room";
-vi.mock("next/dynamic", () => ({ default: () => () => <div aria-label="Cenário" /> }));
+const sceneMount = vi.hoisted(() => vi.fn());
+vi.mock("next/dynamic", () => ({ default: () => function SceneFixture() { React.useEffect(() => { sceneMount(); }, []); return <div aria-label="Cenário" />; } }));
 vi.mock("@/hooks/use-dtec-auth", () => {
   const auth = { state: "ready", user: { id: "member" }, profile: { displayName: "Ana Silva", avatarId: "a" } };
   return { useDtecAuth: () => auth };
 });
 const transport = vi.fn();
 const response = (body: unknown) => new Response(JSON.stringify(body));
-beforeEach(() => { transport.mockReset(); vi.stubGlobal("fetch", transport); });
+beforeEach(() => { transport.mockReset(); sceneMount.mockClear(); vi.stubGlobal("fetch", transport); });
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 it("restores persisted position before sending the first presence update", async () => {
   let finishPresence!: (response: Response) => void;
@@ -29,4 +30,17 @@ it("restores the same user's position separately after switching rooms", async (
   view.rerender(<GenericRoom room={{ slug: "outra", title: "Outra", description: "" }} />);
   await waitFor(() => expect(transport).toHaveBeenCalledWith("/api/rooms/outra/presence", expect.objectContaining({ method: "POST", body: JSON.stringify({ x: -3, z: 2, action: "idle" }) })));
   expect(transport.mock.calls.some(([url, options]) => url === "/api/rooms/outra/presence" && options?.method === "POST" && JSON.parse(options.body).x === 7)).toBe(false);
+});
+it("keeps the scene mounted while opening, typing and cancelling profile editing", async () => {
+  transport.mockImplementation((url: string) => Promise.resolve(response(url.endsWith("/presence") ? { users: [{ userId: "member", x: 7, z: 2, name: "Ana Silva", avatar: "a" }] } : { messages: [] })));
+  render(<GenericRoom room={{ slug: "amigos", title: "Amigos", description: "" }} />);
+  await waitFor(() => expect(transport).toHaveBeenCalledWith("/api/rooms/amigos/presence", expect.objectContaining({ method: "POST" })));
+  expect(sceneMount).toHaveBeenCalledOnce();
+  fireEvent.pointerDown(screen.getByRole("button", { name: "Perfil de Ana" }), { button: 0, ctrlKey: false });
+  fireEvent.click(await screen.findByRole("menuitem", { name: "Meu avatar e perfil" }));
+  fireEvent.change(screen.getByLabelText("Nome e sobrenome"), { target: { value: "Ana Lima" } });
+  fireEvent.click(screen.getByRole("button", { name: "Cancelar" }));
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  expect(sceneMount).toHaveBeenCalledOnce();
+  expect(transport.mock.calls.some(([, init]) => init?.method === "PUT")).toBe(false);
 });

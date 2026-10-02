@@ -212,6 +212,7 @@
 .event-roster-person{display:flex;min-width:110px;align-items:center;gap:7px;padding:5px;border:1px solid #fff;border-radius:4px;background:#f7f6f1}
 .event-roster-person .avatar-head-only{width:34px!important;height:34px!important;overflow:hidden;border:1px solid #fff;border-radius:50%;background:#d7e5f3}
 .event-roster-person .avatar-head-only canvas{width:34px!important;height:34px!important}
+.event-admin-actions{display:flex;flex-wrap:wrap;gap:7px;margin:8px 0}.fundraiser-editor select{min-width:0;width:100%;padding:8px;border:1px solid #a8b1b9;border-radius:3px;background:#fff;color:#21354a;font:inherit}
 .event-roster-person>span{display:flex;min-width:0;flex-direction:column;gap:2px}
 .event-roster-person strong,.event-roster-person small{max-width:160px;overflow:hidden;color:#263d5b;font-size:.68rem;text-overflow:ellipsis;white-space:nowrap}
 .event-roster-person small{color:#718098;font-size:.62rem}

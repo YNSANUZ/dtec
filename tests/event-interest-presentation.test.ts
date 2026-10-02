@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { toEventCardViewModel } from "@/lib/events/presentation";
+import { eventLocalDateTime, toEventCardViewModel } from "@/lib/events/presentation";
 
 const event = {
   id: "event-1",
@@ -12,6 +12,12 @@ const event = {
 };
 
 describe("event card view model", () => {
+  it("round-trips an ISO timestamp through the local datetime editor without moving its timezone", () => {
+    const timestamp = "2026-10-20T15:30:00.000Z";
+    expect(new Date(eventLocalDateTime(timestamp)).toISOString()).toBe(timestamp);
+    expect(eventLocalDateTime(null)).toBe("");
+    expect(eventLocalDateTime("invalid")).toBe("");
+  });
   it("provides concise fallback labels and singular interest count", () => {
     expect(toEventCardViewModel(event)).toMatchObject({
       whenLabel: "Data a combinar",

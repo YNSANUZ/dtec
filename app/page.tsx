@@ -2,10 +2,12 @@
 
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { useEffect, useState, type FormEvent } from "react";
+import React, { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { useDtecAuth } from "@/hooks/use-dtec-auth";
-import type { AvatarId } from "@/lib/profile/validation";
+import { AccountControls } from "@/components/profile/account-controls";
+import { ProfileForm } from "@/components/profile/profile-form";
+import { googleIdentity } from "@/lib/profile/google-identity";
 
 const OfficeScene = dynamic(() => import("@/components/office-scene"), { ssr: false });
 
@@ -32,15 +34,13 @@ export default function CuboChatLobby() {
   const [roomId, setRoomId] = useState("");
   const [roomTitle, setRoomTitle] = useState("");
   const [roomDescription, setRoomDescription] = useState("");
-  const [name, setName] = useState("");
-  const [avatar, setAvatar] = useState<AvatarId>("r");
-  const [whatsapp, setWhatsapp] = useState("");
-  const [instagram, setInstagram] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    if (new URLSearchParams(window.location.search).get("create") === "1") setShowCreate(true);
+    if (new URLSearchParams(window.location.search).get("create") !== "1") return;
+    const timer = window.setTimeout(() => setShowCreate(true), 0);
+    return () => window.clearTimeout(timer);
   }, []);
 
   useEffect(() => {
@@ -63,32 +63,6 @@ export default function CuboChatLobby() {
     }).catch(() => {});
     return () => { active = false; };
   }, []);
-
-  useEffect(() => {
-    if (auth.user && !auth.profile) {
-      const suggestedName = String(auth.user.user_metadata?.full_name ?? auth.user.user_metadata?.name ?? "");
-      setName(suggestedName.split(/\s+/).slice(0, 2).join(" "));
-    }
-  }, [auth.profile, auth.user]);
-
-  useEffect(() => {
-    if (!auth.profile) return;
-    setName(auth.profile.displayName);
-    setAvatar(auth.profile.avatarId);
-    setWhatsapp(auth.profile.whatsapp);
-    setInstagram(auth.profile.instagram);
-  }, [auth.profile]);
-
-  const saveProfile = async (event: FormEvent) => {
-    event.preventDefault();
-    setBusy(true); setError("");
-    try {
-      await auth.saveProfile({ displayName: name, avatarId: avatar, title: auth.profile?.title ?? "", bio: auth.profile?.bio ?? "", birthDayMonth: auth.profile?.birthDayMonth ?? "", whatsapp, instagram });
-      setProfileEditing(false);
-    } catch (failure) {
-      setError(failure instanceof Error ? failure.message : "Não foi possível salvar o perfil.");
-    } finally { setBusy(false); }
-  };
 
   const createRoom = async (event: FormEvent) => {
     event.preventDefault();
@@ -128,13 +102,13 @@ export default function CuboChatLobby() {
       onMuralClick={() => {}}
     />
     <div className="shade" aria-hidden="true" />
-    <header className="lobby-header"><span className="lobby-brand">CuboChat</span>{auth.state === "anonymous" ? <Link href="/auth/login?next=/" className="lobby-login">Entrar com Google</Link> : auth.user ? <button className="lobby-login" type="button" onClick={() => void auth.signOut()}>Sair</button> : null}</header>
+    <header className="lobby-header"><span className="lobby-brand">CuboChat</span><AccountControls auth={auth} loginNext="/" onEditProfile={() => setProfileEditing(true)} onCreateRoom={() => { setProfileEditing(false); setShowCreate(true); }} /></header>
     <section className="lobby-panel" aria-labelledby="lobby-title">
       <p className="lobby-eyebrow">Seu espaço virtual</p>
       <h1 id="lobby-title">Entre na sala e encontre sua turma.</h1>
       {auth.state === "anonymous" && <><p>Explore o ambiente como visitante. Entre com Google para criar seu personagem e sua sala.</p><div className="lobby-actions"><Link href="/auth/login?next=/" className="lobby-primary">Entrar com Google</Link><Link href="/dtec" className="lobby-secondary">Conhecer a sala DTEC</Link></div></>}
       {auth.state === "loading" && <p>Preparando o ambiente…</p>}
-      {(auth.state === "authenticated-needs-profile" || (auth.state === "ready" && profileEditing)) && <form className="lobby-form" onSubmit={(event) => void saveProfile(event)}><p>{profileEditing ? "Atualize seu perfil." : "Crie seu personagem para participar das salas."}</p><label>Nome e sobrenome<input required value={name} onChange={(event) => setName(event.target.value)} maxLength={48} /></label><label>Personagem<select value={avatar} onChange={(event) => setAvatar(event.target.value as AvatarId)}>{["a", "c", "f", "j", "n", "r"].map((id, index) => <option key={id} value={id}>Personagem {index + 1}</option>)}</select></label><label>WhatsApp (opcional)<input type="tel" value={whatsapp} onChange={(event) => setWhatsapp(event.target.value)} /></label><label>Instagram (opcional)<input value={instagram} onChange={(event) => setInstagram(event.target.value)} placeholder="@usuario" /></label><button disabled={busy}>{busy ? "Salvando…" : "Salvar perfil"}</button>{profileEditing && <button type="button" className="lobby-cancel" onClick={() => setProfileEditing(false)}>Cancelar</button>}</form>}
+      {(auth.state === "authenticated-needs-profile" || (auth.state === "ready" && profileEditing)) && <ProfileForm key={auth.user?.id} profile={auth.profile} suggestedName={googleIdentity(auth.user).suggestedName} onSave={async (draft) => { await auth.saveProfile(draft); setProfileEditing(false); }} onCancel={auth.profile ? () => setProfileEditing(false) : undefined} />}
       {auth.state === "ready" && !profileEditing && <div className="lobby-directory"><p>Olá, {auth.profile?.displayName.split(" ")[0]}! Encontre uma sala ou crie a sua.</p><label className="lobby-search">Pesquisar sala<input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Nome ou ID da sala" /></label><div className="lobby-room-list">{rooms.filter((room) => `${room.title} ${room.slug}`.toLowerCase().includes(search.toLowerCase())).map((room) => <Link key={room.slug} href={`/${room.slug}`}><strong>{room.title}</strong><span>/{room.slug}</span></Link>)}{rooms.length === 0 && <small>Nenhuma sala disponível no momento.</small>}</div><div className="lobby-directory-actions"><button type="button" className="lobby-create-toggle" onClick={() => setShowCreate((value) => !value)}>{showCreate ? "Cancelar" : "Criar meu CuboChat"}</button><button type="button" className="lobby-edit-profile" onClick={() => setProfileEditing(true)}>Editar perfil</button></div>{showCreate && <form className="lobby-form" onSubmit={(event) => void createRoom(event)}><label>Nome da sala<input required minLength={3} maxLength={60} value={roomTitle} onChange={(event) => setRoomTitle(event.target.value)} /></label><label>ID da sala (3 a 20 letras ou números)<input required minLength={3} maxLength={20} pattern="[a-z0-9]{3,20}" autoCapitalize="none" spellCheck={false} value={roomId} onChange={(event) => setRoomId(event.target.value.toLowerCase())} placeholder="minhasala2" /></label><label>Descrição (opcional)<input maxLength={280} value={roomDescription} onChange={(event) => setRoomDescription(event.target.value)} /></label><button disabled={busy}>{busy ? "Criando…" : "Criar sala"}</button></form>}</div>}
       {(error || auth.error) && <p role="alert" className="lobby-error">{error || auth.error}</p>}
       <small>Os cinco personagens deste espaço são demonstrativos, não pessoas conectadas.</small>

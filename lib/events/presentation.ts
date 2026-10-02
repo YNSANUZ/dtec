@@ -21,3 +21,11 @@ export function toEventCardViewModel(event: EventCardInput, locale = "pt-BR") {
     interestLabel: `${count} ${count === 1 ? "interessado" : "interessados"}`,
   };
 }
+
+export function eventLocalDateTime(timestamp: string | null) {
+  if (!timestamp) return "";
+  const date = new Date(timestamp);
+  if (Number.isNaN(date.getTime())) return "";
+  const pad = (value: number) => String(value).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
