@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ArrowLeft,
   CakeSlice,
@@ -33,6 +33,7 @@ import { FundraisersFolder } from "@/components/mural/fundraisers-folder";
 import { MuralPeopleStack, type PeoplePreview } from "@/components/mural/people-stack";
 import { formatBirthday, orderBirthdays, saoPauloMonthDay } from "@/lib/birthdays/order";
 import type { MuralReaction } from "@/lib/mural-reactions";
+import { createLatestRequest } from "@/lib/mural/latest-request";
 
 type FolderInfo = {
   title: string;
@@ -323,6 +324,7 @@ export default function MuralWindow({
   const [people, setPeople] = useState<ParticipationPerson[]>([]);
   const [peopleLoading, setPeopleLoading] = useState(false);
   const [peopleError, setPeopleError] = useState("");
+  const peopleRequest = useRef(createLatestRequest<ParticipationPerson[]>());
   const mural = muralInfo[muralId];
   const folder = folderIndex === null ? null : mural.folders[folderIndex];
   const Icon = mural.Icon;
@@ -341,19 +343,21 @@ export default function MuralWindow({
     return () => { active = false; };
   }, [currentUserId, muralId, folderIndex]);
 
-  const openPeople = async (key: string, title: string) => {
+  useEffect(() => () => peopleRequest.current.invalidate(), [currentUserId]);
+
+  const openPeople = (key: string, title: string) => {
     setPeopleTarget({ key, title });
     setPeople([]);
     setPeopleError("");
     setPeopleLoading(true);
-    try {
+    void peopleRequest.current.run(async () => {
       const response = await fetch(`/api/mural/participation?mural=${muralId}&folder=${key}`, { cache: "no-store" });
       if (!response.ok) throw new Error("Não foi possível carregar a lista agora.");
       const body = await response.json() as { people: ParticipationPerson[] };
-      setPeople(body.people);
-    } catch (error) {
+      return body.people;
+    }, setPeople, (error) => {
       setPeopleError(error instanceof Error ? error.message : "Não foi possível carregar a lista agora.");
-    } finally { setPeopleLoading(false); }
+    }, () => setPeopleLoading(false));
   };
 
   return (
@@ -404,13 +408,13 @@ export default function MuralWindow({
             {mural.folders.map((item, index) => {
               const key = participationFolders[muralId][index];
               const preview = currentUserId ? participation[key] : undefined;
-              return <div className="mural-folder-card" key={item.title}>
+              return <div className={`mural-folder-card ${preview && preview.count > 0 ? "has-people" : ""}`} key={item.title}>
                 <button className="mural-folder-open" onClick={() => setFolderIndex(index)} type="button">
                   <span className="mural-folder-icon"><item.Icon aria-hidden="true" /></span>
                   <span className="mural-folder-copy"><strong>{item.title}</strong><small>{item.summary}</small></span>
                 </button>
                 {preview && preview.count > 0 && <MuralPeopleStack title={item.title} count={preview.count} photos={preview.photos}
-                  onClick={() => void openPeople(key, item.title)} />}
+                  onClick={() => openPeople(key, item.title)} />}
                 <button className="mural-folder-arrow-button" type="button" aria-label={`Abrir ${item.title}`} onClick={() => setFolderIndex(index)}>
                   <ChevronRight className="mural-folder-arrow" size={16} aria-hidden="true" />
                 </button>
@@ -435,7 +439,7 @@ export default function MuralWindow({
         </footer>
       </DialogContent>
     </Dialog>
-    <Dialog open={peopleTarget !== null && Boolean(currentUserId)} onOpenChange={(open) => { if (!open) setPeopleTarget(null); }}>
+    <Dialog open={peopleTarget !== null && Boolean(currentUserId)} onOpenChange={(open) => { if (!open) { peopleRequest.current.invalidate(); setPeopleTarget(null); } }}>
       <DialogContent className="mural-people-dialog">
         <DialogHeader>
           <DialogTitle>Pessoas em {peopleTarget?.title}</DialogTitle>

@@ -14,6 +14,24 @@ const json = (body: unknown, status = 200) => NextResponse.json(body, {
   status,
   headers: { "Cache-Control": "private, no-store" },
 });
+const PAGE_SIZE = 100;
+
+function chunks<T>(items: T[], size: number): T[][] {
+  const result: T[][] = [];
+  for (let index = 0; index < items.length; index += size) result.push(items.slice(index, index + size));
+  return result;
+}
+
+async function readAll<T>(page: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: unknown }>): Promise<T[] | null> {
+  const rows: T[] = [];
+  for (let from = 0; ; from += PAGE_SIZE) {
+    const result = await page(from, from + PAGE_SIZE - 1);
+    if (result.error) return null;
+    const batch = result.data ?? [];
+    rows.push(...batch);
+    if (batch.length < PAGE_SIZE) return rows;
+  }
+}
 
 function validGooglePhoto(value: unknown): string | null {
   if (typeof value !== "string" || value.length > 2048) return null;
@@ -30,31 +48,33 @@ async function collectPeople(supabase: Supabase, mural: Mural): Promise<FolderId
 
   if (mural === "information") {
     const [messages, reactions, fundraisers] = await Promise.all([
-      supabase.from("mural_messages").select("author_id"),
-      supabase.from("mural_message_reactions").select("user_id"),
-      supabase.from("fundraisers").select("id").eq("status", "open"),
+      readAll((from, to) => supabase.from("mural_messages").select("author_id").order("id").range(from, to)),
+      readAll((from, to) => supabase.from("mural_message_reactions").select("user_id").order("message_id").order("user_id").range(from, to)),
+      readAll((from, to) => supabase.from("fundraisers").select("id").eq("status", "open").order("id").range(from, to)),
     ]);
-    if (messages.error || reactions.error || fundraisers.error) return null;
-    for (const row of messages.data ?? []) folders.recados.add(row.author_id);
-    for (const row of reactions.data ?? []) folders.recados.add(row.user_id);
-    const ids = (fundraisers.data ?? []).map((row) => row.id);
+    if (!messages || !reactions || !fundraisers) return null;
+    for (const row of messages) folders.recados.add(row.author_id);
+    for (const row of reactions) folders.recados.add(row.user_id);
+    const ids = fundraisers.map((row) => row.id);
     if (ids.length) {
-      const participants = await supabase.from("fundraiser_participants")
-        .select("user_id").in("fundraiser_id", ids).eq("active", true);
-      if (participants.error) return null;
-      for (const row of participants.data ?? []) folders.vaquinhas.add(row.user_id);
+      const participantGroups = await Promise.all(chunks(ids, PAGE_SIZE).map((group) => readAll((from, to) => supabase.from("fundraiser_participants")
+        .select("user_id").in("fundraiser_id", group).eq("active", true)
+        .order("fundraiser_id").order("user_id").range(from, to))));
+      if (participantGroups.some((group) => group === null)) return null;
+      for (const group of participantGroups) for (const row of group ?? []) folders.vaquinhas.add(row.user_id);
     }
     return folders;
   }
 
-  const events = await supabase.from("room_events").select("id, category").eq("status", "open");
-  if (events.error) return null;
-  const categoryById = new Map((events.data ?? []).map((row) => [row.id, row.category]));
+  const events = await readAll((from, to) => supabase.from("room_events")
+    .select("id, category").eq("status", "open").order("id").range(from, to));
+  if (!events) return null;
+  const categoryById = new Map(events.map((row) => [row.id, row.category]));
   if (!categoryById.size) return folders;
-  const interests = await supabase.from("room_event_interests")
-    .select("event_id, user_id").in("event_id", [...categoryById.keys()]);
-  if (interests.error) return null;
-  for (const row of interests.data ?? []) {
+  const interestGroups = await Promise.all(chunks([...categoryById.keys()], PAGE_SIZE).map((group) => readAll((from, to) => supabase.from("room_event_interests")
+    .select("event_id, user_id").in("event_id", group).order("event_id").order("user_id").range(from, to))));
+  if (interestGroups.some((group) => group === null)) return null;
+  for (const group of interestGroups) for (const row of group ?? []) {
     const category = categoryById.get(row.event_id);
     if (category && folders[category]) folders[category].add(row.user_id);
   }
@@ -75,15 +95,13 @@ export async function GET(request: Request) {
   const idsByFolder = await collectPeople(user.supabase, muralValue);
   if (!idsByFolder) return json({ error: "participation_read_failed" }, 500);
   const userIds = [...new Set(Object.values(idsByFolder).flatMap((ids) => [...ids]))];
-  const profilesResult = userIds.length
-    ? await user.supabase.from("profiles").select("user_id, display_name, title").in("user_id", userIds)
-    : { data: [], error: null };
-  if (profilesResult.error) return json({ error: "participation_profiles_read_failed" }, 500);
-  const profiles = profilesResult.data ?? [];
-  const photosResult = profiles.length
-    ? await user.supabase.rpc("room_google_photos", { p_user_ids: profiles.map((profile) => profile.user_id) })
-    : { data: [], error: null };
-  const photoRows = (photosResult.data ?? []) as Array<{ user_id: string; photo_url: string | null }>;
+  const profileGroups = await Promise.all(chunks(userIds, PAGE_SIZE).map((group) => readAll((from, to) => user.supabase.from("profiles")
+    .select("user_id, display_name, title").in("user_id", group).order("user_id").range(from, to))));
+  if (profileGroups.some((group) => group === null)) return json({ error: "participation_profiles_read_failed" }, 500);
+  const profiles = profileGroups.flatMap((group) => group ?? []);
+  const photoGroups = await Promise.all(chunks(profiles.map((profile) => profile.user_id), 200)
+    .map((group) => user.supabase.rpc("room_google_photos", { p_user_ids: group })));
+  const photoRows = photoGroups.flatMap((result) => (result.data ?? []) as Array<{ user_id: string; photo_url: string | null }>);
   const photoById = new Map(photoRows.map((row) => [row.user_id, validGooglePhoto(row.photo_url)]));
   const peopleById = new Map(profiles.map((profile) => [profile.user_id, {
     userId: profile.user_id,

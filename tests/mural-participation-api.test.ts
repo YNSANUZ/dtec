@@ -35,12 +35,19 @@ function fakeSupabase() {
   return {
     from(table: string) {
       const filters: Array<(row: Row) => boolean> = [];
+      const ordering: string[] = [];
+      let first = 0;
+      let last = 99;
       const query = {
         select() { return query; },
         eq(column: string, value: unknown) { filters.push((row: Row) => row[column] === value); return query; },
         in(column: string, values: unknown[]) { filters.push((row: Row) => values.includes(row[column])); return query; },
+        order(column: string) { ordering.push(column); return query; },
+        range(start: number, end: number) { first = start; last = end; return query; },
         then(resolve: (value: unknown) => unknown, reject?: (reason: unknown) => unknown) {
-          return Promise.resolve({ data: (tables[table] ?? []).filter((row) => filters.every((filter) => filter(row))), error: null }).then(resolve, reject);
+          const rows = (tables[table] ?? []).filter((row) => filters.every((filter) => filter(row)));
+          if (ordering.length) rows.sort((a, b) => ordering.map((column) => String(a[column]).localeCompare(String(b[column]))).find((result) => result !== 0) ?? 0);
+          return Promise.resolve({ data: rows.slice(first, Math.min(last + 1, first + 100)), error: null }).then(resolve, reject);
         },
       };
       return query;
@@ -48,6 +55,7 @@ function fakeSupabase() {
     async rpc(name: string, params: { p_user_ids: string[] }) {
       if (name !== "room_google_photos") throw new Error(`Unexpected RPC ${name}`);
       if (state.photoLookupFails) return { data: null, error: { message: "function missing" } };
+      if (params.p_user_ids.length > 500) return { data: [], error: null };
       return { data: state.photos.filter((row) => params.p_user_ids.includes(String(row.user_id))), error: null };
     },
   };
@@ -141,5 +149,20 @@ describe("mural participation overview and details", () => {
     const body = await response.json() as { folders: Record<string, { count: number; photos: Array<{ photoUrl: string | null }> }> };
     expect(body.folders.recados.count).toBe(2);
     expect(body.folders.recados.photos).toEqual([{ photoUrl: null }, { photoUrl: null }]);
+  });
+
+  it("includes people beyond the database page limit and batches photo lookups", async () => {
+    const ids = Array.from({ length: 501 }, (_, index) => `00000000-0000-4000-8000-${(index + 1).toString().padStart(12, "0")}`);
+    state.messages = ids.map((id, index) => ({ id: `aaaaaaaa-aaaa-4aaa-8aaa-${(index + 1).toString().padStart(12, "0")}`, author_id: id }));
+    state.reactions = [];
+    state.profiles = ids.map((id, index) => ({ user_id: id, display_name: `Pessoa ${String(index + 1).padStart(3, "0")}`, title: "" }));
+    state.photos = ids.map((id, index) => ({ user_id: id, photo_url: `https://lh3.googleusercontent.com/${index + 1}` }));
+    state.fundraisers = [];
+    const response = await GET(request("information"));
+    expect(response.status).toBe(200);
+    const body = await response.json() as { folders: Record<string, { count: number; photos: Array<{ photoUrl: string | null }> }> };
+    expect(body.folders.recados.count).toBe(501);
+    expect(body.folders.recados.photos[0]?.photoUrl).toBe("https://lh3.googleusercontent.com/1");
+    expect(body.folders.recados.photos).toHaveLength(6);
   });
 });
