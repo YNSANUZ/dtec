@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 
-export default function AvatarPreview({ model }: { model: string }) {
+export default function AvatarPreview({ model, headOnly = false }: { model: string; headOnly?: boolean }) {
   const host = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!host.current) return;
@@ -14,7 +14,8 @@ export default function AvatarPreview({ model }: { model: string }) {
     camera.position.set(2.8, 0.4, 6.5);
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
-    renderer.setSize(88, 88);
+    const sizePx = headOnly ? 64 : 88;
+    renderer.setSize(sizePx, sizePx);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     element.appendChild(renderer.domElement);
     scene.add(new THREE.HemisphereLight(0xffffff, 0x35425a, 3.5));
@@ -30,13 +31,19 @@ export default function AvatarPreview({ model }: { model: string }) {
       character.position.sub(center);
       character.rotation.y = -0.32;
       scene.add(character);
-      camera.position.set(size.x * 1.2, size.y * 0.08, Math.max(size.y, size.z) * 2.35);
-      camera.lookAt(0, 0, 0);
+      if (headOnly) {
+        const head = new THREE.Vector3(0, size.y * 0.34, 0);
+        camera.position.set(size.x * 0.2, head.y + size.y * 0.06, size.y * 0.86);
+        camera.lookAt(head);
+      } else {
+        camera.position.set(size.x * 1.2, size.y * 0.08, Math.max(size.y, size.z) * 2.35);
+        camera.lookAt(0, 0, 0);
+      }
     });
     let frame = 0;
     const draw = () => { frame = requestAnimationFrame(draw); renderer.render(scene, camera); };
     draw();
     return () => { cancelAnimationFrame(frame); renderer.dispose(); element.replaceChildren(); };
-  }, [model]);
-  return <div className="avatar-preview" ref={host} aria-hidden="true" />;
+  }, [headOnly, model]);
+  return <div className={headOnly ? "avatar-preview avatar-head-only" : "avatar-preview"} ref={host} aria-hidden="true" />;
 }

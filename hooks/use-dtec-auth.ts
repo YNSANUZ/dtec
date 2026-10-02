@@ -7,7 +7,7 @@ import { resolveAuthViewState } from "@/lib/auth/view-state";
 import type { AvatarId } from "@/lib/profile/validation";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 
-export type DtecProfile = { displayName: string; avatarId: AvatarId };
+export type DtecProfile = { displayName: string; avatarId: AvatarId; title: string; bio: string; birthDayMonth: string | null; whatsapp: string };
 
 const authMessages: Record<string, string> = {
   cancelled: "A entrada com Google foi cancelada.",
@@ -80,7 +80,7 @@ export function useDtecAuth() {
     };
   }, [loadProfile, supabase]);
 
-  const saveProfile = useCallback(async (nextProfile: DtecProfile) => {
+  const saveProfile = useCallback(async (nextProfile: Omit<DtecProfile, "birthDayMonth"> & { birthDayMonth: string }) => {
     const response = await fetch("/api/profile", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },

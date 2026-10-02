@@ -9,10 +9,11 @@ Escritório virtual interativo da DTEC, desenvolvido como projeto independente d
 - personagens simulados andando, parando, sentando e dançando;
 - movimentação por clique e interação com cadeiras;
 - balões de conversa e histórico local das cinco mensagens mais recentes;
-- quadros 2D leves para informações, demandas, lazer e aniversariantes;
+- quadros 2D leves para informações, lembretes, lazer e aniversariantes;
+- aniversários opcionais guardados somente como dia/mês, listados a partir da próxima data e com rolagem;
 - mural de recados com leitura autenticada, autoria, edição e exclusão do próprio conteúdo (após aplicar a migração correspondente).
 
-Esta versão ainda é evolutiva. A autenticação Google e os perfis usam Supabase; presença e movimentos compartilhados e sincronização do chat continuam sendo etapas futuras. O Mural de Informações é separado do chat do escritório.
+Esta versão ainda é evolutiva. Login Google, perfis, presença e movimentos dos avatares usam Supabase. O Mural de Informações é separado do chat do escritório; a lista de interessados do Kart é compartilhada.
 
 ## Autenticação Google em produção
 
@@ -22,7 +23,9 @@ O aplicativo usa Supabase Auth com OAuth Google, PKCE e sessão persistente em c
 2. No Google Cloud, crie um cliente OAuth do tipo **Web application** e use como URI de redirecionamento autorizado a callback exibida pelo próprio painel do Supabase, no formato `https://<project-ref>.supabase.co/auth/v1/callback`.
 3. Cadastre o Client ID e o Client Secret do Google exclusivamente no painel do Supabase.
 4. Em **Supabase → Authentication → URL Configuration**, defina `https://dtec-kappa.vercel.app` como Site URL e permita `https://dtec-kappa.vercel.app/auth/callback` em Redirect URLs. Para desenvolvimento, permita também `http://localhost:3000/auth/callback`.
-5. Execute, nesta ordem, `supabase/migrations/202610010001_profiles.sql` e `supabase/migrations/202610010002_mural_messages.sql` no SQL Editor do projeto Supabase.
+5. Execute, nesta ordem, `supabase/migrations/202610010001_profiles.sql`, `supabase/migrations/202610010002_mural_messages.sql` e `supabase/migrations/202610010003_room_directory.sql` no SQL Editor do projeto Supabase.
+
+Os perfis exigem dois nomes (nome + sobrenome); descrição/cargo, biografia, aniversário (somente dia e mês) e WhatsApp são opcionais. O dia/mês aparece no painel de Aniversariantes para pessoas autenticadas; biografia, cargo e WhatsApp aparecem ao abrir o perfil. A presença guarda posição e atividade aproximadas, removendo pessoas da lista após 45 segundos sem atualização. Antes de usar a designação de líderes, crie o papel `owner` na tabela `room_roles` para a conta responsável. Não coloque e-mails pessoais em migrações do repositório.
 6. No projeto Vercel, configure `NEXT_PUBLIC_SUPABASE_URL` e `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` para Production, Preview e Development.
 
 A chave `service_role`, o Client Secret do Google e tokens do provedor nunca pertencem às variáveis públicas do Vercel. A política do mural permite leitura a qualquer conta Google autenticada; cada pessoa só pode criar, editar ou excluir seus próprios recados. Recados fixados não podem ser alterados por usuários comuns. A lista de acesso é aberta como solicitado, então não publique dados internos sensíveis nesse mural.

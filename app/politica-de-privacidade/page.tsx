@@ -13,7 +13,7 @@ export default function PrivacyPolicyPage() {
         <Link className="legal-back" href="/">← Voltar ao escritório</Link>
         <p className="legal-eyebrow">DTEC VIRTUAL OFFICE</p>
         <h1>Política de Privacidade</h1>
-        <p className="legal-updated">Última atualização: 1º de outubro de 2026</p>
+        <p className="legal-updated">Última atualização: 2 de outubro de 2026</p>
 
         <p>
           Esta página explica quais dados são tratados quando você acessa o DTEC Virtual Office,
@@ -29,8 +29,20 @@ export default function PrivacyPolicyPage() {
             fornecidos, nome e imagem de perfil.
           </li>
           <li>
-            <strong>Perfil do escritório:</strong> o nome de exibição e o identificador do avatar
-            que você escolhe são salvos no banco de dados do aplicativo e associados à sua conta.
+            <strong>Perfil do escritório:</strong> nome e avatar são necessários para participar.
+            Cargo/descrição, biografia, aniversário (somente dia e mês) e WhatsApp são opcionais.
+            O aniversário aparece na lista do mural para os participantes autenticados; os demais
+            dados opcionais aparecem quando abrem seu perfil. O WhatsApp abre um link wa.me fora do app.
+          </li>
+          <li>
+            <strong>Presença:</strong> enquanto você usa a sala, o app guarda temporariamente sua
+            posição aproximada, estado do avatar e horário da última atividade para mostrar quem
+            está online e sincronizar personagens. Presenças sem atualização expiram da lista.
+          </li>
+          <li>
+            <strong>Interesse em atividades:</strong> se você registrar interesse em Kart, seu nome,
+            avatar e descrição opcional aparecem na lista compartilhada de interessados. Isso não
+            confirma presença nem compromisso.
           </li>
           <li>
             <strong>Dados técnicos:</strong> os serviços que hospedam e protegem o app podem
@@ -47,9 +59,9 @@ export default function PrivacyPolicyPage() {
         <h2>2. Finalidades e visibilidade</h2>
         <p>
           Usamos os dados da conta para autenticar você e proteger a associação entre a conta
-          Google e o perfil. O nome e o avatar servem para representar você no escritório. Como o
-          aplicativo permite a leitura de perfis para exibição do ambiente, escolha um nome de
-          exibição apropriado e não inclua informações sensíveis nele.
+          Google e o perfil. O nome e avatar identificam a pessoa na sala. Qualquer participante
+          autenticado pode consultar o diretório básico e abrir os dados opcionais que você
+          decidiu compartilhar. Não inclua conteúdo sensível na biografia.
         </p>
         <p>
           O login Google não dá ao DTEC acesso à sua senha Google. O aplicativo solicita apenas
@@ -68,7 +80,8 @@ export default function PrivacyPolicyPage() {
         <h2>4. Retenção, segurança e compartilhamento</h2>
         <p>
           Os dados do perfil permanecem armazenados enquanto a conta e o perfil forem mantidos no
-          aplicativo. O histórico de conversas local permanece no navegador até ser removido pelo
+          aplicativo. A posição da sala é atualizada durante a presença e registros antigos deixam
+          de aparecer após 45 segundos sem atualização. O histórico de conversas local permanece no navegador até ser removido pelo
           usuário ou pelo próprio navegador. Aplicamos controles técnicos de autenticação e acesso,
           mas nenhum serviço conectado à internet pode garantir segurança absoluta.
         </p>
@@ -86,8 +99,8 @@ export default function PrivacyPolicyPage() {
         </p>
 
         <p className="legal-note">
-          O DTEC Virtual Office está em evolução. Esta política descreve as funções atualmente
-          implementadas e será atualizada antes de novas funções passarem a tratar dados adicionais.
+          Dia e mês de aniversário, WhatsApp, cargo e biografia são opcionais. Você pode corrigir ou
+          remover esses dados na edição do perfil. A liderança da sala é designada pelo dono.
         </p>
         <Link className="legal-back legal-bottom-link" href="/">Voltar ao escritório</Link>
       </article>

@@ -2,8 +2,8 @@
 
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
-import { ChevronDown, HelpCircle, Maximize, Users, X } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { ChevronDown, Crown, HelpCircle, Maximize, Star, Users, X } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import AvatarPreview from "@/components/avatar-preview";
 import MuralWindow from "@/components/mural-window";
@@ -13,29 +13,215 @@ import type { AvatarId } from "@/lib/profile/validation";
 
 const OfficeScene = dynamic(() => import("@/components/office-scene"), { ssr: false });
 const avatars: AvatarId[] = ["a", "c", "f", "j", "n", "r"];
-type ChatMessage={id:number;name:string;text:string};
+type ChatMessage = { id: number; name: string; text: string };
+type OnlineUser = { userId: string; name: string; avatar: AvatarId; title: string; role: "owner" | "leader" | "member"; x: number; z: number; action: string; lastSeen: string };
+type UserCard = Pick<OnlineUser, "userId" | "name" | "avatar" | "title" | "role"> & { bio: string; birthDayMonth: string | null; whatsapp: string };
+type PresenceState = { x: number; z: number; action: string };
 
-export default function Home(){
- const auth=useDtecAuth(),ready=auth.state==="ready";
- const [activeMural,setActiveMural]=useState<MuralId|null>(null),[creatorOpen,setCreatorOpen]=useState(false),[controlsOpen,setControlsOpen]=useState(false),[accountOpen,setAccountOpen]=useState(false),[chatOpen,setChatOpen]=useState(false);
- const [name,setName]=useState("Você"),[avatar,setAvatar]=useState<AvatarId>("r"),[saving,setSaving]=useState(false),[saveError,setSaveError]=useState(""),[action,setAction]=useState<"idle"|"dance"|"wave">("idle"),[chatText,setChatText]=useState(""),[messages,setMessages]=useState<ChatMessage[]>([]),[bubble,setBubble]=useState("");
+function displayBirthday(value: string | null) {
+  if (!value) return "";
+  const [day, month] = value.split("/").map(Number);
+  if (!day || !month) return "";
+  return new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "long", timeZone: "UTC" })
+    .format(new Date(Date.UTC(2000, month - 1, day)));
+}
 
- useEffect(()=>{const id=window.setTimeout(()=>{const history=localStorage.getItem("dtec-chat");if(history)try{setMessages(JSON.parse(history).slice(-5))}catch{}},0);return()=>clearTimeout(id)},[]);
- const sceneName=auth.profile?.displayName??name,sceneAvatar=auth.profile?.avatarId??avatar;
+export default function Home() {
+  const auth = useDtecAuth();
+  const ready = auth.state === "ready";
+  const [activeMural, setActiveMural] = useState<MuralId | null>(null);
+  const [creatorOpen, setCreatorOpen] = useState(false);
+  const [controlsOpen, setControlsOpen] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
+  const [onlineOpen, setOnlineOpen] = useState(false);
+  const [onlineUsers, setOnlineUsers] = useState<OnlineUser[]>([]);
+  const [selectedUser, setSelectedUser] = useState<UserCard | null>(null);
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [leaderError, setLeaderError] = useState("");
+  const [name, setName] = useState("Você");
+  const [avatar, setAvatar] = useState<AvatarId>("r");
+  const [title, setTitle] = useState("");
+  const [bio, setBio] = useState("");
+  const [birthDayMonth, setBirthDayMonth] = useState("");
+  const [whatsapp, setWhatsapp] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
+  const [action, setAction] = useState<"idle" | "dance" | "wave">("idle");
+  const [chatText, setChatText] = useState("");
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [bubble, setBubble] = useState("");
+  const presence = useRef<PresenceState>({ x: 0, z: 5, action: "idle" });
 
- const save=async()=>{setSaving(true);setSaveError("");try{await auth.saveProfile({displayName:name,avatarId:avatar});setCreatorOpen(false)}catch(error){setSaveError(error instanceof Error?error.message:"Não foi possível salvar.")}finally{setSaving(false)}};
- const editProfile=()=>{if(auth.profile){setName(auth.profile.displayName);setAvatar(auth.profile.avatarId)}setSaveError("");setCreatorOpen(true);setAccountOpen(false)};
- const avatarClick=useCallback(()=>{if(ready)setControlsOpen(true)},[ready]),muralClick=useCallback((id:MuralId)=>setActiveMural(id),[]);
- const sendMessage=(e:React.FormEvent)=>{e.preventDefault();if(!ready)return;const text=chatText.trim().slice(0,100);if(!text)return;const next=[...messages,{id:Date.now(),name:sceneName,text}].slice(-5);setMessages(next);setBubble(text);setChatText("");setAction("wave");localStorage.setItem("dtec-chat",JSON.stringify(next));window.setTimeout(()=>{setBubble("");setAction("idle")},5000)};
- const chooserOpen=auth.state==="authenticated-needs-profile"||creatorOpen;
+  useEffect(() => {
+    const id = window.setTimeout(() => {
+      const history = localStorage.getItem("dtec-chat");
+      if (history) try { setMessages(JSON.parse(history).slice(-5)); } catch { /* ignore old local history */ }
+    }, 0);
+    return () => clearTimeout(id);
+  }, []);
 
- return <main className="app-shell"><OfficeScene name={sceneName} avatar={sceneAvatar} action={action} message={bubble} created={ready} remoteUsers={[]} onStateChange={()=>{}} onAvatarClick={avatarClick} onMuralClick={muralClick}/><div className="shade"/><nav className="legal-links" aria-label="Informações legais"><Link href="/politica-de-privacidade">Privacidade</Link><span aria-hidden="true">·</span><Link href="/termos-de-servico">Termos</Link></nav>
- <header className="topbar"><div className="brand">DTEC</div><span className="divider"/><div className="online"><Users size={23}/><b>•</b><span>8 na sala</span></div><div className="top-actions"><button aria-label="Tela cheia" onClick={()=>document.documentElement.requestFullscreen?.()}><Maximize/></button><button aria-label="Ajuda" onClick={()=>setControlsOpen(ready)}><HelpCircle/></button>{auth.state==="anonymous"&&<a className="profile google-entry" aria-label="Entrar com Google" href="/auth/login"><i className="google-logo" style={{backgroundImage:'url("https://img.icons8.com/color/1200/google-logo.jpg")'}} aria-hidden="true"/><span className="login-label">Entrar</span></a>}{ready&&<button className="profile" aria-label="Abrir perfil" onClick={()=>setAccountOpen(v=>!v)}><span>{sceneName.slice(0,2).toUpperCase()}</span><ChevronDown size={17}/></button>}</div></header>
- {auth.error&&<div className="auth-notice" role="status">{auth.error}<button aria-label="Fechar aviso" onClick={auth.clearError}>×</button></div>}
- {accountOpen&&ready&&<div className="account-menu"><strong>{sceneName}</strong><small>{auth.user?.email}</small><button onClick={editProfile}>Meu avatar</button><button onClick={()=>{setAccountOpen(false);setChatOpen(false);setControlsOpen(false);void auth.signOut()}}>Sair da conta</button></div>}
- {ready&&<nav className="actionbar" aria-label="Ações do personagem"><button onClick={()=>setAction(action==="dance"?"idle":"dance")}>{action==="dance"?"Parar":"Dançar"}</button><button onClick={()=>setChatOpen(v=>!v)}>Conversar</button><button onClick={editProfile}>Meu avatar</button></nav>}
- {chatOpen&&ready&&<form className="chat-pop" onSubmit={sendMessage}><strong>Conversar</strong><input autoFocus value={chatText} onChange={e=>setChatText(e.target.value)} placeholder="Digite uma mensagem..." maxLength={100}/><button>Enviar</button></form>}
- {messages.length>0&&<aside className="chat-history" aria-label="Últimas mensagens"><h3>Conversas recentes</h3>{messages.map(m=><p key={m.id}><strong>{m.name}</strong><span>{m.text}</span></p>)}</aside>}
- {controlsOpen&&ready&&<div className="avatar-pop"><button className="close-mini" onClick={()=>setControlsOpen(false)}><X/></button><strong>{sceneName}</strong><small>Você assumiu o controle.</small><p>Clique no chão para caminhar.</p><button onClick={()=>setAction(action==="dance"?"idle":"dance")}>Dançar</button><button onClick={editProfile}>Editar personagem</button></div>}
- <Dialog open={chooserOpen} onOpenChange={open=>{if(auth.state!=="authenticated-needs-profile")setCreatorOpen(open)}}><DialogContent className="creator-dialog" overlayClassName="creator-overlay"><DialogHeader><DialogTitle>Escolha seu personagem</DialogTitle><DialogDescription>O escritório continua ativo enquanto você escolhe.</DialogDescription></DialogHeader><label>Seu nome<input value={name==="Você"?"":name} onChange={e=>setName(e.target.value)} placeholder="Digite seu nome" maxLength={18}/></label><div className="avatar-grid">{avatars.map((id,i)=><button key={id} type="button" aria-label={`Personagem ${i+1}`} className={avatar===id?"selected":""} onClick={()=>setAvatar(id)}><AvatarPreview model={id}/><b>{i+1}</b></button>)}</div>{saveError&&<p className="save-error" role="alert">{saveError}</p>}<button className="primary" onClick={()=>void save()} disabled={saving}>{saving?"Salvando...":"Entrar na sala"}</button></DialogContent></Dialog>
- {activeMural&&<MuralWindow key={activeMural} muralId={activeMural} currentUserId={auth.user?.id??null} onClose={()=>setActiveMural(null)}/>}</main>}
+  useEffect(() => {
+    if (!auth.user || auth.profile) return;
+    const fullName = String(auth.user.user_metadata?.full_name ?? "").trim().replace(/\s+/g, " ").split(" ").slice(0, 2).join(" ");
+    if (fullName) window.setTimeout(() => setName(fullName), 0);
+  }, [auth.profile, auth.user]);
+
+  const sceneName = auth.profile?.displayName ?? name;
+  const sceneAvatar = auth.profile?.avatarId ?? avatar;
+  const isOwner = onlineUsers.some((user) => user.userId === auth.user?.id && user.role === "owner");
+
+  const save = async () => {
+    setSaving(true);
+    setSaveError("");
+    try {
+      await auth.saveProfile({ displayName: name, avatarId: avatar, title, bio, birthDayMonth, whatsapp });
+      setCreatorOpen(false);
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : "Não foi possível salvar.");
+    } finally { setSaving(false); }
+  };
+
+  const editProfile = () => {
+    if (auth.profile) {
+      setName(auth.profile.displayName);
+      setAvatar(auth.profile.avatarId);
+      setTitle(auth.profile.title);
+      setBio(auth.profile.bio);
+      setBirthDayMonth(auth.profile.birthDayMonth ?? "");
+      setWhatsapp(auth.profile.whatsapp);
+    }
+    setSaveError("");
+    setCreatorOpen(true);
+    setAccountOpen(false);
+  };
+
+  const avatarClick = useCallback(() => { if (ready) setControlsOpen(true); }, [ready]);
+  const muralClick = useCallback((id: MuralId) => setActiveMural(id), []);
+  const updatePresence = useCallback((x: number, z: number, nextAction: string) => {
+    presence.current = { x, z, action: nextAction === "dance" ? "dance" : ["walk", "sit"].includes(nextAction) ? nextAction : "idle" };
+  }, []);
+
+  useEffect(() => {
+    if (!ready || !auth.user) return;
+    let active = true;
+    const loadUsers = async () => {
+      try {
+        const response = await fetch("/api/room/presence", { cache: "no-store" });
+        if (!response.ok) return;
+        const body = await response.json() as { users?: OnlineUser[] };
+        if (active) setOnlineUsers(body.users ?? []);
+      } catch { /* online state will retry on the next interval */ }
+    };
+    const publishPresence = () => {
+      const current = presence.current;
+      void fetch("/api/room/presence", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(current), keepalive: true });
+    };
+    void loadUsers();
+    publishPresence();
+    const listTimer = window.setInterval(() => void loadUsers(), 5000);
+    const presenceTimer = window.setInterval(publishPresence, 2500);
+    return () => {
+      active = false;
+      clearInterval(listTimer);
+      clearInterval(presenceTimer);
+      void fetch("/api/room/presence", { method: "DELETE", keepalive: true });
+    };
+  }, [auth.user, ready]);
+
+  const selectedUserId = selectedUser?.userId;
+  useEffect(() => {
+    if (!selectedUserId) return;
+    let active = true;
+    fetch(`/api/room/users/${selectedUserId}`, { cache: "no-store" })
+      .then(async (response) => {
+        const body = await response.json() as { user?: UserCard };
+        if (!response.ok || !body.user) throw new Error("Não foi possível carregar o perfil agora.");
+        if (active) setSelectedUser(body.user);
+      })
+      .catch(() => { if (active) setLeaderError("Não foi possível carregar o perfil agora."); })
+      .finally(() => { if (active) setProfileLoading(false); });
+    return () => { active = false; };
+  }, [selectedUserId]);
+
+  const sendMessage = (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!ready) return;
+    const text = chatText.trim().slice(0, 100);
+    if (!text) return;
+    const next = [...messages, { id: Date.now(), name: sceneName, text }].slice(-5);
+    setMessages(next);
+    setBubble(text);
+    setChatText("");
+    setAction("wave");
+    localStorage.setItem("dtec-chat", JSON.stringify(next));
+    window.setTimeout(() => { setBubble(""); setAction("idle"); }, 5000);
+  };
+
+  const toggleLeader = async () => {
+    if (!selectedUser || !isOwner) return;
+    setLeaderError("");
+    const isLeader = selectedUser.role !== "leader";
+    try {
+      const response = await fetch(`/api/room/users/${selectedUser.userId}/leader`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ isLeader }) });
+      if (!response.ok) throw new Error("Não foi possível atualizar a liderança.");
+      const role = isLeader ? "leader" : "member";
+      setSelectedUser({ ...selectedUser, role });
+      setOnlineUsers((users) => users.map((user) => user.userId === selectedUser.userId ? { ...user, role } : user));
+    } catch (error) { setLeaderError(error instanceof Error ? error.message : "Falha ao atualizar."); }
+  };
+
+  const chooserOpen = auth.state === "authenticated-needs-profile" || creatorOpen;
+  const remoteUsers = onlineUsers.filter((user) => user.userId !== auth.user?.id).map((user) => ({ ...user, message: "", lastSeen: Date.parse(user.lastSeen) }));
+
+  return <main className="app-shell">
+    <OfficeScene name={sceneName} avatar={sceneAvatar} action={action} message={bubble} created={ready} remoteUsers={remoteUsers} onStateChange={updatePresence} onAvatarClick={avatarClick} onMuralClick={muralClick} />
+    <div className="shade" />
+    <nav className="legal-links" aria-label="Informações legais"><Link href="/politica-de-privacidade">Privacidade</Link><span aria-hidden="true">·</span><Link href="/termos-de-servico">Termos</Link></nav>
+    <header className="topbar">
+      <div className="brand">DTEC</div><span className="divider" />
+      <div className="online-area">
+        <button className="online" type="button" aria-expanded={onlineOpen} onClick={() => { setOnlineOpen((open) => !open); setAccountOpen(false); }}>
+          <Users size={23} /><b>•</b><span>{onlineUsers.length} na sala</span><ChevronDown size={15} />
+        </button>
+        {onlineOpen && <section className="online-menu" aria-label="Pessoas online"><header><strong>Na sala agora</strong><button aria-label="Fechar lista" onClick={() => setOnlineOpen(false)}><X size={16} /></button></header>
+          {onlineUsers.length === 0 ? <p className="online-empty">Aguardando colegas entrarem…</p> : <ul>{onlineUsers.map((user) => <li key={user.userId}><button type="button" onClick={() => { setSelectedUser({ ...user, bio: "", birthDayMonth: null, whatsapp: "" }); setProfileLoading(true); setOnlineOpen(false); setLeaderError(""); }}><span className="online-marker">{user.role === "owner" ? <Crown size={14} aria-label="Dono da sala" /> : user.role === "leader" ? <Star size={14} aria-label="Líder da sala" /> : null}{user.name}{user.userId === auth.user?.id ? " (você)" : ""}</span>{user.title && <small>[{user.title}]</small>}</button></li>)}</ul>}
+        </section>}
+      </div>
+      <div className="top-actions"><button aria-label="Tela cheia" onClick={() => document.documentElement.requestFullscreen?.()}><Maximize /></button><button aria-label="Ajuda" onClick={() => setControlsOpen(ready)}><HelpCircle /></button>
+        {auth.state === "anonymous" && <a className="profile google-entry" aria-label="Entrar com Google" href="/auth/login"><i className="google-logo" style={{ backgroundImage: 'url("https://img.icons8.com/color/1200/google-logo.jpg")' }} aria-hidden="true" /><span className="login-label">Entrar</span></a>}
+        {ready && <button className="profile" aria-label="Abrir perfil" onClick={() => { setAccountOpen((open) => !open); setOnlineOpen(false); }}><span>{sceneName.slice(0, 2).toUpperCase()}</span><ChevronDown size={17} /></button>}
+      </div>
+    </header>
+    {auth.error && <div className="auth-notice" role="status">{auth.error}<button aria-label="Fechar aviso" onClick={auth.clearError}>×</button></div>}
+    {accountOpen && ready && <div className="account-menu"><strong>{sceneName}</strong><small>{auth.user?.email}</small><button onClick={editProfile}>Meu avatar e perfil</button><button onClick={() => { setAccountOpen(false); setChatOpen(false); setControlsOpen(false); void auth.signOut(); }}>Sair da conta</button></div>}
+    {ready && <nav className="actionbar" aria-label="Ações do personagem"><button onClick={() => setAction(action === "dance" ? "idle" : "dance")}>{action === "dance" ? "Parar" : "Dançar"}</button><button onClick={() => setChatOpen((open) => !open)}>Conversar</button><button onClick={editProfile}>Meu avatar</button></nav>}
+    {chatOpen && ready && <form className="chat-pop" onSubmit={sendMessage}><strong>Conversar</strong><input autoFocus value={chatText} onChange={(event) => setChatText(event.target.value)} placeholder="Digite uma mensagem…" maxLength={100} /><button>Enviar</button></form>}
+    {messages.length > 0 && <aside className="chat-history" aria-label="Últimas mensagens"><h3>Conversas recentes</h3>{messages.map((message) => <p key={message.id}><strong>{message.name}</strong><span>{message.text}</span></p>)}</aside>}
+    {controlsOpen && ready && <div className="avatar-pop"><button className="close-mini" onClick={() => setControlsOpen(false)}><X /></button><strong>{sceneName}</strong><small>Você assumiu o controle.</small><p>Clique no chão para caminhar.</p><button onClick={() => setAction(action === "dance" ? "idle" : "dance")}>Dançar</button><button onClick={editProfile}>Editar personagem</button></div>}
+    <Dialog open={chooserOpen} onOpenChange={(open) => { if (auth.state !== "authenticated-needs-profile") setCreatorOpen(open); }}>
+      <DialogContent className="creator-dialog" overlayClassName="creator-overlay"><DialogHeader><DialogTitle>{auth.profile ? "Edite seu perfil" : "Escolha seu personagem"}</DialogTitle><DialogDescription>Seu nome e seu personagem identificam você no escritório.</DialogDescription></DialogHeader>
+        <div className="profile-form-scroll"><label>Nome e sobrenome<input value={name === "Você" ? "" : name} onChange={(event) => setName(event.target.value)} placeholder="Ex.: Bruno Leão" maxLength={48} autoComplete="name" /><small>Use dois nomes. Você pode acrescentar uma função abaixo.</small></label>
+          <label>Descrição ou cargo <span className="optional-label">opcional</span><input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Ex.: Infraestrutura, Chefe, Apt 201" maxLength={48} /></label>
+          <label>Aniversário <span className="optional-label">opcional · somente dia e mês</span><input type="text" inputMode="numeric" autoComplete="off" placeholder="DD/MM" maxLength={5} value={birthDayMonth} onChange={(event) => { const digits = event.target.value.replace(/\D/g, "").slice(0, 4); setBirthDayMonth(digits.length > 2 ? `${digits.slice(0, 2)}/${digits.slice(2)}` : digits); }} /><small>Não pedimos nem guardamos o ano.</small></label>
+          <label>WhatsApp <span className="optional-label">opcional</span><input type="tel" value={whatsapp} onChange={(event) => setWhatsapp(event.target.value)} placeholder="DDD + número" maxLength={20} autoComplete="tel" /><small>Se não informar o DDI, usaremos +55 para criar o link.</small></label>
+          <label>Biografia <span className="optional-label">opcional</span><textarea value={bio} onChange={(event) => setBio(event.target.value)} placeholder="Conte um pouco sobre você…" maxLength={280} rows={3} /></label>
+        </div>
+        <div className="avatar-grid">{avatars.map((id, index) => <button key={id} type="button" aria-label={`Personagem ${index + 1}`} className={avatar === id ? "selected" : ""} onClick={() => setAvatar(id)}><AvatarPreview model={id} /><b>{index + 1}</b></button>)}</div>
+        {saveError && <p className="save-error" role="alert">{saveError}</p>}
+        <button className="primary" onClick={() => void save()} disabled={saving}>{saving ? "Salvando…" : auth.profile ? "Salvar perfil" : "Entrar na sala"}</button>
+      </DialogContent>
+    </Dialog>
+    {selectedUser && <Dialog open onOpenChange={(open) => { if (!open) setSelectedUser(null); }}><DialogContent className="person-dialog" showCloseButton={false}><DialogHeader><DialogTitle className="sr-only">Perfil de {selectedUser.name}</DialogTitle><DialogDescription className="sr-only">Informações do colega online.</DialogDescription></DialogHeader>
+      <button type="button" className="person-close" aria-label="Fechar perfil" onClick={() => setSelectedUser(null)}><X size={17} /></button>
+      <div className="person-identity"><AvatarPreview model={selectedUser.avatar} headOnly /><div><h2>{selectedUser.role === "owner" ? "👑 " : selectedUser.role === "leader" ? "⭐ " : ""}{selectedUser.name}</h2>{selectedUser.title && <span>{selectedUser.title}</span>}</div></div>
+      {profileLoading ? <p className="person-loading">Carregando perfil…</p> : <div className="person-details">{selectedUser.birthDayMonth && <p><strong>Aniversário</strong><span>{displayBirthday(selectedUser.birthDayMonth)}</span></p>}{selectedUser.bio && <p><strong>Sobre</strong><span>{selectedUser.bio}</span></p>}
+        {selectedUser.whatsapp && <a className="whatsapp-link" href={`https://wa.me/${selectedUser.whatsapp.length <= 11 ? `55${selectedUser.whatsapp}` : selectedUser.whatsapp}`} target="_blank" rel="noopener noreferrer">WhatsApp</a>}
+        {!selectedUser.birthDayMonth && !selectedUser.bio && !selectedUser.whatsapp && <p className="person-empty">Esta pessoa ainda não preencheu outras informações.</p>}
+      </div>}
+      {isOwner && selectedUser.role !== "owner" && <button className="leader-toggle" onClick={() => void toggleLeader()}>{selectedUser.role === "leader" ? "Remover liderança" : "⭐ Tornar líder da sala"}</button>}
+      {leaderError && <p className="person-error" role="alert">{leaderError}</p>}
+    </DialogContent></Dialog>}
+    {activeMural && <MuralWindow key={activeMural} muralId={activeMural} currentUserId={auth.user?.id ?? null} onClose={() => setActiveMural(null)} />}
+  </main>;
+}

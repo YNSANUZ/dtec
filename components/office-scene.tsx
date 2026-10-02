@@ -4,6 +4,15 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { clone } from "three/examples/jsm/utils/SkeletonUtils.js";
 import type { MuralId } from "@/lib/mural-types";
+const previewPeople = [
+  { n: "Helio", m: "a", x: -6, z: 2 },
+  { n: "Herbert", m: "c", x: -1, z: -1 },
+  { n: "Edvar", m: "f", x: 4, z: 0 },
+  { n: "Otoniel", m: "j", x: -6, z: 7 },
+  { n: "Tiago Salomão", m: "n", x: 2, z: 7 },
+  { n: "Gabriel", m: "r", x: 8, z: 7 },
+  { n: "Bruno", m: "a", x: 8, z: 2 },
+];
 type Props = {
   name: string;
   avatar: string;
@@ -15,15 +24,6 @@ type Props = {
   onAvatarClick: () => void;
   onMuralClick: (id: MuralId) => void;
 };
-const people = [
-  { n: "Helio", m: "a", x: -6, z: 2 },
-  { n: "Herbert", m: "c", x: -1, z: -1 },
-  { n: "Edvar", m: "f", x: 4, z: 0 },
-  { n: "Otoniel", m: "j", x: -6, z: 7 },
-  { n: "Tiago Salomão", m: "n", x: 2, z: 7 },
-  { n: "Gabriel", m: "r", x: 8, z: 7 },
-  { n: "Bruno", m: "a", x: 8, z: 2 },
-];
 function card(text: string, bubble = false) {
   const c = document.createElement("canvas");
   c.width = bubble ? 700 : 512;
@@ -211,7 +211,7 @@ export default function OfficeScene({
     const muralBoards: THREE.Object3D[] = [];
     const muralSpecs: Array<{id:MuralId;title:string;rows:string[];color:number}> = [
       {id:"information",title:"INFORMAÇÕES",rows:["Comunicados","Recados","Lembretes","Vaquinhas"],color:0x48a07b},
-      {id:"demands",title:"DEMANDAS",rows:["Equipamentos","Solicitações","Atividades","Acompanhamento"],color:0x3c73bd},
+      {id:"demands",title:"LEMBRETES",rows:["Equipamentos","Solicitações","Atividades","Acompanhamento"],color:0x3c73bd},
       {id:"leisure",title:"LAZER",rows:["Futebol","Paintball","Kart","Confraternizações"],color:0x4b9b72},
       {id:"birthdays",title:"ANIVERSARIANTES",rows:["Próximos aniversários","Datas especiais"],color:0x9b70ce},
     ];
@@ -334,7 +334,7 @@ export default function OfficeScene({
             nextAt: performance.now() / 1000 + 2 + Math.random() * 7,
           });
       });
-    people.forEach((p) => add(p.m, p.n, p.x, p.z));
+    if (!created) previewPeople.forEach((person) => add(person.m, person.n, person.x, person.z));
     add(avatar, created ? name : "Você", 0, 5, true);
     const addRemote=(u:(typeof remoteRef.current)[number])=>loader.load(`${assetBase}/models/kenney/character-${u.avatar}.glb`,g=>{
       if(remoteAgents.has(u.userId))return;
@@ -513,7 +513,7 @@ export default function OfficeScene({
           }
         });
         if(now-lastRemoteRefresh>1){lastRemoteRefresh=now;const ids=new Set(remoteRef.current.map(u=>u.userId));remoteAgents.forEach((a,id)=>{if(!ids.has(id)){scene.remove(a.object);remoteAgents.delete(id)}});remoteRef.current.forEach(u=>{const a=remoteAgents.get(u.userId);if(!a)addRemote(u);else{a.target.set(u.x,0,u.z);if(u.message!==a.message){if(a.bubble)a.object.remove(a.bubble);a.message=u.message;a.bubble=u.message?card(u.message,true):null;if(a.bubble){a.bubble.position.y=3.65;a.object.add(a.bubble)}}}})}
-        remoteAgents.forEach(a=>{const d=a.target.clone().sub(a.object.position);if(d.length()>.08){playRemote(a,"walk");d.normalize();a.object.position.addScaledVector(d,dt*2.4);a.object.rotation.y=Math.atan2(d.x,d.z)}else playRemote(a,"idle")});
+        remoteAgents.forEach((a,id)=>{const d=a.target.clone().sub(a.object.position),presence=remoteRef.current.find(u=>u.userId===id);if(d.length()>.08){playRemote(a,"walk");d.normalize();a.object.position.addScaledVector(d,dt*2.4);a.object.rotation.y=Math.atan2(d.x,d.z)}else if(presence?.action==="dance")playRemote(a,"emote-yes");else if(presence?.action==="sit")playRemote(a,"sit");else playRemote(a,"idle")});
         if (mine && mineMixer) {
           if (messageRef.current !== shownMessage) {
             if (bubble) mine.remove(bubble);

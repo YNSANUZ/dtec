@@ -23,8 +23,9 @@ export default function TermsOfServicePage() {
 
         <h2>1. Conta e perfil</h2>
         <p>
-          O acesso com Google confirma sua conta; depois, você pode escolher um nome de exibição e
-          um avatar. Você é responsável por manter o controle da sua conta Google e por escolher
+          O acesso com Google confirma sua conta; depois, você escolhe seu nome e avatar. Cargo,
+          biografia, data de nascimento e WhatsApp são opcionais e podem ser alterados no perfil.
+          Você é responsável por manter o controle da sua conta Google e por escolher
           um nome adequado. Não tente se passar por outra pessoa nem usar a conta de terceiros.
         </p>
 
@@ -39,7 +40,8 @@ export default function TermsOfServicePage() {
         <h2>3. Recursos disponíveis</h2>
         <p>
           O serviço pode mudar à medida que é desenvolvido. Na versão atual, a sala oferece uma
-          experiência visual interativa, escolha de perfil e recursos de demonstração. As mensagens
+          experiência visual interativa, presença sincronizada, perfis opcionais e interesse em
+          atividades. As mensagens
           recentes ficam no navegador usado por você; não há sincronização de chat entre colegas.
           Quadros e informações exibidos podem ser demonstrativos e não substituem comunicados
           oficiais da DTEC.

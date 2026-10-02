@@ -23,6 +23,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import type { MuralId } from "@/lib/mural-types";
+import AvatarPreview from "@/components/avatar-preview";
+import { formatBirthday, orderBirthdays, saoPauloMonthDay } from "@/lib/birthdays/order";
 
 type FolderInfo = {
   title: string;
@@ -51,8 +53,8 @@ const muralInfo: Record<MuralId, MuralInfo> = {
     ],
   },
   demands: {
-    title: "Demandas",
-    description: "Atividades e solicitações que o grupo precisa organizar.",
+    title: "Lembretes",
+    description: "Acompanhe itens e tarefas que o grupo precisa lembrar.",
     Icon: ClipboardList,
     folders: [
       { title: "Equipamentos", summary: "Necessidades de equipamentos.", emptyMessage: "As demandas de equipamentos aparecerão aqui.", Icon: ClipboardList },
@@ -73,12 +75,9 @@ const muralInfo: Record<MuralId, MuralInfo> = {
   },
   birthdays: {
     title: "Aniversariantes",
-    description: "Aniversários dos participantes deste ambiente.",
+    description: "Próximas datas da equipe, em ordem a partir de hoje.",
     Icon: CakeSlice,
-    folders: [
-      { title: "Aniversariantes do mês", summary: "Nomes e dias de aniversário.", emptyMessage: "A lista do mês aparecerá quando as datas reais forem cadastradas.", Icon: CakeSlice },
-      { title: "Próximos aniversários", summary: "Quem faz aniversário a seguir.", emptyMessage: "Os próximos aniversários serão calculados a partir das datas cadastradas.", Icon: CakeSlice },
-    ],
+    folders: [],
   },
 };
 
@@ -189,6 +188,102 @@ function RecadosContent({ currentUserId }: { currentUserId: string | null }) {
   );
 }
 
+type InterestedPerson = { userId: string; name: string; avatar: string; title: string };
+
+function KartInterested({ currentUserId }: { currentUserId: string | null }) {
+  const [people, setPeople] = useState<InterestedPerson[]>([]);
+  const [isInterested, setIsInterested] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!currentUserId) { window.setTimeout(() => setLoading(false), 0); return; }
+    let active = true;
+    const load = async () => {
+      try {
+        const response = await fetch("/api/mural/interests?activity=kart", { cache: "no-store" });
+        const body = await response.json() as { interested?: InterestedPerson[]; isInterested?: boolean };
+        if (!response.ok) throw new Error("Não foi possível carregar os interessados.");
+        if (active) { setPeople(body.interested ?? []); setIsInterested(Boolean(body.isInterested)); }
+      } catch (reason) { if (active) setError(reason instanceof Error ? reason.message : "Falha ao carregar."); }
+      finally { if (active) setLoading(false); }
+    };
+    void load();
+    const refresh = window.setInterval(() => void load(), 12000);
+    return () => { active = false; clearInterval(refresh); };
+  }, [currentUserId]);
+
+  const toggleInterest = async () => {
+    if (!currentUserId || saving) return;
+    setSaving(true); setError("");
+    try {
+      const response = await fetch(isInterested ? "/api/mural/interests?activity=kart" : "/api/mural/interests", {
+        method: isInterested ? "DELETE" : "POST",
+        headers: isInterested ? undefined : { "Content-Type": "application/json" },
+        body: isInterested ? undefined : JSON.stringify({ activity: "kart" }),
+      });
+      if (!response.ok) throw new Error("Não foi possível atualizar seu interesse.");
+      setIsInterested(!isInterested);
+      const refreshed = await fetch("/api/mural/interests?activity=kart", { cache: "no-store" });
+      const data = await refreshed.json() as { interested?: InterestedPerson[] };
+      setPeople(data.interested ?? []);
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "Falha ao atualizar."); }
+    finally { setSaving(false); }
+  };
+
+  return <section className="kart-interest-panel">
+    <div className="mural-breadcrumb"><span>Lazer</span><ChevronRight size={14} /><strong>Kart</strong></div>
+    <div className="kart-interest-heading"><div><h3>Interessados</h3><p>Mostre que gostaria de participar. Isso não confirma presença.</p></div><span>{people.length}</span></div>
+    {currentUserId && <button className={isInterested ? "kart-interest-button selected" : "kart-interest-button"} onClick={() => void toggleInterest()} disabled={saving}>{saving ? "Salvando…" : isInterested ? "Remover meu interesse" : "Tenho interesse"}</button>}
+    {!currentUserId && <p className="mural-access-note">Entre com o Google para ver e registrar interesse.</p>}
+    {error && <p className="mural-form-error" role="alert">{error}</p>}
+    {loading ? <p className="mural-loading">Carregando interessados…</p> : people.length === 0 ? <div className="mural-no-messages"><UsersRound size={21} /><strong>Ninguém demonstrou interesse ainda</strong><span>Seu interesse pode iniciar a lista.</span></div> : <div className="kart-interested-grid">{people.map((person) => <article key={person.userId} className="kart-interested-person"><AvatarPreview model={person.avatar} headOnly /><strong>{person.name}</strong>{person.title && <small>{person.title}</small>}</article>)}</div>}
+  </section>;
+}
+
+type BirthdayPerson = { userId: string; name: string; avatar: string; title: string; birthDayMonth: string };
+
+function BirthdayDirectory({ currentUserId }: { currentUserId: string | null }) {
+  const [people, setPeople] = useState<BirthdayPerson[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!currentUserId) { window.setTimeout(() => setLoading(false), 0); return; }
+    let active = true;
+    const load = async () => {
+      try {
+        const response = await fetch("/api/birthdays", { cache: "no-store" });
+        const body = await response.json() as { birthdays?: BirthdayPerson[] };
+        if (!response.ok) throw new Error("Não foi possível carregar os aniversários.");
+        if (active) setPeople(orderBirthdays(body.birthdays ?? [], saoPauloMonthDay()));
+      } catch (reason) {
+        if (active) setError(reason instanceof Error ? reason.message : "Não foi possível carregar os aniversários.");
+      } finally { if (active) setLoading(false); }
+    };
+    void load();
+    const refresh = window.setInterval(() => void load(), 60_000);
+    return () => { active = false; clearInterval(refresh); };
+  }, [currentUserId]);
+
+  return <section className="birthday-directory" aria-live="polite">
+    <div className="birthday-directory-heading"><CakeSlice size={20} aria-hidden="true" /><strong>Próximos aniversários</strong><span>Dia e mês</span></div>
+    {!currentUserId ? <p className="mural-access-note">Entre com o Google para ver os aniversários cadastrados.</p>
+      : loading ? <p className="mural-loading">Carregando a lista…</p>
+      : error ? <p className="mural-form-error" role="alert">{error}</p>
+      : people.length === 0 ? <div className="mural-no-messages"><CakeSlice size={21} /><strong>Nenhum aniversário cadastrado ainda</strong><span>Quem quiser pode adicionar apenas o dia e o mês no próprio perfil.</span></div>
+      : <div className="birthday-members-list" aria-label="Aniversários em ordem cronológica">
+        {people.map((person) => <article className="birthday-member" key={person.userId}>
+          <AvatarPreview model={person.avatar} headOnly />
+          <div className="birthday-member-name"><strong>{person.name}</strong>{person.title && <small>{person.title}</small>}</div>
+          <time dateTime={person.birthDayMonth}>{formatBirthday(person.birthDayMonth)}</time>
+        </article>)}
+      </div>}
+    <p className="birthday-directory-note">A lista começa pelo próximo aniversário; os que já passaram ficam no fim. A data é opcional e não inclui o ano.</p>
+  </section>;
+}
+
 export default function MuralWindow({
   muralId,
   onClose,
@@ -206,7 +301,7 @@ export default function MuralWindow({
 
   return (
     <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
-      <DialogContent className="mural-dialog" overlayClassName="mural-overlay">
+      <DialogContent className="mural-dialog mural-window-retro" overlayClassName="mural-overlay">
         <div className="mural-titlebar">
           <span className="mural-title-icon"><Icon aria-hidden="true" /></span>
           <DialogHeader className="mural-heading">
@@ -220,8 +315,12 @@ export default function MuralWindow({
           )}
         </div>
 
-        {folder && muralId === "information" && folderIndex === 0 ? (
+        {muralId === "birthdays" ? (
+          <BirthdayDirectory currentUserId={currentUserId} />
+        ) : folder && muralId === "information" && folderIndex === 0 ? (
           <RecadosContent currentUserId={currentUserId} />
+        ) : folder && muralId === "leisure" && folder.title === "Kart" ? (
+          <KartInterested currentUserId={currentUserId} />
         ) : folder ? (
           <section className="mural-folder-content" aria-live="polite">
             <div className="mural-breadcrumb"><span>{mural.title}</span><ChevronRight size={14} /><strong>{folder.title}</strong></div>
@@ -260,7 +359,9 @@ export default function MuralWindow({
 
         <footer className="mural-statusbar">
           <UsersRound size={14} aria-hidden="true" />
-          <span>{muralId === "information" && folderIndex === 0
+          <span>{muralId === "birthdays"
+            ? "Lista opcional · apenas dia e mês · ordenada pelo próximo aniversário"
+            : muralId === "information" && folderIndex === 0
             ? "Recados compartilhados entre contas Google autenticadas"
             : "Interface 2D leve · Esta seção ainda não possui dados cadastrados"}</span>
         </footer>

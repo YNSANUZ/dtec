@@ -62,6 +62,76 @@
 .mural-dialog [data-slot=dialog-close]{background:#f0f3f8;color:#53647c}
 .mural-dialog [data-slot=dialog-close]:hover{background:#e3e9f1}
 .mural-back{position:static;transform:none;margin-left:auto;border-color:#dce4ef;background:#fff;color:#425671}
+
+/* Familiar, playful Windows-era window frames inside the office boards. */
+.mural-window-retro{border:2px solid #f7f8fa!important;border-radius:7px!important;background:#d8d7d1!important;box-shadow:4px 5px 0 #566273,0 18px 52px #07132675!important}
+.mural-window-retro .mural-titlebar{min-height:53px;padding:11px 56px 10px 15px;background:linear-gradient(90deg,#1c4eaf,#469ee0);color:#fff;border-bottom:2px solid #fff}
+.mural-window-retro .mural-title-icon{flex-basis:30px;width:30px;height:30px;border-radius:4px;background:#ffffff24;color:#fff}
+.mural-window-retro .mural-title-icon svg{width:18px;height:18px}
+.mural-window-retro .mural-heading [data-slot=dialog-title]{font-size:1.08rem;color:#fff}
+.mural-window-retro .mural-heading [data-slot=dialog-description]{font-size:.78rem;color:#e5f0ff}
+.mural-window-retro .mural-dialog [data-slot=dialog-close],.mural-window-retro [data-slot=dialog-close]{top:10px;right:10px;width:29px;height:28px;border:1px solid #fff;border-radius:4px;background:#d8e7f5;color:#263c5a;box-shadow:inset 1px 1px #fff,inset -2px -2px #8da3bb}
+.mural-window-retro .mural-back{border:1px solid #fff;border-radius:4px;background:#e3e8ef;color:#233d63;box-shadow:inset 1px 1px white,inset -2px -2px #a0a7b0}
+.mural-window-retro .mural-dashboard,.mural-window-retro .mural-folder-content,.mural-window-retro .kart-interest-panel{background:#deddd7}
+.mural-window-retro .mural-folder-card{min-height:66px;border:1px solid #fff;border-radius:4px;background:#efeee8;box-shadow:inset 1px 1px #fff,inset -2px -2px #b3b3ad;color:#273d5c}
+.mural-window-retro .mural-folder-list{display:grid;grid-template-columns:1fr;gap:7px;padding:0;overflow:auto}
+.mural-window-retro .mural-folder-card{min-height:58px;flex-direction:row;align-items:center;gap:11px;padding:9px 11px}
+.mural-window-retro .mural-folder-icon{flex:0 0 34px;width:34px;height:34px}
+.mural-window-retro .mural-folder-copy{display:grid;flex:1;gap:3px}
+.mural-window-retro .mural-folder-arrow{align-self:center;margin:0 4px 0 auto}
+.mural-window-retro .mural-folder-card:hover{transform:translateY(-1px);border-color:#fff;background:#f8f7f2;box-shadow:inset 1px 1px #fff,inset -2px -2px #8798ac}
+.mural-window-retro .mural-folder-icon{border-radius:4px;background:#dbe8f3}
+.mural-window-retro .mural-statusbar{background:#d2d1cb;border-top:1px solid #fff;color:#58657a}
+.online-area{position:relative}
+.topbar .online{border:0;padding:7px 9px;border-radius:10px;background:#10213d66;color:#fff;text-shadow:none;cursor:pointer;backdrop-filter:blur(10px)}
+.online svg:last-child{color:#e8edf5}
+.online-menu{position:absolute;top:calc(100% + 10px);left:0;width:min(310px,calc(100vw - 32px));max-height:min(62dvh,460px);overflow:hidden;border:1px solid #ffffffbb;border-radius:12px;background:#f3f4f2;color:#1b2e4c;text-shadow:none;box-shadow:4px 5px 0 #17243a77,0 16px 44px #07132666;backdrop-filter:blur(16px)}
+.online-menu>header{display:flex;align-items:center;justify-content:space-between;padding:11px 13px;background:linear-gradient(90deg,#1c4eaf,#469ee0);color:white}
+.online-menu>header button{display:grid;width:25px;height:25px;place-items:center;border:1px solid #fff;border-radius:4px;background:#d8e7f5;color:#263c5a}
+.online-menu ul{display:grid;max-height:min(54dvh,400px);overflow:auto;margin:0;padding:5px;list-style:none}
+.online-menu li button{display:flex;width:100%;min-height:39px;align-items:center;justify-content:space-between;gap:12px;padding:7px 9px;border:1px solid transparent;border-radius:5px;background:transparent;color:#283c5c;text-align:left;cursor:pointer}
+.online-menu li button:hover{border-color:#aac8e3;background:#e4eff9}
+.online-marker{display:flex;align-items:center;gap:7px;font-size:.85rem;font-weight:750}
+.online-marker svg{flex:none;color:#ce9b27;fill:#f5d773}
+.online-menu li small{max-width:128px;overflow:hidden;color:#6d7888;font-size:.75rem;text-overflow:ellipsis;white-space:nowrap}
+.online-empty{padding:18px;color:#687890;font-size:.82rem;text-align:center}
+.creator-dialog{display:flex!important;flex-direction:column;max-height:min(88dvh,790px)!important;overflow:hidden}
+.profile-form-scroll{display:grid;flex:1 1 auto;max-height:min(36dvh,290px);gap:9px;min-height:0;overflow:auto;padding:1px 3px 2px 0}
+.creator-dialog label{display:grid;gap:5px;font-size:.82rem;font-weight:700}
+.creator-dialog label input,.creator-dialog label textarea{width:100%;border:1px solid #ffffff36;border-radius:7px;background:#ffffff0e;color:#fff;font:inherit;padding:9px 10px}
+.creator-dialog label textarea{resize:vertical;min-height:65px}
+.creator-dialog label small{color:#bdc8d9;font-size:.7rem;font-weight:450}
+.optional-label{display:inline;color:#aab7ca;font-size:.72rem;font-weight:450}
+.creator-dialog .avatar-preview{width:88px;height:88px}
+.person-dialog{width:min(400px,calc(100% - 28px))!important;max-width:400px!important;padding:22px!important;border:2px solid #fff!important;border-radius:8px!important;background:#e8e7e1!important;color:#263a59;box-shadow:4px 5px 0 #566273,0 18px 52px #07132675!important}
+.person-close{position:absolute;top:10px;right:10px;display:grid;width:28px;height:27px;place-items:center;border:1px solid #fff;border-radius:4px;background:#d8e7f5;color:#263c5a;box-shadow:inset 1px 1px #fff,inset -2px -2px #8da3bb;cursor:pointer}
+.person-identity{display:flex;align-items:center;gap:14px;padding:8px 36px 16px 0;border-bottom:1px solid #c4c4bd}
+.person-identity h2{margin:0;color:#1c3e70;font-size:1.12rem}
+.person-identity span{display:block;margin-top:4px;color:#637184;font-size:.8rem}
+.person-identity .avatar-head-only{width:64px;height:64px;flex:0 0 64px;overflow:hidden;border:2px solid white;border-radius:50%;background:#d7e5f3;box-shadow:0 1px 3px #273d5c55}
+.avatar-head-only canvas{width:64px!important;height:64px!important;display:block}
+.person-details{display:grid;gap:10px;padding:14px 0}
+.person-details p{display:grid;gap:3px;margin:0;color:#354861;font-size:.87rem;line-height:1.45}
+.person-details p strong{color:#607187;font-size:.7rem;text-transform:uppercase;letter-spacing:.04em}
+.person-empty,.person-loading{color:#687890;font-size:.82rem}
+.whatsapp-link,.leader-toggle{display:inline-flex;min-height:37px;align-items:center;justify-content:center;border:1px solid #fff;border-radius:5px;background:#e3e8ef;color:#233d63;text-decoration:none;font-size:.82rem;font-weight:750;box-shadow:inset 1px 1px white,inset -2px -2px #a0a7b0;cursor:pointer}
+.whatsapp-link{padding:0 14px;background:#d7f0df;color:#17683a}
+.leader-toggle{width:100%;padding:7px}
+.person-error{margin:8px 0 0;color:#a33f3f;font-size:.77rem}
+.kart-interest-panel{display:flex;flex:1;min-height:0;flex-direction:column;gap:11px;overflow:auto;padding:15px 18px;background:#deddd7;text-align:left}
+.kart-interest-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.kart-interest-heading h3{margin:0;color:#253d5c;font-size:1rem}
+.kart-interest-heading p{margin:3px 0 0;color:#718098;font-size:.75rem;line-height:1.4}
+.kart-interest-heading>span{display:grid;min-width:29px;height:29px;place-items:center;border:1px solid #fff;border-radius:50%;background:#e7eef5;color:#385a80;font-size:.8rem;font-weight:800}
+.kart-interest-button{align-self:flex-start;min-height:35px;padding:7px 12px;border:1px solid #fff;border-radius:4px;background:#e3e8ef;color:#233d63;font-size:.78rem;font-weight:750;box-shadow:inset 1px 1px white,inset -2px -2px #a0a7b0;cursor:pointer}
+.kart-interest-button.selected{background:#d7f0df;color:#17683a}
+.kart-interested-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:10px;overflow:auto;padding:2px}
+.kart-interested-person{display:flex;min-width:0;flex-direction:column;align-items:center;gap:5px;padding:9px 5px;border:1px solid #fff;border-radius:5px;background:#efeee8;box-shadow:inset 1px 1px #fff,inset -2px -2px #b3b3ad;text-align:center}
+.kart-interested-person .avatar-head-only{width:58px;height:58px;overflow:hidden;border:2px solid #fff;border-radius:50%;background:#d7e5f3}
+.kart-interested-person .avatar-head-only canvas{width:58px!important;height:58px!important}
+.kart-interested-person strong{color:#263d5b;font-size:.75rem;line-height:1.2;overflow-wrap:anywhere}
+.kart-interested-person small{max-width:100%;color:#718098;font-size:.67rem;line-height:1.2;overflow-wrap:anywhere}
+@media(max-width:700px){.topbar .online{gap:5px;padding:5px 6px;font-size:.82rem}.online-menu{left:-2px;width:min(286px,calc(100vw - 24px))}.person-dialog{padding:17px!important}.kart-interest-panel{padding:11px}.kart-interested-grid{grid-template-columns:repeat(auto-fill,minmax(78px,1fr));gap:7px}.kart-interested-person{padding:7px 4px}}
 .mural-back:hover{background:#f4f7fa}
 .mural-dashboard{display:flex;flex:1;min-height:0;flex-direction:column;gap:16px;overflow:auto;padding:22px}
 .mural-dashboard-heading{display:flex;align-items:center;justify-content:space-between}
@@ -121,4 +191,21 @@
 .mural-message-actions button:hover{border-color:#e2e7ed;background:#f5f7f9;color:#344860}
 .mural-message-body{margin:8px 0 0;color:#46576d;font-size:.82rem;line-height:1.55;white-space:pre-wrap;overflow-wrap:anywhere}
 .mural-privacy-note{margin:0;color:#8894a2;font-size:.68rem;line-height:1.4}
+.birthday-directory{display:flex;flex:1;min-height:0;flex-direction:column;gap:10px;overflow:hidden;padding:12px 18px;background:#deddd7}
+.birthday-directory-heading{display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid #fff;background:#efeee8;color:#344c6b;box-shadow:inset 1px 1px #fff,inset -2px -2px #b3b3ad}
+.birthday-directory-heading svg{color:#a56c17}
+.birthday-directory-heading strong{font-size:.84rem}
+.birthday-directory-heading span{margin-left:auto;color:#758397;font-size:.69rem}
+.birthday-members-list{display:grid;flex:1;min-height:0;align-content:start;overflow:auto;overscroll-behavior:contain;border:1px solid #fff;background:#f7f6f1;padding:4px 10px;box-shadow:inset 1px 1px #c1c1bb,inset -1px -1px #fff}
+.birthday-member{display:flex;min-height:64px;align-items:center;gap:11px;border-bottom:1px solid #d5d8db;padding:6px 3px}
+.birthday-member:last-child{border-bottom:0}
+.birthday-member .avatar-head-only{flex:0 0 42px;width:42px;height:42px}
+.birthday-member-name{display:grid;min-width:0;flex:1;gap:2px}
+.birthday-member-name strong{overflow:hidden;color:#2e435f;font-size:.82rem;text-overflow:ellipsis;white-space:nowrap}
+.birthday-member-name small{overflow:hidden;color:#7b8794;font-size:.68rem;text-overflow:ellipsis;white-space:nowrap}
+.birthday-member time{flex:0 0 auto;color:#435775;font-size:.75rem;white-space:nowrap}
+.birthday-directory-note{margin:0;color:#6d7887;font-size:.66rem;line-height:1.35}
+.mural-window-retro .birthday-directory{background:#deddd7}
+.mural-window-retro .birthday-directory-heading,.mural-window-retro .birthday-members-list{border-radius:2px}
+@media(max-width:700px){.birthday-directory{padding:10px;gap:8px}.birthday-member{min-height:58px;gap:8px}.birthday-member .avatar-head-only{flex-basis:38px;width:38px;height:38px}.birthday-member-name strong{font-size:.76rem}.birthday-member time{font-size:.68rem}}
 @media(max-width:700px){.mural-recados{gap:10px}.mural-composer{padding:11px}.mural-composer textarea{min-height:70px}.mural-primary-button,.mural-secondary-button{min-height:36px;padding:7px 9px;font-size:.7rem}.mural-message-card{padding:10px}.mural-message-body{font-size:.78rem}}
