@@ -1,7 +1,7 @@
 import { beforeEach, expect, it, vi } from "vitest";
 
 const ids = ["11111111-1111-4111-8111-111111111111", "22222222-2222-4222-8222-222222222222", "33333333-3333-4333-8333-333333333333"];
-const state = vi.hoisted(() => ({ authenticated: true, complete: true, fail: "", actorPatch: {} as Record<string, unknown>, reads: [] as string[] }));
+const state = vi.hoisted(() => ({ authenticated: true, complete: true, fail: "", actorPatch: {} as Record<string, unknown>, targetPatch: {} as Record<string, unknown>, reads: [] as string[] }));
 vi.mock("@/lib/supabase/server", () => ({ createServerSupabaseClient: async () => ({
   auth: { getClaims: async () => ({ data: { claims: { sub: state.authenticated ? ids[0] : undefined } }, error: null }) },
   from(table: string) {
@@ -11,7 +11,7 @@ vi.mock("@/lib/supabase/server", () => ({ createServerSupabaseClient: async () =
     const rows: Record<string, unknown>[] = table === "rooms" ? [{ slug: "amigos" }, { slug: "outra" }]
       : table === "room_member_presence" ? [{ room_slug: "amigos", user_id: ids[0] }, { room_slug: "amigos", user_id: ids[1] }, { room_slug: "outra", user_id: ids[2] }]
       : table === "room_staff" ? [{ room_slug: "amigos", user_id: ids[0], role: "owner" }, { room_slug: "outra", user_id: ids[1], role: "leader" }]
-      : ids.filter((id) => state.complete || id !== ids[0]).map((id, i) => ({ user_id: id, display_name: ["Ana Silva", "Bruno Lima", "Eva Souza"][i], avatar_id: "a", title: "Infra", bio: "Biografia privada", birth_day_month: "10-02", whatsapp: "5561999999999", instagram: "ana.silva", email: "never@example.test", ...(id === ids[0] ? state.actorPatch : {}) }));
+      : ids.filter((id) => state.complete || id !== ids[0]).map((id, i) => ({ user_id: id, display_name: ["Ana Silva", "Bruno Lima", "Eva Souza"][i], avatar_id: "a", title: "Infra", bio: "Biografia privada", birth_day_month: "10-02", whatsapp: "5561999999999", instagram: "ana.silva", email: "never@example.test", ...(id === ids[0] ? state.actorPatch : id === ids[1] ? state.targetPatch : {}) }));
     const result = (single = false) => {
       const projected = rows.filter((r) => filters.every((f) => f(r))).map((r) => Object.fromEntries(fields.split(",").map((f) => [f.trim(), r[f.trim()]])));
       return { data: single ? projected[0] ?? null : projected, error: state.fail === table ? { message: "database failed" } : null };
@@ -27,8 +27,52 @@ vi.mock("@/lib/supabase/server", () => ({ createServerSupabaseClient: async () =
   },
 }) }));
 
-beforeEach(() => { state.authenticated = true; state.complete = true; state.fail = ""; state.actorPatch = {}; state.reads = []; });
+beforeEach(() => { state.authenticated = true; state.complete = true; state.fail = ""; state.actorPatch = {}; state.targetPatch = {}; state.reads = []; });
 const request = new Request("https://cubo.test/api/rooms/amigos/users");
+async function birthdays(slug = "amigos") {
+  const { GET } = await import("@/app/api/rooms/[slug]/birthdays/route");
+  return GET(request, { params: Promise.resolve({ slug }) });
+}
+
+it("returns birthdays only for this room's persisted members, without contacts or years", async () => {
+  const response = await birthdays();
+  expect(response.headers.get("cache-control")).toBe("private, no-store");
+  expect(await response.json()).toEqual({ birthdays: [
+    { userId: ids[0], name: "Ana Silva", avatar: "a", title: "Infra", birthDayMonth: "10-02" },
+    { userId: ids[1], name: "Bruno Lima", avatar: "a", title: "Infra", birthDayMonth: "10-02" },
+  ] });
+  expect(await (await birthdays("outra")).json()).toEqual({ birthdays: [
+    { userId: ids[2], name: "Eva Souza", avatar: "a", title: "Infra", birthDayMonth: "10-02" },
+  ] });
+});
+it("requires completed Google profile and validates the room before birthday reads", async () => {
+  state.authenticated = false;
+  expect((await birthdays()).status).toBe(401);
+  expect(state.reads).toEqual([]);
+  state.authenticated = true; state.complete = false;
+  expect((await birthdays()).status).toBe(401);
+  state.complete = true;
+  expect((await birthdays("bad.room")).status).toBe(400);
+  expect((await birthdays("missing")).status).toBe(404);
+});
+it("omits missing and malformed optional dates instead of inventing a birthday", async () => {
+  for (const birth_day_month of [null, "", "02-31", "13-01", "2000-10-02"]) {
+    state.targetPatch = { birth_day_month };
+    const body = await (await birthdays()).json() as { birthdays: { userId: string }[] };
+    expect(body.birthdays.map((p: { userId: string }) => p.userId)).toEqual([ids[0]]);
+  }
+  state.targetPatch = { birth_day_month: "02-29" };
+  const leapDay = await (await birthdays()).json() as { birthdays: unknown[] };
+  expect(leapDay.birthdays).toHaveLength(2);
+});
+it("does not return birthdays on presence or profile database failure", async () => {
+  state.fail = "room_member_presence";
+  const response = await birthdays();
+  expect(response.status).toBe(500);
+  expect(await response.json()).not.toHaveProperty("birthdays");
+  state.fail = "profiles";
+  expect((await birthdays()).status).not.toBe(200);
+});
 async function list(slug = "amigos") {
   const { GET } = await import("@/app/api/rooms/[slug]/users/route");
   return GET(request, { params: Promise.resolve({ slug }) });

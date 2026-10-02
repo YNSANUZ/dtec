@@ -38,6 +38,27 @@ export async function listRoomPeople(slugInput: string) {
   return json({ users: (profiles as Profile[] ?? []).map((profile) => serialize(profile, roles.get(profile.user_id))) });
 }
 
+export async function listRoomBirthdays(slugInput: string) {
+  const access = await getPeopleContext(slugInput);
+  if (!access.ok) return access.response;
+  const { context, slug } = access;
+  // Persisted membership includes offline people, never members of another room.
+  const { data: presence, error } = await context.supabase.from("room_member_presence").select("user_id").eq("room_slug", slug);
+  if (error) return json({ error: "room_birthdays_read_failed" }, 500);
+  const ids = [...new Set((presence ?? []).map((row) => row.user_id))];
+  if (!ids.length) return json({ birthdays: [] });
+  const { data, error: profileError } = await context.supabase.from("profiles").select(`${publicFields}, birth_day_month`).in("user_id", ids);
+  if (profileError) return json({ error: "room_birthdays_read_failed" }, 500);
+  return json({ birthdays: (data as Profile[] ?? []).flatMap((profile) => {
+    const date = profile.birth_day_month;
+    if (!date || !/^(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/.test(date)) return [];
+    const [month, day] = date.split("-").map(Number);
+    const sample = new Date(Date.UTC(2000, month - 1, day));
+    if (sample.getUTCMonth() !== month - 1 || sample.getUTCDate() !== day) return [];
+    return [{ userId: profile.user_id, name: profile.display_name, avatar: profile.avatar_id, title: profile.title ?? "", birthDayMonth: date }];
+  }) });
+}
+
 export async function readRoomPerson(slugInput: string, idInput: string) {
   const access = await getPeopleContext(slugInput);
   if (!access.ok) return access.response;

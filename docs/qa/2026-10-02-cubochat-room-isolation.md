@@ -1,6 +1,6 @@
 # CuboChat — validação de isolamento por sala
 
-Data: 02/10/2026. Escopo ampliado estimado em 80%; não é percentual de testes.
+Data: 02/10/2026. Escopo ampliado estimado em 81%; não é percentual de testes.
 
 ## Destinos
 
@@ -97,6 +97,12 @@ Esses testes não executam GPU real nem demonstram duas contas Google independen
 Revisão independente deste diff não encontrou problemas críticos, importantes ou menores; não julgou limpeza global preexistente de recursos, GPU/GLTF reais ou backend de presença fora do incremento. Commit 0a1ad9b enviado somente à branch de testes; deployment Vercel AwANVRFkEv9T7DJR8GH6q6cgafKn, target preview, Ready, alias de staging confirmado via CLI. Inspeção no navegador recuperou a mesma sessão Gestor e o histórico; ampliar a câmera, abrir/fechar o quadro e digitar um rascunho manteve o enquadramento ampliado e o controle Reenquadrar. O recado/reação existentes carregaram. Rascunho limpo sem enviar, sem novos registros de chat ou perfil. Provas outputs/qa/preview-live-labels-board.png e preview-live-labels-scene.png; a primeira registra o carregamento inicial do quadro, que terminou na inspeção seguinte. Esse smoke de uma conta não valida propagação de renomeação entre dois usuários.
 
 Não liberar produção ou DNS apenas com testes locais. Confirmar preview apontando para staging, concluir testes reais acima e solicitar aprovação específica para migração/publicação em produção e domínio.
+
+## Incremento restrito: aniversários nas salas gerais
+
+Heartbeat 20:02 UTC: adicionar seção Aniversariantes ao quadro 2D genérico. GET por sala reutiliza autenticação/perfil completo e consulta apenas os IDs de membros persistidos em room_member_presence da sala, inclusive offline; resposta privada/no-store contém nome, personagem, cargo e MM-DD opcionais, nunca contatos/e-mail/ano. Omitir datas ausentes ou inválidas. Reutilizar ordenação anual São Paulo e PNGs existentes. Solicitações são canceladas ao trocar sala/conta/fechar; consulta inicial e atualização serial a cada minuto, sem respostas antigas substituírem a sala nova. Sem alterar /dtec legado, RLS, migrações, celebração pública, presença, movimento ou câmera. Testar isolamento/autorização/privacidade e ciclo de UI antes de publicar apenas preview.
+
+Implementado: endpoint autenticado/perfil completo, filtro por IDs persistidos somente da sala, projeção mínima e exclusão de datas ausentes/inválidas (29/02 válido). UI usa PNGs existentes, ordenação São Paulo, atualização serial sem sobreposição e guardas/abort ao fechar, trocar sala/conta ou StrictMode. Sete RED comprovaram ausência da rota/aba; GREEN 26 direcionados e suite completa 301 testes/66 arquivos maxWorkers=2. Build inicialmente encontrou dois acessos unknown nas respostas de testes; tipos explícitos corrigidos e novo build/TypeScript passou. ESLint direcionado e diff check passaram. Nenhum dado de perfil, autorização, banco, migração ou movimento alterado. Publicação/QA de preview ainda pendentes; estimativa 81%.
 
 ## Checkpoint de controles MOD nas salas gerais
 
