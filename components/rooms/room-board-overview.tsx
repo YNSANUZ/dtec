@@ -65,7 +65,7 @@ export function RoomBoardOverview({ roomSlug, onOpen }: { roomSlug: string; onOp
       <DialogContent className="mural-people-dialog" showCloseButton={false}>
         <DialogTitle>{sections.find((section) => section.id === roster?.section)?.title ?? "Participantes"}</DialogTitle>
         <DialogDescription>Pessoas que participam desta seção na sala /{roomSlug}.</DialogDescription>
-        <DialogClose aria-label="Fechar participantes">×</DialogClose>
+        <DialogClose className="room-board-roster-close" aria-label="Fechar participantes">×</DialogClose>
         {roster?.loading ? <p>Carregando pessoas…</p> : roster?.error ? <p role="alert">{roster.error}</p> : <ul className="mural-people-list">{roster?.people.length ? roster.people.map((person) => <li key={person.userId}><AvatarPreview model={person.avatar} headOnly /><span><strong>{person.name}</strong>{person.title && <small>{person.title}</small>}</span></li>) : <li>Nenhuma participação nesta seção.</li>}</ul>}
       </DialogContent>
     </Dialog>

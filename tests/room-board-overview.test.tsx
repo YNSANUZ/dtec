@@ -13,6 +13,7 @@ it("opens an overview with six/+N, photos open names and heads while section but
   expect(screen.getByRole("button",{name:"Visão geral"}).getAttribute("aria-pressed")).toBe("true");
   const stack=await screen.findByRole("button",{name:"Ver 8 pessoas em Recados"});expect(stack.textContent).toContain("+2");expect(stack.querySelectorAll("img")).toHaveLength(6);expect(screen.queryByText("Ana Silva")).toBeNull();
   expect(view.container.querySelector("button button")).toBeNull();fireEvent.click(stack);expect(await screen.findByText("Ana Silva")).toBeTruthy();expect(screen.getByLabelText("Cabeça do personagem")).toBeTruthy();
+  expect(screen.getByRole("button",{name:"Fechar participantes"}).className).toContain("room-board-roster-close");
   fireEvent.click(screen.getByRole("button",{name:"Fechar participantes"}));fireEvent.click(screen.getByRole("button",{name:"Abrir Recados"}));expect(await screen.findByLabelText("Novo recado")).toBeTruthy();
   expect(transport.mock.calls.every(([,o])=>!o.method)).toBe(true);
 });
