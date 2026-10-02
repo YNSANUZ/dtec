@@ -14,6 +14,7 @@ const eventId = "22222222-2222-4222-8222-222222222222";
 
 type EventRow = {
   id?: string;
+  room_slug?: string;
   title?: string;
   description?: string;
   category?: string;
@@ -52,7 +53,7 @@ function makeSupabase(role: string | null, events: EventRow[] = [], interests: I
         insert(row: EventRow) { mode = "insert"; mutation = row; return chain; },
         update(row: Record<string, unknown>) { mode = "update"; mutation = row; return chain; },
         maybeSingle() {
-          if (table === "room_roles") return Promise.resolve({ data: role ? { role } : null, error: null });
+          if (table === "room_staff") return Promise.resolve({ data: role && filters.room_slug === "dtec" ? { role } : null, error: null });
           if (table === "room_events" && mode === "update") {
             updated = { id: filters.id, ...mutation };
           }
@@ -65,7 +66,8 @@ function makeSupabase(role: string | null, events: EventRow[] = [], interests: I
         },
         then(resolve: (value: unknown) => unknown, reject?: (reason: unknown) => unknown) {
           if (table === "room_events" && mode === "select") {
-            const rows = events.filter((event) => !filters.status || event.status === filters.status);
+            const rows = events.filter((event) => (!filters.status || event.status === filters.status)
+              && (!filters.room_slug || (event.room_slug ?? "dtec") === filters.room_slug));
             return Promise.resolve({ data: rows, error: null }).then(resolve, reject);
           }
           if (table === "room_event_interests") {
@@ -120,6 +122,7 @@ describe("event API access and identity", () => {
     setContext("owner", [
       { id: eventId, title: "Kart", description: "", category: "kart", starts_at: null, location: "", status: "open" },
       { id: "33333333-3333-4333-8333-333333333333", title: "Closed", status: "closed" },
+      { id: "44444444-4444-4444-8444-444444444444", room_slug: "amigos", title: "Outra sala", status: "open" },
     ], [{ event_id: eventId }, { event_id: eventId }]);
     const response = await GET();
     expect(response.status).toBe(200);
@@ -140,6 +143,7 @@ describe("event API access and identity", () => {
     const response = await POST(request("/api/events", { title: "Kart", category: "kart", created_by: "99999999-9999-4999-8999-999999999999" }));
     expect(response.status).toBe(201);
     expect(inserted[0].created_by).toBe(userId);
+    expect(inserted[0].room_slug).toBe("dtec");
     expect(inserted[0].created_by).not.toBe("99999999-9999-4999-8999-999999999999");
   });
 

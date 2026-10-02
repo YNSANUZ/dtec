@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getMuralUserContext } from "@/lib/mural-server";
 import { normalizeRoomEventPatch } from "@/lib/events/validation";
+import { hasRoomRole } from "@/lib/rooms/authorization";
 
 const json = (body: unknown, status = 200) => NextResponse.json(body, {
   status,
@@ -12,13 +13,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const context = await getMuralUserContext();
   if (!context) return json({ error: "unauthorized" }, 401);
 
-  const { data: role, error: roleError } = await context.supabase
-    .from("room_roles")
-    .select("role")
-    .eq("user_id", context.userId)
-    .maybeSingle();
-  if (roleError) return json({ error: "event_role_check_failed" }, 500);
-  if (role?.role !== "owner" && role?.role !== "leader") return json({ error: "forbidden" }, 403);
+  const role = await hasRoomRole(context, "dtec", ["owner", "leader"]);
+  if (role.failed) return json({ error: "event_role_check_failed" }, 500);
+  if (!role.allowed) return json({ error: "forbidden" }, 403);
 
   const { id } = await params;
   if (!z.string().uuid().safeParse(id).success) return json({ error: "invalid_event_id" }, 400);
@@ -42,6 +39,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     .from("room_events")
     .update(updates)
     .eq("id", id)
+    .eq("room_slug", "dtec")
     .select("id, title, description, category, starts_at, location, status, created_by, created_at, updated_at")
     .maybeSingle();
   if (error) return json({ error: "event_update_failed" }, 500);

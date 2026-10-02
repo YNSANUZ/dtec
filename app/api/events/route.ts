@@ -1,21 +1,12 @@
 import { NextResponse } from "next/server";
 import { getMuralUserContext } from "@/lib/mural-server";
 import { normalizeRoomEvent } from "@/lib/events/validation";
+import { hasRoomRole } from "@/lib/rooms/authorization";
 
 const json = (body: unknown, status = 200) => NextResponse.json(body, {
   status,
   headers: { "Cache-Control": "private, no-store" },
 });
-
-async function hasEventManagerRole(supabase: NonNullable<Awaited<ReturnType<typeof getMuralUserContext>>>["supabase"], userId: string) {
-  const { data, error } = await supabase
-    .from("room_roles")
-    .select("role")
-    .eq("user_id", userId)
-    .maybeSingle();
-  if (error) return { allowed: false, failed: true };
-  return { allowed: data?.role === "owner" || data?.role === "leader", failed: false };
-}
 
 export async function GET() {
   const context = await getMuralUserContext();
@@ -24,6 +15,7 @@ export async function GET() {
   const { data: rows, error } = await context.supabase
     .from("room_events")
     .select("id, title, description, category, starts_at, location, status, created_by, created_at, updated_at")
+    .eq("room_slug", "dtec")
     .eq("status", "open")
     .order("starts_at", { ascending: true, nullsFirst: false })
     .order("created_at", { ascending: false });
@@ -53,7 +45,7 @@ export async function GET() {
 export async function POST(request: Request) {
   const context = await getMuralUserContext();
   if (!context) return json({ error: "unauthorized" }, 401);
-  const manager = await hasEventManagerRole(context.supabase, context.userId);
+  const manager = await hasRoomRole(context, "dtec", ["owner", "leader"]);
   if (manager.failed) return json({ error: "event_role_check_failed" }, 500);
   if (!manager.allowed) return json({ error: "forbidden" }, 403);
 
@@ -67,6 +59,7 @@ export async function POST(request: Request) {
   const { data, error } = await context.supabase
     .from("room_events")
     .insert({
+      room_slug: "dtec",
       title: event.title,
       description: event.description,
       category: event.category,
