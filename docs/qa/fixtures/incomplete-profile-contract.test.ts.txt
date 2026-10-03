@@ -1,0 +1,70 @@
+// Diagnostic fixture, not a passing regression or implementation.
+// On unchanged 9a97602: expected denial fails (200 instead of 401);
+// valid profile and anonymous-denial controls pass. No real account or network.
+import { beforeEach, expect, it, vi } from "vitest";
+
+const state = vi.hoisted(() => ({
+  authenticated: true,
+  profile: {
+    display_name: "Ana",
+    avatar_id: "a",
+    title: "",
+    bio: "",
+    birth_day_month: null,
+    whatsapp: "",
+    instagram: "",
+  },
+}));
+
+vi.mock("@/lib/supabase/server", () => ({
+  createServerSupabaseClient: vi.fn(async () => ({
+    auth: {
+      getClaims: vi.fn(async () => ({
+        data: { claims: state.authenticated ? { sub: "11111111-1111-4111-8111-111111111111" } : null },
+        error: null,
+      })),
+    },
+    from(table: string) {
+      const query = {
+        select() { return query; },
+        eq() { return query; },
+        order() { return query; },
+        async maybeSingle() {
+          return { data: table === "profiles" ? state.profile : { slug: "amigos" }, error: null };
+        },
+        then(resolve: (value: unknown) => unknown) {
+          return Promise.resolve({ data: [], error: null }).then(resolve);
+        },
+      };
+      return query;
+    },
+  })),
+}));
+
+import { GET as readProfile } from "@/app/api/profile/route";
+import { GET as readFundraisers } from "@/app/api/rooms/[slug]/fundraisers/route";
+
+const read = () => readFundraisers(
+  new Request("https://qa.invalid/api/rooms/amigos/fundraisers"),
+  { params: Promise.resolve({ slug: "amigos" }) },
+);
+
+beforeEach(() => {
+  state.authenticated = true;
+  state.profile.display_name = "Ana";
+});
+
+it("reproduces incomplete legacy profile denied by onboarding but accepted by the internal API", async () => {
+  expect(await (await readProfile()).json()).toEqual({ profile: null });
+  expect((await read()).status).toBe(401);
+});
+
+it("continues allowing the completed canonical profile", async () => {
+  state.profile.display_name = "Ana Silva";
+  expect((await read()).status).toBe(200);
+});
+
+it("continues rejecting anonymous internal API reads", async () => {
+  state.authenticated = false;
+  expect((await read()).status).toBe(401);
+});

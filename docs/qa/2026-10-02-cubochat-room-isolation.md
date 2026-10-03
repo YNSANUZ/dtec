@@ -11,6 +11,18 @@ Data: 02/10/2026. Escopo ampliado estimado em 90%; não é percentual de testes.
 
 ## Escopo congelado e preparativos de lançamento
 
+### Revisão residual: perfil incompleto confirmado, alteração aguardando decisão
+
+Contrato aprovado exige perfil completo antes das APIs internas. Em 9a97602, `GET /api/profile` valida com `normalizeProfile` e devolve `profile:null` para um perfil legado fictício com nome único “Ana”; porém `getMuralUserContext` só verifica existência de perfil e a rota real `GET /api/rooms/amigos/fundraisers` devolve200 para a mesma sessão. A migração de nomes tem constraint NOT VALID e preserva registros antigos; não assumir que o banco elimina esse caso. O problema não concede ADM/MOD, não cruza salas e não libera leitura anônima: é desvio da exigência de concluir o cadastro.
+
+Reprodução local isolada com cliente Supabase simulado e handlers reais, sem mock do guard: três testes, uma falha esperada (401 esperado/200 recebido), dois controles verdes (perfil completo200 e anônimo401). Fixture preservada em `docs/qa/fixtures/incomplete-profile-contract.test.ts.txt`, fora da descoberta automática de testes; o arquivo temporário de execução foi retirado de `tests/`. Nenhuma conta, segredo, banco externo, aplicativo publicado ou regra foi alterada. A suíte416/build anterior é evidência histórica de 9a97602, não uma nova execução nem prova de ausência deste defeito.
+
+Correção delimitada proposta: validar o perfil do solicitante no guard comum com a mesma regra do onboarding, mantendo perfis válidos, campos opcionais, papéis por sala, chat público e dados existentes. Como altera a validação de acesso, aguarda autorização específica antes de implementar/publicar no preview; não modificar políticas/RLS/credenciais ou produção. Não acrescentar verificação nova de provedor sem inventário/contrato próprio.
+
+Hipótese de `cycleDueDate` opcional: os testes legados e genéricos explicitamente aceitam corpo apenas `paid`; os clientes atuais enviam a data exibida e recebem409 quando obsoleta, e a RPC valida o ciclo novamente dentro da transação. Omissão usa o ciclo corrente do servidor. Não foi confirmado defeito desse modo compatível; não tornar a data obrigatória ou alterar pagamentos por conjectura. Testes entre sessões independentes continuam pendentes.
+
+Estimativa90% mantida; revisão ampla continua incompleta. Não repetir a reprodução nem implementar o guard em heartbeat sem a decisão específica. As demais portas de lançamento (duas Google, concorrência, aparelho real, aprovação de produção/domínio) permanecem abertas.
+
 ### Migração016 aplicada e verificada no staging
 
 Atualização posterior à etapa local: aplicada SOMENTE `202610030016_fundraiser_cycle_boundary.sql` no projeto `dtec-staging`/`grbanfuzzrlyapxyhjzc`, confirmado no cabeçalho e URL. Não reaplicar016,003 ou006–015. A produção permanece intacta. Pré-checagem mostrou16tabelas/16RLS, owner postgres, EXECUTE apenas postgres/authenticated; fronteiras antigas retornavam2026-10-02/2028-02-29. Agora retornam2026-11-02/2028-03-31.
