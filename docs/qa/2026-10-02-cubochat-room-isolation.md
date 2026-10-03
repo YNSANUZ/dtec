@@ -11,6 +11,22 @@ Data: 02/10/2026. Escopo ampliado estimado em 90%; não é percentual de testes.
 
 ## Escopo congelado e preparativos de lançamento
 
+### Revisão final local dos contratos por sala — 03/10/2026
+
+Revisão pelo agente principal sobre o código `005d74c` e checkpoint `736217f`, sem delegação nem implementação nova. Concluído o recorte de autorização/isolamento descrito abaixo; não foram confirmados novos defeitos nesse recorte. Isso não encerra a tarefa 7 nem constitui auditoria geral de segurança, inspeção de todos os frames/GPU ou validação de produção.
+
+| Contrato revisto | Evidência local e limites |
+| --- | --- |
+| Criador recebe ADM atomicamente; ADM de A não administra B | Leitura de criação/staff/autorização e migração012; testes reais PostgreSQL/PGlite de trigger, papel forjado e escrita em outra sala. Requisições enfileiradas no mesmo banco local não provam uma corrida entre clientes independentes. |
+| IDs de B enviados ao endpoint de A não leem nem alteram recados, reações, eventos ou campanhas | Leitura dos helpers por sala, filtros de pai antes de filhos, grants/RLS/RPCs das migrações013–015 e wrappers DTEC. Regressões de APIs usam transporte simulado; testes de migrações executam SQL real em PGlite. Abrir explicitamente outra sala pública depois de login permanece permitido. |
+| Perfil completo e sessão precedem recursos internos; detalhes genéricos pertencem à sala pedida | Guard canônico, APIs de pessoas/participação e seus testes. Chat recente público permanece intencional; não trocar essa regra por hipótese. A DTEC legada e seu cenário não são refatorados nesta revisão. |
+| Marcação manual própria ou ADM/MOD da sala; histórico e auditoria protegidos | Leitura dos locks/RPCs, ciclo, grants sem escrita direta em contribuições/auditoria e acesso administrativo da auditoria. Ciclo antigo, origem self/adm/mod e repetição idempotente cobertos; concorrência real entre sessões segue pendente. Nenhum pagamento/transferência executado. |
+| Fotos/resumos privados não acrescentam pessoas ou contatos fora dos recursos selecionados | Leitura da coleta por pais da sala, deduplicação/paginação, helper de URLs HTTPS Google e projeções mínimas. Roster/foto usa testes locais, não prova de duas contas Google. |
+
+Execução nova: **92 testes direcionados em 15 arquivos**, depois **445 testes em 78 arquivos com maxWorkers=2**, build de produção/TypeScript e `git diff --check` passaram com as ferramentas da própria worktree. Nenhum teste omitido ou expectativa alterada; nenhum arquivo de aplicação, pacote, migração, banco externo, conta, papel, proteção, produção ou DNS mudou. Os dois erros ESLint OAuth anchors DTEC já documentados continuam sendo baseline; esta execução não declara lint geral limpo. `tsconfig.tsbuildinfo` não rastreado preservado.
+
+Gate local desse recorte concluído. Restam evidências humanas com duas contas Google distintas e aparelho físico, concorrência independente, revisão/aprovação específica do lote de produção com backup recuperável e, após autorização, domínio/HTTPS/retorno Google. As validações anteriores de staging são históricas, não foram repetidas aqui. Estimativa **90%** mantida: não aumentar por documentação ou quantidade de testes. Sem nova falha reproduzida, commit de aplicação ou sessão humana disponível, não repetir esta mesma revisão/suíte em cada heartbeat nem inventar trabalho.
+
 ### Retorno OAuth: correção autorizada e validação local concluída
 
 Código005d74c enviado SOMENTE à branch de testes. Deployment `dpl_31wKbCTq37HJUwdgFwYfDTDaHrXh` Ready/targetpreview/alias autorizado confirmado CLI. UMA Google Gestor em aba temporária qa20261002 recarregada após Ready recuperou sessão, personagem e histórico; mostrou mensagens antigas, campo vazio, sem enviar/editar perfil/papéis/eventos/participação/pagamento. Só presença normal. Prova `outputs/qa/oauth-return-preview.png`; temporária9fechada, original5preservada. HTTP sem cookies/sem seguir redirect: callback cancelado307 para origem local/?auth_error=cancelled mesmo com next manipulado; sem código307 invalid_callback; /dtec200/chatGET200/participation401. Esses HTTPs cobrem erros, não a troca OAuth bem-sucedida do achado (esta coberta somente local/mock). Não executado novo login real nem lido código/token. GoogleDNS NS/A revalidado somente leitura às00:50SãoPaulo03/10: Status3NXDOMAIN inalterado; sem nova hipótese de causa ou mudança DNS. Estimativa90% mantida, duas Google/device/revisão ampla/lançamento pendentes.
