@@ -7,7 +7,7 @@ import type { MuralId } from "@/lib/mural-types";
 import { getCharacterCelebrationState } from "@/lib/birthdays/celebration";
 import { resolveRoomPositionState, type RoomPositionState } from "@/lib/room/position-state";
 import { resolveRoomCameraState, type RoomCameraState } from "@/lib/room/camera-state";
-import { WORKSTATIONS, PUFF_COLOR, danceLean, characterMotion } from "@/lib/room/scene-layout";
+import { WORKSTATIONS, PUFF_COLOR, danceLean, characterMotion, roomFrameHalfHeight } from "@/lib/room/scene-layout";
 import { drawRoleBadge, type BadgeRole } from "@/lib/room/role-badge";
 import type { ScenePanel } from "@/lib/rooms/board-types";
 type Props = {
@@ -880,7 +880,7 @@ export default function OfficeScene({
     frame();
     const resize = () => {
       const a = el.clientWidth / el.clientHeight,
-        fr = 12;
+        fr = roomFrameHalfHeight(a);
       camera.left = -fr * a;
       camera.right = fr * a;
       camera.top = fr;

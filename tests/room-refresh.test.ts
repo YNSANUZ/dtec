@@ -1,10 +1,18 @@
 import { describe, expect, it } from "vitest";
-import { WORKSTATIONS, PUFF_COLOR, danceLean, characterMotion } from "@/lib/room/scene-layout";
+import { WORKSTATIONS, PUFF_COLOR, danceLean, characterMotion, roomFrameHalfHeight } from "@/lib/room/scene-layout";
 import { BIRTHDAY_BADGE_MS, BIRTHDAY_CYCLE_MS } from "@/lib/birthdays/celebration";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 describe("approved room refresh", () => {
+  it("frames the larger square without clipping the initial desktop or portrait width", () => {
+    expect(roomFrameHalfHeight(16/9)).toBe(16);
+    const portrait=roomFrameHalfHeight(9/16);
+    expect(portrait*(9/16)).toBeGreaterThanOrEqual(20);
+    expect(roomFrameHalfHeight(0)).toBe(20);
+    const source=readFileSync(join(process.cwd(),"components/office-scene.tsx"),"utf8");
+    expect(source.includes("fr = roomFrameHalfHeight(a)")).toBe(true);
+  });
   it("uses a genuinely square platform and matching walls, independent of camera rotation", () => {
     const source=readFileSync(join(process.cwd(),"components/office-scene.tsx"),"utf8");
     expect(source).toContain("box(28, 0.5, 28,");
