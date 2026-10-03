@@ -19,7 +19,7 @@ it("shows six Google circles and +2, and opens paid/pending heads without nested
   expect(view.container.querySelectorAll(".contribution-paid article")).toHaveLength(1);
   expect(view.container.querySelectorAll(".contribution-pending article.pending")).toHaveLength(7);
   expect(screen.getAllByLabelText("Cabeça a")).toHaveLength(8);
-  expect(screen.getByRole("button",{name:"Participar"})).toBeTruthy();expect(screen.queryByText(/total arrecadado/i)).toBeNull();
+  expect(screen.getByRole("button",{name:"Estou interessado"})).toBeTruthy();expect(screen.queryByText(/total arrecadado/i)).toBeNull();
   expect(transport.mock.calls.every(([,options])=>!options.method)).toBe(true);
 });
 it("uses placeholders and no count when empty, including the DTEC alias",async()=>{

@@ -5,6 +5,10 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import DtecRoom from "@/app/dtec/page";
 
 const fixtures = vi.hoisted(() => ({ phase: "ready", account: { id: "member" }, mounted: vi.fn(), props: null as null | { initialPosition: { x: number; z: number } } }));
+// These transport/pose regressions exercise an already-admitted member.
+// Actual admission scopes are exercised in room-membership-hook and entry tests.
+vi.mock("@/hooks/use-room-membership",()=>({useRoomMembership:(_slug:string,userId:string|null)=>({active:Boolean(userId),role:userId?"member":"visitor",status:userId?"active":"visitor",loading:false,busy:false,error:"",entryMode:"public",refresh:()=>{},join:async()=>true,leave:async()=>true})}));
+vi.mock("@/hooks/use-room-identity",()=>({useRoomIdentity:(_slug:string,initial:unknown)=>({identity:initial,refresh:()=>{}})}));
 vi.mock("next/dynamic", () => ({ default: () => function Scene(props: NonNullable<typeof fixtures.props>) { fixtures.props = props; React.useEffect(() => { fixtures.mounted(); }, []); return <div aria-label="Cenário" />; } }));
 vi.mock("@/components/avatar-preview", () => ({ default: () => <div /> }));
 vi.mock("@/components/mural-window", () => ({ default: () => <div /> }));

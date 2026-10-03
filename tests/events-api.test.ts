@@ -23,13 +23,14 @@ type EventRow = {
   status?: string;
   created_by?: string;
 };
-type InterestRow = { event_id: string };
+type InterestRow = { event_id: string; user_id?: string };
 type FakeResult = { data: unknown; error: null };
 type FakeQuery = {
   select: (...columns: string[]) => FakeQuery;
   eq: (column: string, value: unknown) => FakeQuery;
   in: (column: string, values: unknown[]) => FakeQuery;
   order: (column: string, options?: unknown) => FakeQuery;
+  range: (from:number,to:number)=>FakeQuery;
   insert: (row: EventRow) => FakeQuery;
   update: (row: Record<string, unknown>) => FakeQuery;
   maybeSingle: () => Promise<FakeResult>;
@@ -41,6 +42,7 @@ function makeSupabase(role: string | null, events: EventRow[] = [], interests: I
   const inserted: Record<string, unknown>[] = [];
   let updated: Record<string, unknown> | null = null;
   const supabase = {
+    rpc: async()=>({data:[],error:null}),
     from(table: string) {
       let mode = "select";
       let mutation: Record<string, unknown> = {};
@@ -50,13 +52,17 @@ function makeSupabase(role: string | null, events: EventRow[] = [], interests: I
         eq(column: string, value: unknown) { filters[column] = value; return chain; },
         in(column: string, values: unknown[]) { filters[column] = values; return chain; },
         order() { return chain; },
+        range() { return chain; },
         insert(row: EventRow) { mode = "insert"; mutation = row; return chain; },
         update(row: Record<string, unknown>) { mode = "update"; mutation = row; return chain; },
         maybeSingle() {
+          if (table === "rooms") return Promise.resolve({data:filters.slug==="dtec"?{slug:"dtec"}:null,error:null});
+          if (table === "room_memberships") return Promise.resolve({data:{status:"active"},error:null});
           if (table === "room_staff") return Promise.resolve({ data: role && filters.room_slug === "dtec" ? { role } : null, error: null });
           if (table === "room_events" && mode === "update") {
             updated = { id: filters.id, ...mutation };
           }
+          if(table==="room_events"&&mode==="select") return Promise.resolve({data:events.find(row=>row.id===filters.id&&(row.room_slug??"dtec")===filters.room_slug)??null,error:null});
           return Promise.resolve({ data: updated, error: null });
         },
         single() {
@@ -72,7 +78,7 @@ function makeSupabase(role: string | null, events: EventRow[] = [], interests: I
           }
           if (table === "room_event_interests") {
             const ids = Array.isArray(filters.event_id) ? filters.event_id : [];
-            return Promise.resolve({ data: interests.filter((row) => ids.includes(row.event_id)), error: null }).then(resolve, reject);
+            return Promise.resolve({ data: interests.filter((row) => ids.includes(row.event_id)).map((row,i)=>({...row,user_id:row.user_id??`interest-${i}`})), error: null }).then(resolve, reject);
           }
           if (table === "room_events" && mode === "update") {
             updated = { id: filters.id, ...mutation };
@@ -121,12 +127,12 @@ describe("event API access and identity", () => {
     expect(await response.json()).toEqual({ error: "unauthorized" });
   });
 
-  it("rejects event writes from a regular member", async () => {
+  it("lets a regular member create their own event but refuses changing an absent/foreign event", async () => {
     setContext("member");
     const createResponse = await POST(request("/api/events", { title: "Kart", category: "kart" }));
     const patchResponse = await PATCH(request("/api/events/22222222-2222-4222-8222-222222222222", { status: "closed" }, "PATCH"), { params: Promise.resolve({ id: eventId }) });
-    expect(createResponse.status).toBe(403);
-    expect(patchResponse.status).toBe(403);
+    expect(createResponse.status).toBe(201);
+    expect(patchResponse.status).toBe(404);
   });
 
   it("returns only open events and interest counts to an authenticated profile", async () => {
@@ -146,6 +152,7 @@ describe("event API access and identity", () => {
       location: "",
       status: "open",
       interestCount: 2,
+      photos:[{photoUrl:null},{photoUrl:null}],
     }] });
   });
 
@@ -159,7 +166,7 @@ describe("event API access and identity", () => {
   });
 
   it("allows ADM or MOD to close an event", async () => {
-    setContext("leader");
+    setContext("leader",[{id:eventId,room_slug:"dtec",title:"Kart",status:"open",created_by:userId}]);
     const response = await PATCH(request(`/api/events/${eventId}`, { status: "closed" }, "PATCH"), { params: Promise.resolve({ id: eventId }) });
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({ event: { id: eventId, status: "closed" } });

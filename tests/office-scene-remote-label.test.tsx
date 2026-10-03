@@ -75,6 +75,9 @@ beforeEach(() => {
     return new Proxy({
       fillText(text: string) { drawn.drawnText = text; },
       measureText(text: string) { return { width: text.length * 20 }; },
+      fill() { drawn.background ??= String(this.fillStyle); },
+      fillStyle: "",
+      createRadialGradient() { return { addColorStop() {} }; },
       arc() { drawn.dot = "yes"; },
     }, { get(target, key) { return Reflect.get(target, key) ?? (() => {}); } }) as unknown as CanvasRenderingContext2D;
   };
@@ -107,7 +110,42 @@ function finishAsset(path: string) {
 }
 
 describe("live remote labels", () => {
-  it("keeps a birthday badge during local walking, stops it at five seconds, and frees its private texture on unmount", () => {
+  it("updates the small shield after a role change without replacing the remote model, transform or camera",()=>{
+    const view=render(<OfficeScene {...props} remoteUsers={[{...remote,role:"member"}]}/>);tick(2000);
+    const object=remoteObject(),oldModel=model(),camera=gpu.camera!,oldLabel=label(),position=object.position.clone();
+    const dispose=vi.spyOn(oldLabel.material.map!,"dispose");
+    view.rerender(<OfficeScene {...props} remoteUsers={[{...remote,role:"owner"}]}/>);tick(3100);
+    expect(label().userData.roleBadge).toBe("owner");expect(image(label()).dataset.drawnText).toBe(remote.name);
+    expect(dispose).toHaveBeenCalledOnce();expect(model()).toBe(oldModel);expect(object.position.equals(position)).toBe(true);expect(gpu.camera).toBe(camera);
+  });
+  it("updates the local shield independently of the world and marks a local nonmember as visitor",()=>{
+    const view=render(<OfficeScene {...props} role="member" remoteUsers={[]}/>);tick(500);
+    const scene=gpu.scene!,mine=scene.children.find(object=>object.type==="Group"&&!object.userData.roomUserId)!;
+    expect(label(mine).userData.roleBadge).toBe("member");
+    view.rerender(<OfficeScene {...props} role="leader" remoteUsers={[]}/>);tick(600);
+    expect(gpu.scene).toBe(scene);expect(label(mine).userData.roleBadge).toBe("leader");
+    view.rerender(<OfficeScene {...props} created={false} remoteUsers={[]}/>);tick(700);
+    const visitor=gpu.scene!.children.find(object=>object.type==="Group"&&!object.userData.roomUserId)!;
+    expect(label(visitor).userData.roleBadge).toBe("visitor");expect(image(label(visitor)).dataset.background).toBe("#64748b");
+  });
+  it("repaints the wall identity without reconstructing the camera or avatar",()=>{
+    const view=render(<OfficeScene {...props} roomIdentity={{title:"Primeiro",description:"Minha turma"}} remoteUsers={[remote]}/>);tick(2000);
+    const scene=gpu.scene!,camera=gpu.camera!,object=remoteObject(),oldModel=model();
+    const textures=()=>scene.children.flatMap(child=>{const map=(child as unknown as {material?:{map?:{image?:HTMLCanvasElement}}}).material?.map;return map?.image?[map.image.dataset.drawnText]:[];});
+    expect(textures()).toContain("Minha turma");
+    view.rerender(<OfficeScene {...props} roomIdentity={{title:"Novo grupo",description:"Novo ambiente"}} remoteUsers={[remote]}/>);tick(3100);
+    expect(textures()).toContain("Novo ambiente");expect(textures()).not.toContain("Minha turma");expect(gpu.scene).toBe(scene);expect(gpu.camera).toBe(camera);expect(model(object)).toBe(oldModel);
+  });
+  it("shares one painted LED glow across twelve fixtures, adds no dynamic light, and releases it once",()=>{
+    const view=render(<OfficeScene {...props} remoteUsers={[]}/>);tick(500);
+    const scene=gpu.scene!;
+    const glows=scene.children.filter(child=>{const mesh=child as unknown as {geometry?:{parameters?:{width:number;height:number}};material?:{map?:{image?:HTMLCanvasElement}}};return mesh.material?.map?.image?.width===128&&mesh.geometry?.parameters?.width===2.4;}) as unknown as {material:{map:{dispose:()=>void};dispose:()=>void};geometry:{dispose:()=>void}}[];
+    expect(glows).toHaveLength(12);expect(new Set(glows.map(glow=>glow.material))).toHaveProperty("size",1);
+    expect(scene.children.filter(child=>(child as unknown as {isLight?:boolean}).isLight)).toHaveLength(2);
+    const textureDispose=vi.spyOn(glows[0].material.map,"dispose"),materialDispose=vi.spyOn(glows[0].material,"dispose"),geometryDispose=vi.spyOn(glows[0].geometry,"dispose");
+    view.unmount();expect(textureDispose).toHaveBeenCalledOnce();expect(materialDispose).toHaveBeenCalledOnce();expect(geometryDispose).toHaveBeenCalledOnce();
+  });
+  it("keeps a birthday badge during local walking, stops it at twenty seconds, and frees its private texture on unmount", () => {
     const view = render(<OfficeScene {...props} birthdayToday remoteUsers={[]} />); tick(500);
     const scene = gpu.scene!; const camera = gpu.camera!; const mine = scene.children.find(object => object.type === "Group" && !object.userData.roomUserId)!;
     const start = mine.position.clone();
@@ -116,7 +154,7 @@ describe("live remote labels", () => {
     const pointer = { pointerId: 1, pointerType: "mouse", button: 0, clientX: (point.x + 1) * 640, clientY: (1 - point.y) * 360 };
     const canvas = view.container.querySelector(".office-canvas canvas")!; fireEvent.pointerDown(canvas, pointer); fireEvent.pointerUp(canvas, pointer); tick(600);
     expect(mine.position.distanceTo(start)).toBeGreaterThan(0); expect(mine.children).toContain(badge);
-    tick(5_000); expect(mine.children).not.toContain(badge); tick(125_000);
+    tick(19_999); expect(mine.children).toContain(badge); tick(20_000); expect(mine.children).not.toContain(badge); tick(140_000);
     const nextBadge = mine.children.find(child => child.userData.popStartedAt !== undefined) as Sprite; expect(nextBadge).toBeTruthy();
     const dispose = vi.spyOn(nextBadge.material.map!, "dispose"); view.unmount(); expect(dispose).toHaveBeenCalledOnce();
   });
@@ -138,11 +176,11 @@ describe("live remote labels", () => {
     view.rerender(<OfficeScene {...props} remoteUsers={[birthday]} />); tick(10_100);
     const badge = object.children.find(child => child.userData.popStartedAt !== undefined) as Sprite;
     expect(badge).toBeTruthy(); const textureDispose = vi.spyOn(badge.material.map!, "dispose"); const materialDispose = vi.spyOn(badge.material, "dispose");
-    view.rerender(<OfficeScene {...props} remoteUsers={[{ ...birthday }]} />); tick(14_900);
-    expect(object.children).toContain(badge); tick(15_100); expect(object.children).not.toContain(badge);
+    view.rerender(<OfficeScene {...props} remoteUsers={[{ ...birthday }]} />); tick(30_099);
+    expect(object.children).toContain(badge); tick(30_100); expect(object.children).not.toContain(badge);
     expect(textureDispose).toHaveBeenCalledOnce(); expect(materialDispose).toHaveBeenCalledOnce();
-    tick(135_099); expect(object.children.some(child => child.userData.popStartedAt !== undefined)).toBe(false);
-    tick(135_100); expect(object.children.some(child => child.userData.popStartedAt !== undefined)).toBe(true);
+    tick(150_099); expect(object.children.some(child => child.userData.popStartedAt !== undefined)).toBe(false);
+    tick(150_100); expect(object.children.some(child => child.userData.popStartedAt !== undefined)).toBe(true);
     expect(gpu.scene).toBe(scene); expect(gpu.camera).toBe(camera); expect(camera.projectionMatrix.equals(projection)).toBe(true); expect(object.position.equals(position)).toBe(true);
   });
 
@@ -231,7 +269,8 @@ describe("live remote labels", () => {
     expect(remoteObject()).toBe(person);
     expect(person.position.equals(position)).toBe(true);
     expect(person.rotation.y).toBe(1.3);
-    expect(image(label()).dataset.dot).toBe("yes");
+    expect(image(label()).dataset.background).toBe("#15803d");
+    expect(image(label()).dataset.dot).toBeUndefined();
   });
 
   it("keeps the same label on unchanged presence polls", () => {
@@ -258,18 +297,20 @@ describe("live remote labels", () => {
     expect(original.parent).toBeNull();
   });
 
-  it("updates an offline member name and still refreshes the online dot", () => {
+  it("updates an offline gray label and turns the entire label green online", () => {
     const offline = { ...remote, online: false };
     const view = render(<OfficeScene {...props} remoteUsers={[offline]} />);
     tick(2_000);
     expect(image(label()).dataset.dot).toBeUndefined();
+    expect(image(label()).dataset.background).toBe("#64748b");
     view.rerender(<OfficeScene {...props} remoteUsers={[{ ...offline, name: "Ana Lima" }]} />);
     tick(4_000);
     expect(image(label()).dataset.drawnText).toBe("Ana Lima");
     expect(image(label()).dataset.dot).toBeUndefined();
     view.rerender(<OfficeScene {...props} remoteUsers={[{ ...remote, name: "Ana Lima" }]} />);
     tick(6_000);
-    expect(image(label()).dataset.dot).toBe("yes");
+    expect(image(label()).dataset.background).toBe("#15803d");
+    expect(image(label()).dataset.dot).toBeUndefined();
   });
 });
 

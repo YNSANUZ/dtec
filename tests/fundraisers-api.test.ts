@@ -39,6 +39,7 @@ function makeSupabase() {
         upsert(row: Row) { mode = "upsert"; payload = row; return chain; },
         maybeSingle(): Promise<{ data: Row | null; error: null }> {
           if (table === "rooms") return Promise.resolve({ data: filters.slug === "dtec" ? { slug: "dtec" } : null, error: null });
+          if (table === "room_memberships") return Promise.resolve({data:{status:"active"},error:null});
           if (table === "room_staff") return Promise.resolve({ data: filters.room_slug === "dtec" && state.role ? { role: state.role } : null, error: null });
           return Promise.resolve({ data: rows.find((row) => matches(row, filters)) ?? null, error: null });
         },
@@ -112,9 +113,9 @@ describe("fundraiser APIs", () => {
     expect(response.status).toBe(401);
   });
 
-  it("allows only ADM/MOD to create and edit campaigns and derives created_by", async () => {
+  it("allows members to create their own campaigns, but not edit another author, and derives created_by", async () => {
     const denied = await POST(request("/api/fundraisers", { title: "Kart", monthlyAmountCents: 1000, dueDay: 8 }));
-    expect(denied.status).toBe(403);
+    expect(denied.status).toBe(201);
     state.role = "leader";
     const created = await POST(request("/api/fundraisers", { title: "Kart", monthlyAmountCents: 1000, dueDay: 8, created_by: otherUserId }));
     expect(created.status).toBe(201);

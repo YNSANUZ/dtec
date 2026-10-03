@@ -9,5 +9,5 @@ test("public lobby contains no DTEC data requests or room branding", async () =>
   expect(lobby).not.toMatch(/\/api\/(?:mural|fundraisers|events|room\/characters|room\/presence)/);
   expect(lobby).toContain('fetch("/api/rooms"');
   expect(scene).toContain('environment === "lobby" ? []');
-  expect(scene).toContain('environment === "lobby" ? "CUBOCHAT" : "DTEC"');
+  expect(scene).toContain('environment==="lobby"?"CUBOCHAT":"DTEC"');
 });

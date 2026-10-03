@@ -15,7 +15,7 @@ function client() {
   return {
     from(table: string) {
       const filters: Record<string, unknown> = {}; let mode = "read"; let payload: Record<string, unknown> = {};
-      const rows = () => table === "rooms" ? [{ slug: "amigos" }, { slug: "outra" }, { slug: "dtec" }]
+      const rows = () => table === "room_memberships"?["amigos","outra","dtec"].map(room_slug=>({room_slug,user_id:state.actor,status:"active"})):table === "rooms" ? [{ slug: "amigos" }, { slug: "outra" }, { slug: "dtec" }]
         : table === "profiles" ? profiles : table === "room_staff" ? state.staff
         : table === "mural_messages" ? state.messages : state.reactions;
       const matches = (row: Record<string, unknown>) => Object.entries(filters).every(([k,v]) => Array.isArray(v) ? v.includes(row[k]) : row[k] === v);

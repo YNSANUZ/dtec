@@ -5,9 +5,11 @@ test("legacy DTEC event routes filter event IDs to DTEC", async () => {
   const list = await readFile(new URL("../app/api/events/route.ts", import.meta.url), "utf8");
   const item = await readFile(new URL("../app/api/events/[id]/route.ts", import.meta.url), "utf8");
   const interest = await readFile(new URL("../app/api/events/[id]/interest/route.ts", import.meta.url), "utf8");
-  expect(list).toContain('.eq("room_slug", "dtec")');
-  expect(list).toContain('room_slug: "dtec"');
-  expect(item).toContain('.eq("room_slug", "dtec")');
+  expect(list).toContain('listRoomEvents("dtec"');
+  expect(list).toContain('createRoomEvent(request,"dtec")');
+  expect(item).toContain('updateRoomEvent(request,"dtec"');
+  const helper=await readFile(new URL("../lib/rooms/events-server.ts",import.meta.url),"utf8");
+  expect(helper).toContain('.eq("room_slug", access.slug).eq("id", id)');
   expect(interest).toContain('.eq("room_slug", "dtec")');
 });
 

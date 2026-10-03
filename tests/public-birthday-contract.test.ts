@@ -13,8 +13,9 @@ vi.mock("@/lib/supabase/server", () => ({
     from(table: string) {
       const query = {
         select() { return query; },
+        eq(){return query;},in(){return query;},
         then(resolve: (value: unknown) => unknown, reject?: (reason: unknown) => unknown) {
-          const data = table === "profiles" ? state.profiles : [];
+          const data = table === "profiles" ? state.profiles : table==="room_memberships"?state.profiles.map(row=>({room_slug:"dtec",user_id:row.user_id,status:"active"})):[];
           return Promise.resolve({ data, error: null }).then(resolve, reject);
         },
       };

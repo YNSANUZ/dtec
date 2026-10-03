@@ -5,6 +5,10 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import GenericRoom from "@/components/generic-room";
 const sceneMount = vi.hoisted(() => vi.fn());
 const sceneBirthday = vi.hoisted(() => vi.fn());
+// These transport/pose regressions exercise an already-admitted member.
+// Actual admission scopes are exercised in room-membership-hook and entry tests.
+vi.mock("@/hooks/use-room-membership",()=>({useRoomMembership:(_slug:string,userId:string|null)=>({active:Boolean(userId),role:userId?"member":"visitor",status:userId?"active":"visitor",loading:false,busy:false,error:"",entryMode:"public",refresh:()=>{},join:async()=>true,leave:async()=>true})}));
+vi.mock("@/hooks/use-room-identity",()=>({useRoomIdentity:(_slug:string,initial:unknown)=>({identity:initial,refresh:()=>{}})}));
 vi.mock("next/dynamic", () => ({ default: () => function SceneFixture({ onCharacterClick, birthdayToday }: { onCharacterClick: (id: string | null) => void; birthdayToday: boolean }) { sceneBirthday(birthdayToday); React.useEffect(() => { sceneMount(); }, []); return <div aria-label="Cenário"><button onClick={() => onCharacterClick(null)}>Clicar no próprio boneco</button></div>; } }));
 vi.mock("@/hooks/use-dtec-auth", () => {
   const auth = { state: "ready", user: { id: "member" }, profile: { displayName: "Ana Silva", avatarId: "a" } };
@@ -57,7 +61,7 @@ it("connects character and online-name clicks to the room profile without remoun
       : { messages: [], users: [] })));
   render(<GenericRoom room={{ slug: "amigos", title: "Amigos", description: "" }} />);
   fireEvent.click(await screen.findByRole("button", { name: "1 online" }));
-  fireEvent.click(screen.getByRole("button", { name: "Ana Silva" }));
+  fireEvent.click(screen.getByRole("button", { name: /Ana Silva Membro/ }));
   expect(await screen.findByText("Perfil por clique")).toBeTruthy();
   fireEvent.click(screen.getByRole("button", { name: "Fechar perfil" }));
   fireEvent.click(screen.getByRole("button", { name: "Clicar no próprio boneco" }));

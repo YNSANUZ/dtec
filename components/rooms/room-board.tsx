@@ -57,11 +57,14 @@ function BoardContent({ roomSlug, currentUserId }: Props) {
   </>;
 }
 
-function Notices({ roomSlug, currentUserId, canManage }: { roomSlug: string; currentUserId: string; canManage: boolean }) {
+export function Notices({ roomSlug, currentUserId, canManage, folderId, folderOptions = [] }: { roomSlug: string; currentUserId: string; canManage: boolean; folderId?: string; folderOptions?: {id:string;title:string}[] }) {
   const api = `/api/rooms/${roomSlug}/mural/messages`;
+  const listApi = folderId ? `${api}?folder=${folderId}` : api;
   const [messages, setMessages] = useState<Notice[]>([]);
   const [text, setText] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [destination,setDestination] = useState(folderId ?? "");
+  const [composing,setComposing] = useState(!folderId);
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -70,14 +73,14 @@ function Notices({ roomSlug, currentUserId, canManage }: { roomSlug: string; cur
   const rosterRequest = React.useRef(0);
   useEffect(() => {
     active.current = true;
-    void fetch(api, { cache: "no-store" }).then((r) => read<{ messages: Notice[] }>(r))
+    void fetch(listApi, { cache: "no-store" }).then((r) => read<{ messages: Notice[] }>(r))
       .then((body) => { if (active.current) setMessages(body.messages); })
       .catch((reason: Error) => { if (active.current) setError(reason.message); })
       .finally(() => { if (active.current) setLoading(false); });
     return () => { active.current = false; };
-  }, [api]);
+  }, [listApi]);
   const refresh = async () => {
-    const body = await read<{ messages: Notice[] }>(await fetch(api, { cache: "no-store" }));
+    const body = await read<{ messages: Notice[] }>(await fetch(listApi, { cache: "no-store" }));
     if (active.current) setMessages(body.messages);
   };
   const mutate = async (url: string, method: string, body?: unknown) => {
@@ -86,13 +89,13 @@ function Notices({ roomSlug, currentUserId, canManage }: { roomSlug: string; cur
     try {
       await read(await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: body === undefined ? undefined : JSON.stringify(body) }));
       await refresh();
-      if (active.current && (method === "POST" || (method === "PATCH" && body && Object.hasOwn(body, "content")))) { setText(""); setEditingId(null); }
+      if (active.current && (method === "POST" || (method === "PATCH" && body && Object.hasOwn(body, "content")))) { setText(""); setEditingId(null); if(folderId)setComposing(false); }
     } catch (reason) { if (active.current) setError(reason instanceof Error ? reason.message : "Falha ao salvar."); }
     finally { if (active.current) setBusy(false); }
   };
   const submit = (event: FormEvent) => {
     event.preventDefault();
-    if (text.trim()) void mutate(editingId ? `${api}/${editingId}` : api, editingId ? "PATCH" : "POST", { content: text });
+    if (text.trim()) void mutate(editingId ? `${api}/${editingId}` : api, editingId ? "PATCH" : "POST", { content: text, ...(destination?{boardNodeId:destination}:{}) });
   };
   const showPeople = async (notice: Notice, type: "like" | "dislike") => {
     const requestId = ++rosterRequest.current;
@@ -105,18 +108,20 @@ function Notices({ roomSlug, currentUserId, canManage }: { roomSlug: string; cur
     }
   };
   return <section className="room-notices" aria-label="Recados da sala">
-    <form onSubmit={submit} className="room-notice-form">
-      <label htmlFor="room-notice-text">{editingId ? "Editar recado" : "Novo recado"}</label>
+    {folderId&&!composing&&<button type="button" className="mural-primary-button" onClick={()=>{setComposing(true);setDestination(folderId);}}>+ Inserir nota</button>}
+    {composing&&<form onSubmit={submit} className="room-notice-form">
+      <label htmlFor="room-notice-text">{editingId ? "Editar nota" : folderId ? "Nova nota — título na primeira linha" : "Novo recado"}</label>
       <textarea id="room-notice-text" rows={2} required maxLength={1000} value={text} onChange={(event) => setText(event.target.value)} />
-      <div><button disabled={busy || !text.trim()} className="mural-primary-button">{editingId ? "Salvar recado" : "Publicar recado"}</button>{editingId && <button type="button" onClick={() => { setEditingId(null); setText(""); }}>Cancelar edição</button>}</div>
-    </form>
+      {editingId&&folderOptions.length>0&&<label>Mover para<select value={destination} onChange={event=>setDestination(event.target.value)}>{folderOptions.map(folder=><option key={folder.id} value={folder.id}>{folder.title}</option>)}</select></label>}
+      <div><button disabled={busy || !text.trim()} className="mural-primary-button">{editingId ? "Salvar recado" : "Publicar recado"}</button>{(editingId||folderId) && <button type="button" onClick={() => { setEditingId(null); setText(""); if(folderId)setComposing(false); }}>Cancelar edição</button>}</div>
+    </form>}
     {error && <p role="alert">{error}</p>}
     {loading ? <p>Carregando recados…</p> : messages.length === 0 ? <p>Nenhum recado nesta sala.</p> : messages.map((notice) => <article key={notice.id} className="room-notice">
       <header><strong>{notice.authorName}</strong><time dateTime={notice.createdAt}>{new Date(notice.createdAt).toLocaleDateString("pt-BR")}</time>{notice.isPinned && <small>Fixado</small>}</header>
       <p>{notice.content}</p>
       <div className="room-notice-actions">
         {(["like", "dislike"] as const).map((type) => <span key={type}><button type="button" disabled={busy} aria-pressed={notice.myReaction === type} aria-label={type === "like" ? "Curtir recado" : "Descurtir recado"} onClick={() => void mutate(`${api}/${notice.id}/reactions`, "PUT", { reaction: type })}>{type === "like" ? "👍" : "👎"}</button><button type="button" onClick={() => void showPeople(notice, type)}>{type === "like" ? `Curtidas: ${notice.likeCount}` : `Descurtidas: ${notice.dislikeCount}`}</button></span>)}
-        {(canManage || (notice.authorId === currentUserId && !notice.isPinned)) && <><button type="button" disabled={busy} onClick={() => { setEditingId(notice.id); setText(notice.content); }}>Editar</button><button type="button" disabled={busy} onClick={() => { if (window.confirm("Excluir este recado?")) void mutate(`${api}/${notice.id}`, "DELETE"); }}>Excluir</button></>}
+        {(canManage || (notice.authorId === currentUserId && !notice.isPinned)) && <><button type="button" disabled={busy} onClick={() => { setComposing(true);setDestination(folderId??"");setEditingId(notice.id); setText(notice.content); }}>Editar</button><button type="button" disabled={busy} onClick={() => { if (window.confirm("Excluir este recado?")) void mutate(`${api}/${notice.id}`, "DELETE"); }}>Excluir</button></>}
         {canManage && <button type="button" disabled={busy} onClick={() => void mutate(`${api}/${notice.id}`, "PATCH", { isPinned: !notice.isPinned })}>{notice.isPinned ? "Desafixar" : "Fixar"}</button>}
       </div>
     </article>)}

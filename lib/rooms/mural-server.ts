@@ -4,8 +4,9 @@ import { normalizeMuralMessage, normalizeMuralMessageId } from "@/lib/mural-vali
 import { normalizeMuralReaction } from "@/lib/mural-reactions";
 import { hasRoomRole, type MuralUser } from "@/lib/rooms/authorization";
 import { normalizeRoomSlug } from "@/lib/rooms/slug";
+import { resolveContentFolder, contentFolderInput } from "./board-server";
 
-const fields = "id, author_id, content, is_pinned, created_at, updated_at";
+const fields = "id, author_id, content, is_pinned, created_at, updated_at, board_node_id";
 const json = (body: unknown, status = 200) => NextResponse.json(body, {
   status, headers: { "Cache-Control": "private, no-store" },
 });
@@ -13,7 +14,7 @@ type Access = { ok: true; context: MuralUser; slug: string } | { ok: false; resp
 type Message = { id: string; author_id: string; content: string; is_pinned: boolean; created_at: string; updated_at: string };
 type Summary = { message_id: string; like_count: number; dislike_count: number; my_reaction: "like" | "dislike" | null };
 
-export async function getRoomMuralContext(input: string): Promise<Access> {
+export async function getRoomMuralContext(input: string, requireMembership = true): Promise<Access> {
   const context = await getMuralUserContext();
   if (!context) return { ok: false, response: json({ error: "unauthorized" }, 401) };
   let slug: string;
@@ -22,6 +23,11 @@ export async function getRoomMuralContext(input: string): Promise<Access> {
   const { data, error } = await context.supabase.from("rooms").select("slug").eq("slug", slug).maybeSingle();
   if (error) return { ok: false, response: json({ error: "room_read_failed" }, 500) };
   if (!data) return { ok: false, response: json({ error: "room_not_found" }, 404) };
+  if (requireMembership) {
+    const membership = await context.supabase.from("room_memberships").select("status").eq("room_slug",slug).eq("user_id",context.userId).maybeSingle();
+    if (membership.error) return {ok:false,response:json({error:"membership_read_failed"},500)};
+    if (membership.data?.status !== "active") return {ok:false,response:json({error:"panel_permission_required"},403)};
+  }
   return { ok: true, context, slug };
 }
 
@@ -32,12 +38,15 @@ function serialize(row: Message, name: string, summary?: Summary) {
     myReaction: summary?.my_reaction ?? null };
 }
 
-export async function listRoomNotices(slugInput: string) {
+export async function listRoomNotices(slugInput: string, folderId?: string) {
   const access = await getRoomMuralContext(slugInput);
   if (!access.ok) return access.response;
   const { context, slug } = access;
-  const { data, error } = await context.supabase.from("mural_messages").select(fields)
-    .eq("room_slug", slug).order("is_pinned", { ascending: false }).order("created_at", { ascending: false }).limit(100);
+  const folder = await resolveContentFolder(access, folderId, "notes");
+  if (!folder.ok) return folder.response;
+  let query = context.supabase.from("mural_messages").select(fields).eq("room_slug", slug);
+  if (folder.id) query = query.eq("board_node_id", folder.id);
+  const { data, error } = await query.order("is_pinned", { ascending: false }).order("created_at", { ascending: false }).limit(100);
   if (error) return json({ error: "mural_read_failed" }, 500);
   const rows = (data ?? []) as Message[];
   const authorIds = [...new Set(rows.map((row) => row.author_id))];
@@ -58,11 +67,14 @@ export async function createRoomNotice(request: Request, slugInput: string) {
   const access = await getRoomMuralContext(slugInput);
   if (!access.ok) return access.response;
   let content: string;
-  try { content = normalizeMuralMessage(await request.json()).content; }
+  let input;
+  try { input = await request.json(); content = normalizeMuralMessage(input).content; }
   catch { return json({ error: "invalid_message" }, 400); }
+  const folder = await resolveContentFolder(access, contentFolderInput(input), "notes");
+  if (!folder.ok) return folder.response;
   const { context, slug } = access;
   const { data, error } = await context.supabase.from("mural_messages")
-    .insert({ room_slug: slug, author_id: context.userId, content }).select(fields).single();
+    .insert({ room_slug: slug, author_id: context.userId, content, ...(folder.id ? { board_node_id: folder.id } : {}) }).select(fields).single();
   if (error || !data) return json({ error: "mural_save_failed" }, 500);
   return json({ message: serialize(data, context.displayName) }, 201);
 }
@@ -86,12 +98,15 @@ export async function changeRoomNotice(request: Request, slugInput: string, idIn
   const role = await hasRoomRole(access.context, access.slug, ["owner", "leader"]);
   if (role.failed) return json({ error: "room_role_read_failed" }, 500);
   if (!role.allowed && (found.row.author_id !== access.context.userId || found.row.is_pinned)) return json({ error: "forbidden" }, 403);
-  const patch: { content?: string; is_pinned?: boolean; updated_at: string } = { updated_at: new Date().toISOString() };
+  const patch: { content?: string; is_pinned?: boolean; board_node_id?: string; updated_at: string } = { updated_at: new Date().toISOString() };
   if (!remove) {
     try {
       const input: unknown = await request.json();
       if (!input || typeof input !== "object" || Array.isArray(input)) throw new Error();
       const body = input as Record<string, unknown>;
+      const folder = await resolveContentFolder(access,body.boardNodeId,"notes");
+      if(!folder.ok)return folder.response;
+      if(folder.id)patch.board_node_id=folder.id;
       if (Object.hasOwn(body, "content")) patch.content = normalizeMuralMessage(body).content;
       if (Object.hasOwn(body, "isPinned")) {
         if (typeof body.isPinned !== "boolean") throw new Error();

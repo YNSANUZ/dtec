@@ -1,21 +1,26 @@
 import { NextResponse } from "next/server";
 import { normalizeMuralMessageId } from "@/lib/mural-validation";
 import { normalizeRoomEvent, normalizeRoomEventPatch } from "@/lib/events/validation";
-import { hasRoomRole } from "@/lib/rooms/authorization";
 import { getRoomMuralContext } from "@/lib/rooms/mural-server";
 import { readGooglePhotos } from "@/lib/rooms/google-photos";
+import { canPublishRoomContent, canChangeRoomContent } from "./content-permissions";
+import { resolveContentFolder, contentFolderInput } from "./board-server";
 
-const fields = "id, title, description, category, starts_at, location, status, created_by, created_at, updated_at";
+const fields = "id, title, description, category, starts_at, location, status, created_by, created_at, updated_at, board_node_id, deleted_at";
 const json = (body: unknown, status = 200) => NextResponse.json(body, { status, headers: { "Cache-Control": "private, no-store" } });
 
-export async function listRoomEvents(slugInput: string, includeArchived = false) {
+export async function listRoomEvents(slugInput: string, includeArchived = false, folderId?: string) {
   const access = await getRoomMuralContext(slugInput);
   if (!access.ok) return access.response;
   const { context, slug } = access;
   let query = context.supabase.from("room_events").select(fields).eq("room_slug", slug);
+  const folder = await resolveContentFolder(access, folderId, "events");
+  if (!folder.ok) return folder.response;
+  if (folder.id) query = query.eq("board_node_id", folder.id);
   if (!includeArchived) query = query.eq("status", "open");
-  const { data: rows, error } = await query.order("starts_at", { ascending: true, nullsFirst: false }).order("created_at", { ascending: false });
+  const { data, error } = await query.order("starts_at", { ascending: true, nullsFirst: false }).order("created_at", { ascending: false });
   if (error) return json({ error: "events_read_failed" }, 500);
+  const rows = (data ?? []).filter(r => !r.deleted_at);
   const ids = (rows ?? []).map((r) => r.id);
   const members = new Map<string, Set<string>>();
   for (let start = 0; start < ids.length; start += 100) {
@@ -36,21 +41,25 @@ export async function listRoomEvents(slugInput: string, includeArchived = false)
   const photos = await readGooglePhotos(context.supabase, [...previewIds.values()].flat());
   return json({ events: (rows ?? []).map((r) => ({ id: r.id, title: r.title, description: r.description, category: r.category,
     startsAt: r.starts_at, location: r.location, status: r.status, interestCount: members.get(r.id)?.size ?? 0,
-    photos: (previewIds.get(r.id) ?? []).map((id) => ({ photoUrl: photos.get(id) ?? null })) })) });
+    createdBy: r.created_by, photos: (previewIds.get(r.id) ?? []).map((id) => ({ photoUrl: photos.get(id) ?? null })) })) });
 }
 
 export async function createRoomEvent(request: Request, slugInput: string) {
   const access = await getRoomMuralContext(slugInput);
   if (!access.ok) return access.response;
-  const role = await hasRoomRole(access.context, access.slug, ["owner", "leader"]);
+  const role = await canPublishRoomContent(access.context, access.slug);
   if (role.failed) return json({ error: "event_role_check_failed" }, 500);
   if (!role.allowed) return json({ error: "forbidden" }, 403);
   let event;
-  try { event = normalizeRoomEvent(await request.json()); }
+  let input;
+  try { input = await request.json(); event = normalizeRoomEvent(input); }
   catch { return json({ error: "invalid_event" }, 400); }
+  const folder = await resolveContentFolder(access, contentFolderInput(input), "events");
+  if (!folder.ok) return folder.response;
   const { data, error } = await access.context.supabase.from("room_events").insert({
     room_slug: access.slug, created_by: access.context.userId, title: event.title, description: event.description,
     category: event.category, starts_at: event.startsAt, location: event.location,
+    ...(folder.id ? { board_node_id: folder.id } : {}),
   }).select(fields).single();
   if (error) return json({ error: "event_create_failed" }, error.code === "42501" ? 403 : 500);
   return json({ event: data }, 201);
@@ -62,23 +71,27 @@ async function getEvent(slugInput: string, idInput: string) {
   let id;
   try { id = normalizeMuralMessageId(idInput); }
   catch { return { ok: false as const, response: json({ error: "invalid_event_id" }, 400) }; }
-  const { data, error } = await access.context.supabase.from("room_events").select("id, status")
+  const { data, error } = await access.context.supabase.from("room_events").select("id, status, created_by, deleted_at")
     .eq("room_slug", access.slug).eq("id", id).maybeSingle();
   if (error) return { ok: false as const, response: json({ error: "event_read_failed" }, 500) };
-  if (!data) return { ok: false as const, response: json({ error: "event_not_found" }, 404) };
+  if (!data || data.deleted_at) return { ok: false as const, response: json({ error: "event_not_found" }, 404) };
   return { ...access, event: data, id };
 }
 
 export async function updateRoomEvent(request: Request, slugInput: string, idInput: string) {
   const access = await getEvent(slugInput, idInput);
   if (!access.ok) return access.response;
-  const role = await hasRoomRole(access.context, access.slug, ["owner", "leader"]);
+  const role = await canChangeRoomContent(access.context, access.slug, access.event.created_by);
   if (role.failed) return json({ error: "event_role_check_failed" }, 500);
   if (!role.allowed) return json({ error: "forbidden" }, 403);
   let patch;
-  try { patch = normalizeRoomEventPatch(await request.json()); }
+  let input;
+  try { input=await request.json();patch = normalizeRoomEventPatch(input); }
   catch { return json({ error: "invalid_event" }, 400); }
+  const folder=await resolveContentFolder(access,contentFolderInput(input),"events");
+  if(!folder.ok)return folder.response;
   const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
+  if(folder.id)updates.board_node_id=folder.id;
   if (patch.title !== undefined) updates.title = patch.title;
   if (patch.description !== undefined) updates.description = patch.description;
   if (patch.category !== undefined) updates.category = patch.category;

@@ -5,6 +5,10 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import DtecRoom from "@/app/dtec/page";
 
 const state = vi.hoisted(() => ({ scene: null as null | { created: boolean; initialPosition: { x: number; z: number }; onStateChange: (x: number, z: number, action: string) => void } }));
+// These transport/pose regressions exercise an already-admitted member.
+// Actual admission scopes are exercised in room-membership-hook and entry tests.
+vi.mock("@/hooks/use-room-membership",()=>({useRoomMembership:(_slug:string,userId:string|null)=>({active:Boolean(userId),role:userId?"member":"visitor",status:userId?"active":"visitor",loading:false,busy:false,error:"",entryMode:"public",refresh:()=>{},join:async()=>true,leave:async()=>true})}));
+vi.mock("@/hooks/use-room-identity",()=>({useRoomIdentity:(_slug:string,initial:unknown)=>({identity:initial,refresh:()=>{}})}));
 vi.mock("next/dynamic", () => ({ default: () => function Scene(props: NonNullable<typeof state.scene>) { state.scene = props; return <div />; } }));
 vi.mock("@/components/avatar-preview", () => ({ default: () => <div /> }));
 vi.mock("@/components/mural-window", () => ({ default: () => <div /> }));

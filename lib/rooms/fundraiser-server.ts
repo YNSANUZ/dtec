@@ -4,22 +4,27 @@ import { normalizeFundraiser, normalizeFundraiserPatch } from "@/lib/fundraisers
 import { hasRoomRole, type MuralUser } from "@/lib/rooms/authorization";
 import { getRoomMuralContext } from "@/lib/rooms/mural-server";
 import { readGooglePhotos } from "@/lib/rooms/google-photos";
-const fields = "id, title, description, monthly_amount_cents, due_day, pix_key, payment_instructions, status, created_by, created_at, updated_at";
+import { canPublishRoomContent, canChangeRoomContent } from "./content-permissions";
+import { resolveContentFolder, contentFolderInput } from "./board-server";
+const fields = "id, title, description, monthly_amount_cents, due_day, pix_key, payment_instructions, status, created_by, created_at, updated_at, board_node_id, deleted_at";
 const json = (body: unknown, status = 200) => NextResponse.json(body, { status, headers: { "Cache-Control": "private, no-store" } });
 
-export async function listRoomFundraisers(slugInput: string) {
+export async function listRoomFundraisers(slugInput: string, folderId?: string) {
   const access = await getRoomMuralContext(slugInput);
   if (!access.ok) return access.response;
   const user = access.context;
-  const { data: campaigns, error } = await user.supabase
+  const folder = await resolveContentFolder(access, folderId, "fundraisers");
+  if (!folder.ok) return folder.response;
+  let query = user.supabase
     .from("fundraisers")
-    .select("id, title, description, monthly_amount_cents, due_day, pix_key, payment_instructions, status, created_by, created_at, updated_at")
+    .select(fields)
     .eq("room_slug", access.slug)
-    .eq("status", "open")
-    .order("created_at", { ascending: false });
+    .eq("status", "open");
+  if (folder.id) query = query.eq("board_node_id", folder.id);
+  const { data: campaigns, error } = await query.order("created_at", { ascending: false });
   if (error) return json({ error: "fundraisers_read_failed" }, 500);
 
-  const results = await Promise.all((campaigns ?? []).map(async (campaign) => {
+  const results = await Promise.all((campaigns ?? []).filter(campaign => !campaign.deleted_at).map(async (campaign) => {
     const { data: cycleDueDate, error: cycleError } = await user.supabase.rpc("ensure_room_fundraiser_current_cycle", {
       p_room_slug: access.slug,
       p_fundraiser_id: campaign.id,
@@ -64,6 +69,7 @@ export async function listRoomFundraisers(slugInput: string) {
     const photoById = await readGooglePhotos(user.supabase, previewIds);
     return {
       id: campaign.id,
+      createdBy: campaign.created_by,
       title: campaign.title,
       description: campaign.description,
       monthlyAmountCents: Number(campaign.monthly_amount_cents),
@@ -94,20 +100,26 @@ async function campaignAccess(slugInput: string, idInput: string) {
   catch { return { ok: false as const, response: json({ error: "invalid_fundraiser_id" }, 400) }; }
   const { data, error } = await getRoomFundraiser(access.context, access.slug, id);
   if (error) return { ok: false as const, response: json({ error: "fundraiser_read_failed" }, 500) };
-  if (!data) return { ok: false as const, response: json({ error: "fundraiser_not_found" }, 404) };
+  if (!data || data.deleted_at) return { ok: false as const, response: json({ error: "fundraiser_not_found" }, 404) };
   return { ...access, id, campaign: data };
 }
 
 export async function saveRoomFundraiser(request: Request, slugInput: string, idInput?: string) {
   const access = idInput === undefined ? await getRoomMuralContext(slugInput) : await campaignAccess(slugInput, idInput);
   if (!access.ok) return access.response;
-  const manager = await hasRoomRole(access.context, access.slug, ["owner", "leader"]);
+  const manager = "campaign" in access
+    ? await canChangeRoomContent(access.context, access.slug, (access.campaign as {created_by:string|null}).created_by)
+    : await canPublishRoomContent(access.context, access.slug);
   if (manager.failed) return json({ error: "fundraiser_role_check_failed" }, 500);
   if (!manager.allowed) return json({ error: "forbidden" }, 403);
   let input;
-  try { input = idInput === undefined ? normalizeFundraiser(await request.json()) : normalizeFundraiserPatch(await request.json()); }
+  let raw;
+  try { raw = await request.json(); input = idInput === undefined ? normalizeFundraiser(raw) : normalizeFundraiserPatch(raw); }
   catch { return json({ error: "invalid_fundraiser" }, 400); }
+  const folder = await resolveContentFolder(access, contentFolderInput(raw), "fundraisers");
+  if (!folder.ok) return folder.response;
   const patch = {
+    ...(folder.id ? { board_node_id: folder.id } : {}),
     ...(input.title !== undefined ? { title: input.title } : {}),
     ...(input.description !== undefined ? { description: input.description } : {}),
     ...(input.monthlyAmountCents !== undefined ? { monthly_amount_cents: input.monthlyAmountCents } : {}),

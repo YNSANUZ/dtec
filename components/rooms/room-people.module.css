@@ -9,4 +9,4 @@
 .management>div{display:flex;gap:8px;flex-wrap:wrap}
 .management button{cursor:pointer}
 .management button:disabled{opacity:.55;cursor:wait}
-@media(max-width:600px){.counter{font-size:.72rem;padding:6px}.area>section{left:-90px}}
+@media(max-width:600px){.counter{font-size:.72rem;padding:6px}.area>section{position:fixed;left:12px;right:12px;top:72px;width:auto}}

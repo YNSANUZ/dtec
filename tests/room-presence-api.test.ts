@@ -14,19 +14,18 @@ vi.mock("@/lib/supabase/server", () => ({
     auth: { getClaims: async () => ({ data: { claims: state.signedIn ? { sub: memberId } : {} }, error: null }) },
     rpc: async (name: string) => { expect(name).toBe("birthday_today_user_ids"); state.birthdayCalls++; return { data: state.birthdayIds.map(user_id => ({ user_id })), error: state.birthdayError ? { message: "Unavailable" } : null }; },
     from(table: string) {
-      const query = {
-        select: () => query,
-        eq: async (_field: string, slug: string) => {
-          state.queried.push(slug);
-          return { data: slug === "amigos" ? [{ user_id: memberId, x: 2, z: 3, action: "walk", last_seen: new Date(Date.now() - state.lastSeenAge).toISOString() }] : [], error: null };
-        },
-        in: async () => ({ data: [{ user_id: memberId, display_name: "Ana Silva", avatar_id: "a" }], error: null }),
-        upsert: async (row: { room_slug: string; user_id: string; x: number; z: number; action: string }) => {
-          if (table === "room_member_presence") state.saved.push(row);
-          return { error: null };
-        },
+      const filters:Record<string,unknown>={};
+      const run=()=>{
+        const rows:Record<string,unknown>[]=table==="room_member_presence"?[{room_slug:"amigos",user_id:memberId,x:2,z:3,action:"walk",last_seen:new Date(Date.now()-state.lastSeenAge).toISOString()}]:table==="room_memberships"?[{room_slug:"amigos",user_id:memberId,status:"active"}]:table==="profiles"?[{user_id:memberId,display_name:"Ana Silva",avatar_id:"a"}]:[];
+        return {data:rows.filter(row=>Object.entries(filters).every(([key,value])=>Array.isArray(value)?value.includes(row[key]):value===row[key])),error:null};
       };
-      return query;
+      const query={
+        select:()=>query,
+        eq(field:string,value:unknown){filters[field]=value;if(table==="room_member_presence"&&field==="room_slug")state.queried.push(String(value));return query;},
+        in(field:string,value:unknown[]){filters[field]=value;return query;},
+        then(resolve:(value:unknown)=>unknown,reject?:(reason:unknown)=>unknown){return Promise.resolve(run()).then(resolve,reject);},
+        async upsert(row:{room_slug:string;user_id:string;x:number;z:number;action:string}){if(table==="room_member_presence")state.saved.push(row);return{error:null};}
+      };return query;
     },
   })),
 }));

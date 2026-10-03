@@ -27,7 +27,7 @@ export async function listRoomPeople(slugInput: string) {
   const access = await getPeopleContext(slugInput);
   if (!access.ok) return access.response;
   const { context, slug } = access;
-  const { data: presence, error } = await context.supabase.from("room_member_presence").select("user_id").eq("room_slug", slug);
+  const { data: presence, error } = await context.supabase.from("room_memberships").select("user_id").eq("room_slug", slug).eq("status","active");
   if (error) return json({ error: "room_people_read_failed" }, 500);
   const ids = (presence ?? []).map((row) => row.user_id);
   if (!ids.length) return json({ users: [] });
@@ -43,7 +43,7 @@ export async function listRoomBirthdays(slugInput: string) {
   if (!access.ok) return access.response;
   const { context, slug } = access;
   // Persisted membership includes offline people, never members of another room.
-  const { data: presence, error } = await context.supabase.from("room_member_presence").select("user_id").eq("room_slug", slug);
+  const { data: presence, error } = await context.supabase.from("room_memberships").select("user_id").eq("room_slug", slug).eq("status","active");
   if (error) return json({ error: "room_birthdays_read_failed" }, 500);
   const ids = [...new Set((presence ?? []).map((row) => row.user_id))];
   if (!ids.length) return json({ birthdays: [] });
@@ -67,13 +67,19 @@ export async function readRoomPerson(slugInput: string, idInput: string) {
   catch { return json({ error: "invalid_user_id" }, 400); }
   const { context, slug } = access;
   // Check this room before looking up the global profile, even for an ADM elsewhere.
-  const { data: presence, error } = await context.supabase.from("room_member_presence").select("user_id").eq("room_slug", slug).eq("user_id", id).maybeSingle();
+  const { data: presence, error } = await context.supabase.from("room_memberships").select("user_id").eq("room_slug", slug).eq("status","active").eq("user_id", id).maybeSingle();
   if (error) return json({ error: "room_people_read_failed" }, 500);
   if (!presence) return json({ error: "user_not_found" }, 404);
   const { data: profile, error: profileError } = await context.supabase.from("profiles").select(profileFields).eq("user_id", id).maybeSingle();
   const { data: staff, error: staffError } = await context.supabase.from("room_staff").select("role").eq("room_slug", slug).eq("user_id", id).maybeSingle();
   if (profileError || staffError) return json({ error: "room_people_read_failed" }, 500);
   if (!profile) return json({ error: "user_not_found" }, 404);
+  const since=await context.supabase.rpc("get_room_member_since",{p_room_slug:slug,p_user_id:id});
+  if(since.error)return json({error:"member_since_read_failed"},500);
+  const joined=Array.isArray(since.data)?since.data[0]:null;
+  if(!joined)return json({error:"user_not_found"},404);
+  if(!["recorded","legacy_unknown"].includes(joined.joined_at_quality)||
+    (joined.joined_at_quality==="recorded"&&(typeof joined.joined_at!=="string"||!Number.isFinite(Date.parse(joined.joined_at)))))return json({error:"member_since_read_failed"},500);
   const birthday = profile.birth_day_month?.match(/^(\d{2})-(\d{2})$/);
-  return json({ user: { ...serialize(profile, staff?.role), bio: profile.bio ?? "", birthDayMonth: birthday ? `${birthday[2]}/${birthday[1]}` : null, whatsapp: profile.whatsapp ?? "", instagram: profile.instagram ?? "" } });
+  return json({ user: { ...serialize(profile, staff?.role), bio: profile.bio ?? "", birthDayMonth: birthday ? `${birthday[2]}/${birthday[1]}` : null, whatsapp: profile.whatsapp ?? "", instagram: profile.instagram ?? "",joinedAt:joined.joined_at_quality==="recorded"?joined.joined_at:null,joinDateQuality:joined.joined_at_quality } });
 }

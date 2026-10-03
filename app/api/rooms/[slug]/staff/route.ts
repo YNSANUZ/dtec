@@ -56,11 +56,8 @@ export async function POST(request: Request, context: RouteContext) {
   if (existingError) return json({ error: "room_role_check_failed" }, 500);
   if (existing?.role === "owner") return json({ error: "adm_role_fixed" }, 403);
   if (existing?.role === "leader") return json({ ok: true, isLeader: true });
-  const { error } = await access.user.supabase.from("room_staff").insert({
-    room_slug: access.slug, user_id: userId, role: "leader", appointed_by: access.user.userId,
-  });
-  if (error?.code === "23505") return json({ ok: true, isLeader: true });
-  if (error) return json({ error: "room_role_update_failed" }, 500);
+  const { error } = await access.user.supabase.rpc("set_room_moderator", {p_room_slug:access.slug,p_user_id:userId,p_enabled:true});
+  if (error) return json({error:"room_role_update_failed"},error.code==="42501"?403:500);
   return json({ ok: true, isLeader: true });
 }
 
@@ -74,8 +71,7 @@ export async function DELETE(request: Request, context: RouteContext) {
   if (existingError) return json({ error: "room_role_check_failed" }, 500);
   if (!existing) return json({ error: "room_staff_not_found" }, 404);
   if (existing.role === "owner") return json({ error: "adm_role_fixed" }, 403);
-  const { error } = await access.user.supabase.from("room_staff").delete()
-    .eq("room_slug", access.slug).eq("user_id", userId).eq("role", "leader");
-  if (error) return json({ error: "room_role_update_failed" }, 500);
+  const { error } = await access.user.supabase.rpc("set_room_moderator", {p_room_slug:access.slug,p_user_id:userId,p_enabled:false});
+  if (error) return json({error:"room_role_update_failed"},error.code==="42501"?403:500);
   return json({ ok: true, isLeader: false });
 }

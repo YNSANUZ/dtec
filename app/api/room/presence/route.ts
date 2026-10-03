@@ -12,6 +12,9 @@ async function context() {
 export async function GET() {
   const auth = await context();
   if (!auth) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  const membership=await auth.supabase.from("room_memberships").select("status").eq("room_slug","dtec").eq("user_id",auth.userId).maybeSingle();
+  if(membership.error)return NextResponse.json({error:"membership_read_failed"},{status:500});
+  if(membership.data?.status!=="active")return NextResponse.json({error:"room_membership_required"},{status:403});
   const cutoff = new Date(Date.now() - 45_000).toISOString();
   const { data: presence, error } = await auth.supabase.from("room_presence")
     .select("user_id, x, z, action, last_seen").gt("last_seen", cutoff);

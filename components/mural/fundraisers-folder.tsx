@@ -8,6 +8,7 @@ import { canChangeFundraiserPayment, toFundraiserCardViewModel, type Contributio
 
 type Fundraiser = {
   id: string;
+  createdBy?:string;
   title: string;
   description: string;
   monthlyAmountCents: number;
@@ -37,17 +38,20 @@ function CampaignEditor({
   saving,
   onCancel,
   onSave,
+  folderOptions=[],folderId,
 }: {
   initial: CampaignForm;
   saving: boolean;
   onCancel: () => void;
   onSave: (form: CampaignForm) => void;
+  folderOptions?:{id:string;title:string}[];folderId?:string;
 }) {
-  const [form, setForm] = useState(initial);
+  const [form, setForm] = useState({...initial,boardNodeId:folderId??""});
   const set = (key: keyof CampaignForm, value: string) => setForm((current) => ({ ...current, [key]: value }));
   return <form className="fundraiser-editor" onSubmit={(event) => { event.preventDefault(); onSave(form); }}>
     <label>Nome<input required maxLength={100} value={form.title} onChange={(event) => set("title", event.target.value)} placeholder="Ex.: Aniversários do mês" /></label>
     <label>Descrição<textarea maxLength={1500} rows={2} value={form.description} onChange={(event) => set("description", event.target.value)} placeholder="Para que será usada a contribuição?" /></label>
+    {initial.title&&folderOptions.length>0&&<label>Mover para<select value={form.boardNodeId} onChange={event=>setForm({...form,boardNodeId:event.target.value})}>{folderOptions.map(folder=><option key={folder.id} value={folder.id}>{folder.title}</option>)}</select></label>}
     <div className="fundraiser-form-row"><label>Valor fixo por pessoa (R$)<input required type="number" min="0.01" step="0.01" value={form.monthlyAmount} onChange={(event) => set("monthlyAmount", event.target.value)} placeholder="25,00" /></label><label>Dia de vencimento<input required type="number" min="1" max="31" step="1" value={form.dueDay} onChange={(event) => set("dueDay", event.target.value)} /></label></div>
     <label>Chave Pix <span className="optional-label">opcional</span><input maxLength={200} value={form.pixKey} onChange={(event) => set("pixKey", event.target.value)} autoComplete="off" /></label>
     <label>Instruções de pagamento <span className="optional-label">opcional</span><textarea maxLength={1000} rows={2} value={form.paymentInstructions} onChange={(event) => set("paymentInstructions", event.target.value)} /></label>
@@ -56,15 +60,16 @@ function CampaignEditor({
   </form>;
 }
 
-type FundraisersFolderProps = { currentUserId: string | null; isAdminOrMod: boolean; roomSlug?: string };
+type FundraisersFolderProps = { currentUserId: string | null; isAdminOrMod: boolean; roomSlug?: string;folderId?:string;folderOptions?:{id:string;title:string}[] };
 
 export function FundraisersFolder(props: FundraisersFolderProps) {
-  return <ScopedFundraisersFolder key={`${props.roomSlug ?? "dtec"}:${props.currentUserId ?? "visitor"}`} {...props} />;
+  return <ScopedFundraisersFolder key={`${props.roomSlug ?? "dtec"}:${props.currentUserId ?? "visitor"}:${props.folderId??"all"}`} {...props} />;
 }
 
-function ScopedFundraisersFolder({ currentUserId, isAdminOrMod, roomSlug }: FundraisersFolderProps) {
+function ScopedFundraisersFolder({ currentUserId, isAdminOrMod, roomSlug,folderId,folderOptions=[] }: FundraisersFolderProps) {
   const api = roomSlug ? `/api/rooms/${roomSlug}/fundraisers` : "/api/fundraisers";
-  const directoryApi = roomSlug ? `/api/rooms/${roomSlug}/presence` : "/api/room/characters";
+  const listApi=folderId?`${api}?folder=${folderId}`:api;
+  const directoryApi = roomSlug && roomSlug!=="dtec" ? `/api/rooms/${roomSlug}/presence` : "/api/room/characters";
   const [fundraisers, setFundraisers] = useState<Fundraiser[]>([]);
   const [directory, setDirectory] = useState<DirectoryUser[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -76,20 +81,20 @@ function ScopedFundraisersFolder({ currentUserId, isAdminOrMod, roomSlug }: Fund
   const [copied, setCopied] = useState(false);
 
   const load = async () => {
-    const body = await parseResponse<ResponseBody>(await fetch(api, { cache: "no-store" }));
+    const body = await parseResponse<ResponseBody>(await fetch(listApi, { cache: "no-store" }));
     setFundraisers(body.fundraisers ?? []);
   };
 
   useEffect(() => {
     if (!currentUserId) { window.setTimeout(() => setLoading(false), 0); return; }
     let active = true;
-    fetch(api, { cache: "no-store" })
+    fetch(listApi, { cache: "no-store" })
       .then(async (response) => parseResponse<ResponseBody>(response))
       .then((body) => { if (active) setFundraisers(body.fundraisers ?? []); })
       .catch((reason: unknown) => { if (active) setError(reason instanceof Error ? reason.message : "Falha ao carregar as vaquinhas."); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [currentUserId, api]);
+  }, [currentUserId, listApi]);
 
   useEffect(() => {
     if (!currentUserId || !isAdminOrMod) return;
@@ -137,11 +142,12 @@ function ScopedFundraisersFolder({ currentUserId, isAdminOrMod, roomSlug }: Fund
     finally { setSaving(false); }
   };
 
-  const saveCampaign = async (form: CampaignForm) => {
+  const saveCampaign = async (form: CampaignForm & {boardNodeId?:string}) => {
     const amount = Number(form.monthlyAmount.replace(",", "."));
     const amountCents = Math.round(amount * 100);
     if (!Number.isFinite(amount) || !Number.isSafeInteger(amountCents) || amountCents <= 0) { setError("Informe um valor mensal válido em reais."); return; }
     const payload = {
+      ...(form.boardNodeId||folderId?{boardNodeId:form.boardNodeId||folderId}:{}),
       title: form.title,
       description: form.description,
       monthlyAmountCents: amountCents,
@@ -184,25 +190,25 @@ function ScopedFundraisersFolder({ currentUserId, isAdminOrMod, roomSlug }: Fund
     : emptyForm;
 
   return <section className="mural-folder-content fundraiser-folder" aria-live="polite">
-    <div className="mural-breadcrumb"><span>Mural de Informações</span><span>›</span><strong>Vaquinhas</strong></div>
+    {!folderId&&<div className="mural-breadcrumb"><span>Mural de Informações</span><span>›</span><strong>Vaquinhas</strong></div>}
     {!currentUserId ? <div className="mural-access-note"><CreditCard aria-hidden="true" /><strong>Entre com o Google para consultar as vaquinhas.</strong><span>Valores e dados Pix só aparecem a pessoas autenticadas.</span></div>
       : loading ? <p className="mural-loading">Carregando vaquinhas…</p>
       : error && !fundraisers.length ? <p className="mural-form-error" role="alert">{error}</p>
-      : formCampaign !== undefined ? <CampaignEditor initial={editorInitial} saving={saving} onCancel={() => setFormCampaign(undefined)} onSave={(form) => void saveCampaign(form)} />
+      : formCampaign !== undefined ? <CampaignEditor initial={editorInitial} saving={saving} folderId={folderId} folderOptions={folderOptions} onCancel={() => setFormCampaign(undefined)} onSave={(form) => void saveCampaign(form)} />
       : selected && view ? <div className="fundraiser-detail">
-        <div className="fundraiser-detail-heading"><button type="button" aria-label="Voltar às vaquinhas" onClick={() => setSelectedId(null)}><ArrowLeft size={16} /></button><div><h3>{view.title}</h3><span>{view.description || "Contribuição coletiva mensal."}</span></div>{isAdminOrMod && <button type="button" aria-label="Editar vaquinha" onClick={() => setFormCampaign(selected)}><Settings size={16} /></button>}</div>
+        <div className="fundraiser-detail-heading"><button type="button" aria-label="Voltar às vaquinhas" onClick={() => setSelectedId(null)}><ArrowLeft size={16} /></button><div><h3>{view.title}</h3><span>{view.description || "Contribuição coletiva mensal."}</span></div>{(isAdminOrMod||selected.createdBy===currentUserId) && <><button type="button" aria-label="Editar vaquinha" onClick={() => setFormCampaign(selected)}><Settings size={16} /></button><button type="button" disabled={saving} onClick={async()=>{if(!window.confirm("Excluir esta vaquinha da área ativa? Participações e histórico de pagamentos serão preservados."))return;setSaving(true);try{await parseResponse(await fetch(`${api}/${selected.id}`,{method:"DELETE"}));await load();setSelectedId(null);}catch(reason){setError(reason instanceof Error?reason.message:"Falha ao excluir.");}finally{setSaving(false);}}}>Excluir</button></>}</div>
         <div className="fundraiser-payment-info"><div><small>Valor fixo por pessoa / mês</small><strong>{view.monthlyAmountLabel}</strong></div><div><small>Vencimento</small><strong>{view.dueDayLabel}</strong><span>Ciclo atual: {view.currentCycleDueDateLabel}</span></div></div>
         {view.pixKey && <div className="fundraiser-pix"><div><small>Chave Pix</small><strong>{view.pixKey}</strong></div><button type="button" onClick={() => void copyPix()} aria-label="Copiar chave Pix">{copied ? <Check size={15} /> : <Clipboard size={15} />}{copied ? "Copiada" : "Copiar"}</button></div>}
         {view.paymentInstructions && <p className="fundraiser-instructions">{view.paymentInstructions}</p>}
-        <div className="fundraiser-participation"><span>{view.isParticipant ? "Você participa desta vaquinha." : "Você ainda não participa."}</span><button type="button" disabled={saving} onClick={() => void changeParticipant(view.isParticipant ? "DELETE" : "POST")}>{view.isParticipant ? "Sair da vaquinha" : "Participar"}</button></div>
+        <div className="fundraiser-participation"><span>{view.isParticipant ? "Você participa desta vaquinha." : "Você ainda não participa."}</span><button type="button" disabled={saving} onClick={() => void changeParticipant(view.isParticipant ? "DELETE" : "POST")}>{view.isParticipant ? "Sair da vaquinha" : "Estou interessado"}</button></div>
         {isAdminOrMod && availableMembers.length > 0 && <div className="fundraiser-add-member"><label htmlFor="fundraiser-member">Adicionar participante</label><div><select id="fundraiser-member" value={selectedMemberId} onChange={(event) => setSelectedMemberId(event.target.value)}><option value="">Escolha um membro…</option>{availableMembers.map((person) => <option key={person.userId} value={person.userId}>{person.name}{person.title ? ` — ${person.title}` : ""}</option>)}</select><button type="button" disabled={saving || !selectedMemberId} onClick={() => void changeParticipant("POST", selectedMemberId)}><Plus size={14} />Adicionar</button></div></div>}
         <div className="contribution-roster">
           <section className="contribution-paid"><h4>Pagaram <span>{view.paid.length}</span></h4>{view.paid.length ? view.paid.map((person) => <ContributionRow key={person.userId} person={person} paid saving={saving} canChange={canChangeFundraiserPayment(currentUserId, isAdminOrMod, person.userId)} onToggle={() => void setPayment(person, false)} onRemove={isAdminOrMod ? () => void changeParticipant("DELETE", person.userId) : undefined} />) : <p>Ninguém marcou pagamento neste ciclo ainda.</p>}</section>
           <section className="contribution-pending"><h4>Ainda não marcaram <span>{view.pending.length}</span></h4>{view.pending.length ? view.pending.map((person) => <ContributionRow key={person.userId} person={person} paid={false} saving={saving} canChange={canChangeFundraiserPayment(currentUserId, isAdminOrMod, person.userId)} onToggle={() => void setPayment(person, true)} onRemove={isAdminOrMod ? () => void changeParticipant("DELETE", person.userId) : undefined} />) : <p>Todas as pessoas participantes marcaram pagamento.</p>}</section>
         </div>
         <p className="fundraiser-payment-note">O registro de pagamento é manual; o app não processa nem confirma transferências Pix.</p>
-      </div> : fundraisers.length === 0 ? <div className="mural-no-messages"><UsersRound size={22} /><strong>Ainda não há vaquinhas abertas</strong><span>Quando uma iniciativa for criada, ela aparecerá nesta pasta.</span>{isAdminOrMod && <button type="button" className="mural-primary-button" onClick={() => setFormCampaign(null)}>Criar vaquinha</button>}</div>
-      : <div className="fundraiser-list"><div className="fundraiser-list-heading"><div><strong>Contribuições mensais</strong><small>Valor individual e situação de pagamento.</small></div>{isAdminOrMod && <button type="button" onClick={() => setFormCampaign(null)}><Plus size={14} />Criar vaquinha</button>}</div>{fundraisers.map((campaign) => {
+      </div> : fundraisers.length === 0 ? <div className="mural-no-messages"><UsersRound size={22} /><strong>Ainda não há vaquinhas abertas</strong><span>Qualquer membro da sala pode criar uma iniciativa.</span><button type="button" className="mural-primary-button" onClick={() => setFormCampaign(null)}>Criar vaquinha</button></div>
+      : <div className="fundraiser-list"><div className="fundraiser-list-heading"><div><strong>Contribuições mensais</strong><small>Valor individual e situação de pagamento.</small></div><button type="button" onClick={() => setFormCampaign(null)}><Plus size={14} />Criar vaquinha</button></div>{fundraisers.map((campaign) => {
         const card = toFundraiserCardViewModel(campaign);
         const count = campaign.paid.length + campaign.pending.length;
         return <article className="fundraiser-card-group" key={campaign.id}>

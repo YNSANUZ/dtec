@@ -17,10 +17,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const { data: targetProfile, error: targetProfileError } = await supabase.from("profiles").select("user_id").eq("user_id", id).maybeSingle();
   if (targetProfileError) return NextResponse.json({ error: "profile_read_failed" }, { status: 500 });
   if (!targetProfile) return NextResponse.json({ error: "profile_not_found" }, { status: 404 });
-  const result = body.isLeader
-    ? await supabase.from("room_staff").insert({ room_slug: "dtec", user_id: id, role: "leader", appointed_by: auth.claims.sub })
-    : await supabase.from("room_staff").delete().eq("room_slug", "dtec").eq("user_id", id).eq("role", "leader");
-  if (body.isLeader && result.error?.code === "23505") return NextResponse.json({ ok: true, isLeader: true });
-  if (result.error) return NextResponse.json({ error: "role_update_failed" }, { status: 500 });
+  const result=await supabase.rpc("set_room_moderator",{p_room_slug:"dtec",p_user_id:id,p_enabled:body.isLeader});
+  if(result.error)return NextResponse.json({error:"role_update_failed"},{status:result.error.code==="42501"?403:500});
   return NextResponse.json({ ok: true, isLeader: body.isLeader });
 }

@@ -9,11 +9,13 @@ import { ProfileForm } from "./profile-form";
 import type { useDtecAuth } from "@/hooks/use-dtec-auth";
 import { googleIdentity } from "@/lib/profile/google-identity";
 import styles from "./profile.module.css";
+import { RoomRules } from "@/components/rooms/room-rules";
 
-export function AccountControls({ auth, loginNext, onEditProfile, onCreateRoom }: {
-  auth: ReturnType<typeof useDtecAuth>; loginNext: string; onEditProfile?: () => void; onCreateRoom?: () => void;
+export function AccountControls({ auth, loginNext, onEditProfile, onCreateRoom, onLeaveRoom, onRoomSettings }: {
+  auth: ReturnType<typeof useDtecAuth>; loginNext: string; onEditProfile?: () => void; onCreateRoom?: () => void;onLeaveRoom?:()=>void;onRoomSettings?:()=>void;
 }) {
   const [editing, setEditing] = useState(false);
+  const [rulesOpen,setRulesOpen]=useState(false);
   const [failedPhoto, setFailedPhoto] = useState("");
   const identity = googleIdentity(auth.user);
   const firstName = (auth.profile?.displayName || identity.name).trim().split(/\s+/)[0] || "Perfil";
@@ -29,9 +31,15 @@ export function AccountControls({ auth, loginNext, onEditProfile, onCreateRoom }
         <DropdownMenu.Item onSelect={edit}>{auth.profile ? "Meu avatar e perfil" : "Completar perfil"}</DropdownMenu.Item>
         {onCreateRoom ? <DropdownMenu.Item onSelect={onCreateRoom}>Criar meu CuboChat</DropdownMenu.Item> : <DropdownMenu.Item asChild><Link href="/?create=1">Criar meu CuboChat</Link></DropdownMenu.Item>}
         <DropdownMenu.Item disabled>Instalar aplicativo <small>Em breve</small></DropdownMenu.Item>
+        <DropdownMenu.Item onSelect={()=>setRulesOpen(true)}>Regras do CuboChat</DropdownMenu.Item>
+        <DropdownMenu.Item asChild><Link href="/politica-de-privacidade">Privacidade</Link></DropdownMenu.Item>
+        <DropdownMenu.Item asChild><Link href="/termos-de-servico">Termos</Link></DropdownMenu.Item>
+        {onRoomSettings&&<DropdownMenu.Item onSelect={onRoomSettings}>Configurações da sala</DropdownMenu.Item>}
+        {onLeaveRoom&&<DropdownMenu.Item onSelect={onLeaveRoom}>Sair desta sala</DropdownMenu.Item>}
         <DropdownMenu.Item onSelect={() => void auth.signOut()}>Sair da conta</DropdownMenu.Item>
       </DropdownMenu.Content></DropdownMenu.Portal>
     </DropdownMenu.Root>
+    <RoomRules open={rulesOpen} onClose={()=>setRulesOpen(false)}/>
     <Dialog open={editing} onOpenChange={setEditing}>
       <DialogContent className={styles.dialog} showCloseButton={false}>
         <header className={styles.dialogHeader}><div><DialogTitle>{auth.profile ? "Meu avatar e perfil" : "Crie seu personagem"}</DialogTitle><DialogDescription>A sala continua aberta ao fundo.</DialogDescription></div><DialogClose className={styles.close} aria-label="Fechar perfil">×</DialogClose></header>

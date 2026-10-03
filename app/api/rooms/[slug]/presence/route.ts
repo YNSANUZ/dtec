@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { visitorSpawn } from "@/lib/room/visitor-spawn";
+import { normalizeRoomRole } from "@/lib/room/roles";
 import { normalizeRoomSlug } from "@/lib/rooms/slug";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
@@ -17,7 +19,14 @@ export async function GET(_request: Request, context: Context) {
     .select("user_id, x, z, action, last_seen")
     .eq("room_slug", slug);
   if (error) return NextResponse.json({ error: "presence_read_failed" }, { status: 500 });
-  const ids = [...new Set((positions ?? []).map((row) => row.user_id))];
+  const roster=await supabase.from("room_memberships").select("user_id").eq("room_slug",slug).eq("status","active");
+  if(roster.error)return NextResponse.json({error:"membership_roster_read_failed"},{status:500});
+  const ids=[...new Set((roster.data??[]).map(row=>row.user_id))];
+  const {data:claims}=await supabase.auth.getClaims();
+  const actor=claims?.claims?.sub,member=typeof actor==="string"&&ids.includes(actor);
+  const roles=member?await supabase.from("room_staff").select("user_id,role").eq("room_slug",slug).in("user_id",ids):{data:[],error:null};
+  if(roles.error)return NextResponse.json({error:"presence_roles_failed"},{status:500});
+  const rolesById=new Map((roles.data??[]).map(row=>[row.user_id,normalizeRoomRole(row.role)]));
   const { data: profiles, error: profileError } = ids.length
     ? await supabase.from("profiles").select("user_id, display_name, avatar_id").in("user_id", ids)
     : { data: [], error: null };
@@ -28,13 +37,15 @@ export async function GET(_request: Request, context: Context) {
   const birthdayIds = new Set((birthdays ?? []).map((entry: { user_id: string }) => entry.user_id));
   const byId = new Map((profiles ?? []).map((profile) => [profile.user_id, profile]));
   const cutoff = Date.now() - 45_000;
-  return NextResponse.json({ users: (positions ?? []).flatMap((position) => {
-    const profile = byId.get(position.user_id);
+  const positionsById=new Map((positions??[]).map(row=>[row.user_id,row]));
+  return NextResponse.json({ users: ids.flatMap((userId) => {
+    const position=positionsById.get(userId);
+    const profile = byId.get(userId);
     if (!profile) return [];
-    const online = Date.parse(position.last_seen) > cutoff;
-    return [{ userId: position.user_id, name: profile.display_name, avatar: profile.avatar_id,
-      x: position.x, z: position.z, action: online ? position.action : "idle", online,
-      birthdayToday: birthdayIds.has(position.user_id), message: "" }];
+    const online = Boolean(position&&Date.parse(position.last_seen)>cutoff),spawn=visitorSpawn(userId);
+    return [{ userId, ...(member?{role:rolesById.get(userId)??"member"}:{}), name: profile.display_name, avatar: profile.avatar_id,
+      x: position?.x??spawn.x, z: position?.z??spawn.z, action: online ? position!.action : "idle", online,
+      birthdayToday: birthdayIds.has(userId), message: "" }];
   }) }, { headers: { "Cache-Control": "no-store" } });
 }
 

@@ -27,7 +27,7 @@ vi.mock("@/lib/supabase/server", () => ({
         order() { return query; }, limit() { return query; },
         insert(payload: Row) { state.writes.push({ table, ...payload }); return query; },
         async maybeSingle() {
-          const row = table === "profiles" ? state.profile : { slug: filters.slug };
+          const row = table === "profiles" ? state.profile : table==="room_memberships"?{status:"active"}:{ slug: filters.slug };
           return { data: row ? project(row) : null, error: table === "profiles" && state.profileError ? { message: "failed" } : null };
         },
         async single() { return { data: { id: "message", author_id: userId, content: "QA", created_at: "2026-10-03T00:00:00Z" }, error: null }; },

@@ -4,10 +4,19 @@ import dynamic from "next/dynamic";
 import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ChevronDown, Crown, HelpCircle, Maximize, Star, Users, X } from "lucide-react";
+import { ChevronDown, Crown, Maximize, Star, Users, X } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { RoleBadge } from "@/components/rooms/role-badge";
+import { MemberSince } from "@/components/rooms/member-since";
 import AvatarPreview from "@/components/avatar-preview";
-import MuralWindow from "@/components/mural-window";
+import { RoomExplorer } from "@/components/rooms/room-explorer";
+import { WelcomeBell } from "@/components/rooms/welcome-bell";
+import { RoomRules } from "@/components/rooms/room-rules";
+import { useRoomBoard } from "@/hooks/use-room-board";
+import { RoomSettings } from "@/components/rooms/room-settings";
+import { RoomJoinRequest } from "@/components/rooms/room-join-request";
+import { useRoomIdentity } from "@/hooks/use-room-identity";
+import { useRoomMembership } from "@/hooks/use-room-membership";
 import { useDtecAuth } from "@/hooks/use-dtec-auth";
 import type { MuralId } from "@/lib/mural-types";
 import { canAppointModerator, roleLabel } from "@/lib/room/roles";
@@ -19,7 +28,7 @@ const OfficeScene = dynamic(() => import("@/components/office-scene"), { ssr: fa
 const avatars: AvatarId[] = ["a", "c", "f", "j", "n", "r"];
 type ChatMessage = { id: string; authorId: string; name: string; text: string; createdAt: string };
 type OnlineUser = { userId: string; name: string; avatar: AvatarId; title?: string; role?: "owner" | "leader" | "member"; x: number; z: number; action: string; online: boolean; birthdayToday: boolean };
-type UserCard = Pick<OnlineUser, "userId" | "name" | "avatar" | "title" | "role"> & { bio: string; birthDayMonth: string | null; whatsapp: string };
+type UserCard = Pick<OnlineUser, "userId" | "name" | "avatar" | "title" | "role"> & { bio: string; birthDayMonth: string | null; whatsapp: string; joinedAt?:string|null;joinDateQuality?:"recorded"|"legacy_unknown" };
 type PresenceState = { x: number; z: number; action: string };
 
 function displayBirthday(value: string | null) {
@@ -32,8 +41,15 @@ function displayBirthday(value: string | null) {
 
 export default function DtecRoom() {
   const auth = useDtecAuth();
-  const ready = auth.state === "ready";
-  const [activeMural, setActiveMural] = useState<MuralId | null>(null);
+  const identity=useRoomIdentity("dtec",{title:"DTEC",description:"Diretoria de Tecnologia da Informação"});
+  const authenticatedReady=auth.state==="ready";
+  const [settingsOpen,setSettingsOpen]=useState(false);
+  const membership=useRoomMembership("dtec",authenticatedReady?auth.user?.id??null:null);
+  const ready = authenticatedReady&&membership.active;
+  const board=useRoomBoard("dtec",ready?auth.user?.id??null:null);
+  const [rulesOpen,setRulesOpen]=useState(false);
+  const [panelOpen,setPanelOpen]=useState<{id:string|null}|null>(null);
+
   const [creatorOpen, setCreatorOpen] = useState(false);
   const [controlsOpen, setControlsOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
@@ -81,7 +97,7 @@ export default function DtecRoom() {
       setBubble("");
       setAction((current) => current === "wave" ? "idle" : current);
     };
-  }, [auth.user?.id, auth.state]);
+  }, [auth.user?.id, auth.state,ready]);
 
   useEffect(() => {
     let active = true;
@@ -127,7 +143,7 @@ export default function DtecRoom() {
   const sceneAvatar = auth.profile?.avatarId ?? avatar;
   const currentRole = onlineUsers.find((user) => user.userId === auth.user?.id)?.role;
   const canManageRoomRoles = canAppointModerator(currentRole);
-  const isAdminOrMod = currentRole === "owner" || currentRole === "leader";
+
 
   const save = async () => {
     setSaving(true);
@@ -171,9 +187,9 @@ export default function DtecRoom() {
     setControlsOpen(true);
   }, [auth.state, auth.user?.id, onlineUsers, ready]);
   const muralClick = useCallback((id: MuralId) => {
-    if (ready) setActiveMural(id);
-    else if (auth.state === "anonymous") setLoginPromptOpen(true);
-  }, [auth.state, ready]);
+    if (ready) setPanelOpen({id:board.nodes.find(node=>node.legacyKey===id)?.id??null});
+    else setPanelOpen({id:null});
+  }, [ready,board.nodes]);
   const updatePresence = useCallback((x: number, z: number, nextAction: string) => {
     presence.current = { x, z, action: nextAction === "dance" ? "dance" : ["walk", "sit"].includes(nextAction) ? nextAction : "idle" };
   }, []);
@@ -295,9 +311,9 @@ export default function DtecRoom() {
   const onlineCount = onlineUsers.filter((user) => user.online).length;
 
   return <main ref={chatRootRef} className={`app-shell ${chatStyles.shell}`}>
-    <OfficeScene name={sceneName} avatar={sceneAvatar} action={action} message={bubble} created={ready && Boolean(auth.user) && restoredUser === auth.user} initialPosition={sceneStart} remoteUsers={remoteUsers} birthdayToday={ownBirthdayToday} positionOwnerId={auth.user?.id ?? "visitor"} onStateChange={updatePresence} onCharacterClick={characterClick} onMuralClick={muralClick} />
+    <OfficeScene roomIdentity={identity.identity} role={membership.role} name={sceneName} avatar={sceneAvatar} action={action} message={bubble} created={ready && Boolean(auth.user) && restoredUser === auth.user} initialPosition={sceneStart} remoteUsers={remoteUsers} birthdayToday={ownBirthdayToday} positionOwnerId={auth.user?.id ?? "visitor"} onStateChange={updatePresence} onCharacterClick={characterClick} onMuralClick={muralClick} panels={board.panels} onPanelClick={(id)=>{if(ready)setPanelOpen({id});else setPanelOpen({id:null});}} />
     <div className="shade" />
-    <nav className="legal-links" aria-label="Informações legais"><Link href="/politica-de-privacidade">Privacidade</Link><span aria-hidden="true">·</span><Link href="/termos-de-servico">Termos</Link></nav>
+
     <header className="topbar">
       <div className="brand">DTEC</div><span className="divider" />
       <div className="online-area">
@@ -308,17 +324,17 @@ export default function DtecRoom() {
           {onlineCount === 0 ? <p className="online-empty">Aguardando colegas entrarem…</p> : <ul>{onlineUsers.filter((user) => user.online).map((user) => <li key={user.userId}><button type="button" onClick={() => { setOnlineOpen(false); if (auth.state === "anonymous") { setLoginPromptOpen(true); return; } if (!ready) return; setSelectedUser({ ...user, title: user.title ?? "", role: user.role ?? "member", bio: "", birthDayMonth: null, whatsapp: "" }); setProfileLoading(true); setLeaderError(""); }}><span className="online-marker">{roleLabel(user.role ?? "member") === "ADM" && <span className="online-role-badge"><Crown size={13} aria-hidden="true" />{roleLabel(user.role ?? "member")}</span>}{user.name}{roleLabel(user.role ?? "member") === "MOD" && <span className="online-role-badge"><Star size={13} aria-hidden="true" />{roleLabel(user.role ?? "member")}</span>}{user.userId === auth.user?.id ? " (você)" : ""}</span>{user.title && <small>[{user.title}]</small>}</button></li>)}</ul>}
         </section>}
       </div>
-      <div className="top-actions"><button aria-label="Tela cheia" onClick={() => document.documentElement.requestFullscreen?.()}><Maximize /></button><button aria-label="Ajuda" onClick={() => setControlsOpen(ready)}><HelpCircle /></button>
+      <div className="top-actions"><button aria-label="Tela cheia" onClick={() => document.documentElement.requestFullscreen?.()}><Maximize /></button><WelcomeBell/>
         {auth.state === "anonymous" && <a className="profile google-entry" aria-label="Entrar com Google" href="/auth/login?next=/dtec"><i className="google-logo" style={{ backgroundImage: 'url("https://img.icons8.com/color/1200/google-logo.jpg")' }} aria-hidden="true" /><span className="login-label">Entrar</span></a>}
-        {ready && <button className="profile google-entry google-account-entry" type="button" aria-label={`Perfil de ${sceneName.trim().split(/\s+/)[0]}`} aria-expanded={accountOpen} onClick={() => { setAccountOpen((open) => !open); setOnlineOpen(false); }}><span className="google-account-photo">{googlePhoto ? <Image src={googlePhoto} alt="" width={36} height={36} unoptimized referrerPolicy="no-referrer" /> : <i className="google-account-fallback" aria-hidden="true">{sceneName.slice(0, 1).toUpperCase()}</i>}</span><span className="login-label">{sceneName.trim().split(/\s+/)[0]}</span><ChevronDown size={15} aria-hidden="true" /></button>}
+        {authenticatedReady && <button className="profile google-entry google-account-entry" type="button" aria-label={`Perfil de ${sceneName.trim().split(/\s+/)[0]}`} aria-expanded={accountOpen} onClick={() => { setAccountOpen((open) => !open); setOnlineOpen(false); }}><span className="google-account-photo">{googlePhoto ? <Image src={googlePhoto} alt="" width={36} height={36} unoptimized referrerPolicy="no-referrer" /> : <i className="google-account-fallback" aria-hidden="true">{sceneName.slice(0, 1).toUpperCase()}</i>}</span><span className="login-label">{sceneName.trim().split(/\s+/)[0]}</span><ChevronDown size={15} aria-hidden="true" /></button>}
       </div>
     </header>
     {auth.error && <div className="auth-notice" role="status">{auth.error}<button aria-label="Fechar aviso" onClick={auth.clearError}>×</button></div>}
-    {accountOpen && ready && <div className="account-menu"><strong>{sceneName}</strong><small>{auth.user?.email}</small><button onClick={editProfile}>Meu avatar e perfil</button><Link href="/?create=1" className="account-menu-link">Criar meu CuboChat</Link><button type="button" disabled title="Instalação do aplicativo em preparação">Instalar aplicativo <small>Em breve</small></button><button onClick={() => { setAccountOpen(false); setChatOpen(false); setControlsOpen(false); void auth.signOut(); }}>Sair da conta</button></div>}
+    {accountOpen && authenticatedReady && <div className="account-menu"><strong>{sceneName}</strong><small>{auth.user?.email}</small><button onClick={editProfile}>Meu avatar e perfil</button><Link href="/?create=1" className="account-menu-link">Criar meu CuboChat</Link><button type="button" disabled title="Instalação do aplicativo em preparação">Instalar aplicativo <small>Em breve</small></button>{ready&&["owner","leader"].includes(membership.role)&&<button onClick={()=>{setAccountOpen(false);setSettingsOpen(true);}}>Configurações da sala</button>}<button onClick={()=>{setAccountOpen(false);setRulesOpen(true);}}>Regras do CuboChat</button><Link className="account-menu-link" href="/politica-de-privacidade">Privacidade</Link><Link className="account-menu-link" href="/termos-de-servico">Termos</Link>{ready&&<button onClick={async()=>{if(window.confirm(membership.role==="owner"?"Sair definitivamente da sala DTEC? O MOD mais antigo, ou o membro mais antigo, assumirá a administração. Sem participantes elegíveis, a sala ficará sem proprietário.":"Sair da sala DTEC? Sua conta e seus registros serão preservados.")&&await membership.leave()){window.location.assign("/");}}}>Sair da sala DTEC</button>}<button onClick={() => { setAccountOpen(false); setChatOpen(false); setControlsOpen(false); void auth.signOut(); }}>Sair da conta</button></div>}
     {ready && <nav className="actionbar" aria-label="Ações do personagem"><button onClick={() => setAction(action === "dance" ? "idle" : "dance")}>{action === "dance" ? "Parar" : "Dançar"}</button><button onClick={() => setChatOpen((open) => !open)}>Conversar</button><button onClick={editProfile}>Meu avatar</button></nav>}
     {chatOpen && ready && <form className={`chat-pop ${chatStyles.composer}`} aria-label="Conversar na sala" onSubmit={(event) => void sendMessage(event)} onKeyDown={(event) => { if (event.key === "Escape") { event.preventDefault(); setChatOpen(false); } }}><strong className={chatStyles.title}>Conversar</strong><input value={chatText} onChange={(event) => setChatText(event.target.value)} onFocus={chatOnFocus} onBlur={chatOnBlur} aria-label="Mensagem" autoComplete="off" enterKeyHint="send" placeholder="Digite uma mensagem…" maxLength={100} /><button disabled={chatSending || !chatText.trim()}>{chatSending ? "Enviando…" : "Enviar"}</button><button type="button" className={chatStyles.close} aria-label="Fechar conversa" onClick={() => setChatOpen(false)}><X size={16} /></button>{chatError && <small role="alert">{chatError}</small>}</form>}
-    {messages.length > 0 && <aside className="chat-history" aria-label="Últimas mensagens"><h3>Conversas recentes</h3>{messages.map((message) => <p key={message.id}><strong>{message.name}</strong><span>{message.text}</span></p>)}</aside>}
-    {controlsOpen && ready && <div className="avatar-pop"><button className="close-mini" onClick={() => setControlsOpen(false)}><X /></button><strong>{sceneName}</strong><small>Você assumiu o controle.</small><p>Clique no chão para caminhar.</p><button onClick={() => setAction(action === "dance" ? "idle" : "dance")}>Dançar</button><button onClick={editProfile}>Editar personagem</button></div>}
+    {messages.length > 0 && <aside hidden={!chatOpen} className="chat-history" aria-label="Últimas mensagens"><h3>Conversas recentes</h3>{messages.map((message) => <p key={message.id}><strong>{message.name}</strong><span>{message.text}</span></p>)}</aside>}
+    {controlsOpen && ready && <div className="avatar-pop"><button className="close-mini" onClick={() => setControlsOpen(false)}><X /></button><div className="person-identity"><AvatarPreview model={sceneAvatar} headOnly/><div><strong>{sceneName}</strong><small>Você assumiu o controle.</small></div><RoleBadge role={membership.role}/></div><p>Clique no chão para caminhar.</p><button onClick={() => setAction(action === "dance" ? "idle" : "dance")}>Dançar</button><button onClick={editProfile}>Editar personagem</button><button onClick={()=>{if(!auth.user||membership.role==="visitor")return;setControlsOpen(false);setSelectedUser({userId:auth.user.id,name:sceneName,avatar:sceneAvatar,role:membership.role,title:auth.profile?.title??"",bio:"",birthDayMonth:null,whatsapp:""});setProfileLoading(true);setLeaderError("");}}>Ver meu perfil na sala</button></div>}
     <Dialog open={loginPromptOpen} onOpenChange={setLoginPromptOpen}><DialogContent className="login-prompt-dialog" showCloseButton={false}><button type="button" className="login-prompt-close" aria-label="Fechar" onClick={() => setLoginPromptOpen(false)}><X size={17} /></button><DialogHeader><DialogTitle>Entre para interagir com a sala</DialogTitle><DialogDescription>Faça login com Google para conversar, movimentar seu personagem e ver os detalhes dos colegas.</DialogDescription></DialogHeader><a className="login-prompt-google" href="/auth/login?next=/dtec"><i className="google-logo" aria-hidden="true" />Entrar com Google</a></DialogContent></Dialog>
     <Dialog open={chooserOpen} onOpenChange={(open) => { if (auth.state !== "authenticated-needs-profile") setCreatorOpen(open); }}>
       <DialogContent className="creator-dialog" overlayClassName="creator-overlay"><DialogHeader><DialogTitle>{auth.profile ? "Edite seu perfil" : "Complete seu perfil DTEC"}</DialogTitle><DialogDescription>{auth.profile ? "Atualize as informações que seus colegas veem na sala." : "Confira seu nome e escolha como aparecerá no escritório."}</DialogDescription></DialogHeader>
@@ -336,14 +352,18 @@ export default function DtecRoom() {
     </Dialog>
     {selectedUser && <Dialog open onOpenChange={(open) => { if (!open) setSelectedUser(null); }}><DialogContent className="person-dialog" showCloseButton={false}><DialogHeader><DialogTitle className="sr-only">Perfil de {selectedUser.name}</DialogTitle><DialogDescription className="sr-only">Informações do colega online.</DialogDescription></DialogHeader>
       <button type="button" className="person-close" aria-label="Fechar perfil" onClick={() => setSelectedUser(null)}><X size={17} /></button>
-      <div className="person-identity"><AvatarPreview model={selectedUser.avatar} headOnly /><div><h2>{selectedUser.role === "owner" && <><Crown size={17} aria-hidden="true" />{roleLabel(selectedUser.role)} </>}{selectedUser.name}{selectedUser.role === "leader" && <> <Star size={17} aria-hidden="true" />{roleLabel(selectedUser.role)}</>}</h2>{selectedUser.title && <span>{selectedUser.title}</span>}</div></div>
+      <div className="person-identity"><AvatarPreview model={selectedUser.avatar} headOnly /><div><h2>{selectedUser.name}</h2>{selectedUser.title && <span>{selectedUser.title}</span>}<MemberSince value={selectedUser}/></div><RoleBadge role={selectedUser.role??"member"}/></div>
       {profileLoading ? <p className="person-loading">Carregando perfil…</p> : <div className="person-details">{selectedUser.birthDayMonth && <p><strong>Aniversário</strong><span>{displayBirthday(selectedUser.birthDayMonth)}</span></p>}{selectedUser.bio && <p><strong>Sobre</strong><span>{selectedUser.bio}</span></p>}
         {selectedUser.whatsapp && <a className="whatsapp-link" href={`https://wa.me/${selectedUser.whatsapp.length <= 11 ? `55${selectedUser.whatsapp}` : selectedUser.whatsapp}`} target="_blank" rel="noopener noreferrer">WhatsApp</a>}
         {!selectedUser.birthDayMonth && !selectedUser.bio && !selectedUser.whatsapp && <p className="person-empty">Esta pessoa ainda não preencheu outras informações.</p>}
       </div>}
-      {canManageRoomRoles && selectedUser.role !== "owner" && <button className="leader-toggle" onClick={() => void toggleLeader()}>{selectedUser.role === "leader" ? "Remover MOD" : "⭐ Designar MOD"}</button>}
+      {canManageRoomRoles && selectedUser.userId!==auth.user?.id && selectedUser.role !== "owner" && <button className="leader-toggle" onClick={() => void toggleLeader()}>{selectedUser.role === "leader" ? "Remover MOD" : "⭐ Designar MOD"}</button>}
       {leaderError && <p className="person-error" role="alert">{leaderError}</p>}
     </DialogContent></Dialog>}
-    {activeMural && <MuralWindow key={activeMural} muralId={activeMural} currentUserId={auth.user?.id ?? null} isAdminOrMod={isAdminOrMod} onClose={() => setActiveMural(null)} />}
+    {panelOpen&&<RoomExplorer key={panelOpen.id??"root"} roomSlug="dtec" currentUserId={ready?auth.user?.id??null:null} initialNodeId={panelOpen.id} board={board} onClose={()=>setPanelOpen(null)}/>}
+    {ready&&board.canManage&&<button className="room-board-open" onClick={()=>setPanelOpen({id:null})}>Organizar painéis</button>}
+    {authenticatedReady&&!ready&&<div className="room-membership-prompt"><RoomJoinRequest key={`dtec:${auth.user?.id}`} membership={membership}/></div>}
+    {settingsOpen&&ready&&["owner","leader"].includes(membership.role)&&<RoomSettings onIdentitySaved={identity.refresh} key={`dtec:${auth.user?.id}`} roomSlug="dtec" onClose={()=>setSettingsOpen(false)}/>}
+    <RoomRules open={rulesOpen} onClose={()=>setRulesOpen(false)}/>
   </main>;
 }

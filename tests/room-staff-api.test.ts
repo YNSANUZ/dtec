@@ -11,6 +11,12 @@ const state = vi.hoisted(() => ({
 
 function client() {
   return {
+    async rpc(name:string,args:{p_room_slug:string;p_user_id:string;p_enabled:boolean}){
+      expect(name).toBe("set_room_moderator");
+      if(args.p_enabled)state.staff.push({room_slug:args.p_room_slug,user_id:args.p_user_id,role:"leader",appointed_by:state.actorId});
+      else state.staff=state.staff.filter(row=>!(row.room_slug===args.p_room_slug&&row.user_id===args.p_user_id&&row.role==="leader"));
+      return {error:null};
+    },
     from(table: string) {
       const filters: Record<string, unknown> = {};
       let mode = "select";
@@ -21,6 +27,7 @@ function client() {
         insert(row: Record<string, unknown>) { mode = "insert"; payload = row; return chain; },
         delete() { mode = "delete"; return chain; },
         async maybeSingle() {
+          if (table === "room_memberships") return {data:{status:"active"},error:null};
           if (table === "profiles") return { data: state.profiles.includes(String(filters.user_id)) ? { user_id: filters.user_id } : null, error: null };
           if (table === "rooms") return { data: ["dtec", "amigos", "outra"].includes(String(filters.slug)) ? { slug: filters.slug } : null, error: null };
           const found = state.staff.find((row) => Object.entries(filters).every(([key, value]) => row[key as keyof typeof row] === value));

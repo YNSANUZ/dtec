@@ -5,6 +5,8 @@ import Link from "next/link";
 import AvatarPreview from "@/components/avatar-preview";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import type { PublicRoomPerson, RoomPerson, RoomPersonProfile } from "@/lib/rooms/people-types";
+import { RoleBadge } from "./role-badge";
+import { MemberSince } from "./member-since";
 import styles from "./room-people.module.css";
 
 type Props = { roomSlug: string; currentUserId: string | null; characters: PublicRoomPerson[]; selectedUserId: string | null; onSelect: (id: string) => void; onClose: () => void };
@@ -16,7 +18,7 @@ export function RoomPeople(props: Props) {
 }
 
 function RoleName({ person }: { person: Pick<RoomPerson, "name" | "role"> }) {
-  return <>{person.role === "owner" && <span aria-label="ADM">👑<span className="sr-only">ADM </span></span>}{person.name}{person.role === "leader" && <span aria-label="MOD"> ★<span className="sr-only"> MOD</span></span>}</>;
+  return <>{person.name}<RoleBadge role={person.role} small/></>;
 }
 
 function ScopedRoomPeople({ roomSlug, currentUserId, characters, selectedUserId, onSelect, onClose }: Props) {
@@ -101,7 +103,7 @@ function RoomProfile({ profileUrl, roomSlug, currentUserId, onRoleChange }: { pr
           <DialogTitle className="sr-only">Perfil do usuário</DialogTitle>
           <DialogDescription className="sr-only">Informações compartilhadas por um membro desta sala.</DialogDescription>
           {profile ? <>
-            <div className="person-identity"><AvatarPreview model={profile.avatar} headOnly /><div><h2><RoleName person={profile} /></h2>{profile.title && <span>{profile.title}</span>}</div></div>
+            <div className="person-identity"><AvatarPreview model={profile.avatar} headOnly /><div><h2>{profile.name}</h2>{profile.title && <span>{profile.title}</span>}<MemberSince value={profile}/></div><RoleBadge role={profile.role}/></div>
             <div className="person-details">{profile.birthDayMonth && <p><strong>Aniversário</strong>{profile.birthDayMonth}</p>}{profile.bio && <p><strong>Biografia</strong>{profile.bio}</p>}{!profile.birthDayMonth && !profile.bio && <p className="person-empty">Sem informações adicionais.</p>}</div>
             <div className={styles.contacts}>{whatsapp && <a className="whatsapp-link" href={`https://wa.me/${whatsapp}`} target="_blank" rel="noopener noreferrer">WhatsApp</a>}{instagram && <a className="whatsapp-link" href={`https://www.instagram.com/${instagram}/`} target="_blank" rel="noopener noreferrer">Instagram</a>}</div>
             {profile.role !== "owner" && profile.userId !== currentUserId && <ModeratorControls roomSlug={roomSlug} person={profile} onChange={(role) => {

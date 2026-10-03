@@ -6,6 +6,10 @@ import GenericRoom from "@/components/generic-room";
 import DtecRoom from "@/app/dtec/page";
 
 const state = vi.hoisted(() => ({ mounts: vi.fn(), phase: "anonymous", account: { id: "member" }, profile: { displayName: "Ana Silva", avatarId: "a" } }));
+// These transport/pose regressions exercise an already-admitted member.
+// Actual admission scopes are exercised in room-membership-hook and entry tests.
+vi.mock("@/hooks/use-room-membership",()=>({useRoomMembership:(_slug:string,userId:string|null)=>({active:Boolean(userId),role:userId?"member":"visitor",status:userId?"active":"visitor",loading:false,busy:false,error:"",entryMode:"public",refresh:()=>{},join:async()=>true,leave:async()=>true})}));
+vi.mock("@/hooks/use-room-identity",()=>({useRoomIdentity:(_slug:string,initial:unknown)=>({identity:initial,refresh:()=>{}})}));
 vi.mock("next/dynamic", () => ({ default: () => function Scene() { React.useEffect(() => { state.mounts(); }, []); return <div />; } }));
 vi.mock("@/hooks/use-dtec-auth", () => ({ useDtecAuth: () => ({ state: state.phase, user: state.phase === "ready" ? state.account : null, profile: state.phase === "ready" ? state.profile : null }) }));
 vi.mock("@/components/profile/account-controls", () => ({ AccountControls: () => <div /> }));

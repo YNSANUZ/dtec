@@ -8,11 +8,15 @@ export async function GET() {
   if (!supabase) return NextResponse.json({ error: "room_unavailable" }, { status: 503 });
 
   const { data: claims } = await supabase.auth.getClaims();
-  const authenticated = typeof claims?.claims?.sub === "string";
+  const actor=typeof claims?.claims?.sub==="string"?claims.claims.sub:null;
+  const roster=await supabase.from("room_memberships").select("user_id,status").eq("room_slug","dtec").eq("status","active");
+  if(roster.error)return NextResponse.json({error:"room_members_read_failed"},{status:500});
+  const ids=(roster.data??[]).map(row=>row.user_id);
+  const authenticated=Boolean(actor&&ids.includes(actor));
   const [profileResult, presenceResult] = await Promise.all([
     authenticated
-      ? supabase.from("profiles").select("user_id, display_name, avatar_id, title")
-      : supabase.from("profiles").select("user_id, display_name, avatar_id"),
+      ? supabase.from("profiles").select("user_id, display_name, avatar_id, title").in("user_id",ids)
+      : supabase.from("profiles").select("user_id, display_name, avatar_id").in("user_id",ids),
     supabase.from("room_presence").select("user_id, x, z, action, last_seen"),
   ]);
   if (profileResult.error || presenceResult.error) {

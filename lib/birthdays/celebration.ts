@@ -1,4 +1,4 @@
-export const BIRTHDAY_BADGE_MS = 5_000;
+export const BIRTHDAY_BADGE_MS = 20_000;
 export const BIRTHDAY_CYCLE_MS = BIRTHDAY_BADGE_MS + 120_000;
 export const BIRTHDAY_DANCE_MS = 3_000;
 

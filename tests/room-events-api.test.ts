@@ -4,7 +4,7 @@ const actor="11111111-1111-4111-8111-111111111111", other="22222222-2222-4222-82
 const eventA="33333333-3333-4333-8333-333333333333", eventB="44444444-4444-4444-8444-444444444444";
 function client(){return {async rpc(_name:string,args:{p_user_ids:string[]}){state.photoIds.push(...args.p_user_ids);return {data:args.p_user_ids.map(user_id=>({user_id,photo_url:user_id===actor?"https://lh3.googleusercontent.com/ana":"https://foreign.test/no-photo"})),error:state.photoError?{message:"unavailable"}:null};},from(table:string){
   const filters:Record<string,unknown>={};let mode="read",payload:Record<string,unknown>={},from=0,to=Infinity;
-  const rows=()=>table==="rooms"?[{slug:"amigos"},{slug:"outra"}]:table==="room_staff"?state.staff:table==="room_events"?state.events:table==="room_event_interests"?state.interests:[{user_id:actor,display_name:"Ana Silva",avatar_id:"a",title:""},{user_id:other,display_name:"Beto Lima",avatar_id:"c",title:""}];
+  const rows=()=>table==="rooms"?[{slug:"amigos"},{slug:"outra"}]:table==="room_memberships"?[{room_slug:"amigos",user_id:actor,status:"active"},{room_slug:"outra",user_id:actor,status:"active"}]:table==="room_staff"?state.staff:table==="room_events"?state.events:table==="room_event_interests"?state.interests:[{user_id:actor,display_name:"Ana Silva",avatar_id:"a",title:""},{user_id:other,display_name:"Beto Lima",avatar_id:"c",title:""}];
   const matches=(row:Record<string,unknown>)=>Object.entries(filters).every(([k,v])=>Array.isArray(v)?v.includes(row[k]):row[k]===v);
   const execute=()=>{let data=rows().filter(matches).slice(from,to+1);
     if(mode==="insert"){data=[{id:"55555555-5555-4555-8555-555555555555",status:"open",...payload}];(table==="room_events"?state.events:state.interests).push(data[0]);}
@@ -21,7 +21,7 @@ vi.mock("@/lib/mural-server",()=>({getMuralUserContext:vi.fn(async()=>state.logg
 const ctx=(slug="amigos",id=eventA)=>({params:Promise.resolve({slug,id})});
 const req=(method="GET",body?:unknown)=>new Request("https://cubo.test/api/rooms/amigos/events",{method,...(body===undefined?{}:{headers:{"content-type":"application/json"},body:JSON.stringify(body)})});
 describe("room events API",()=>{
-  beforeEach(()=>{state.loggedIn=true;state.photoIds=[];state.photoError=false;state.staff=[{room_slug:"amigos",user_id:actor,role:"leader"}];state.events=[{id:eventA,room_slug:"amigos",title:"Evento A",description:"",category:"kart",location:"",starts_at:null,status:"open"},{id:eventB,room_slug:"outra",title:"Evento B",status:"open"}];state.interests=[{event_id:eventB,user_id:other}];});
+  beforeEach(()=>{state.loggedIn=true;state.photoIds=[];state.photoError=false;state.staff=[{room_slug:"amigos",user_id:actor,role:"leader"}];state.events=[{id:eventA,room_slug:"amigos",title:"Evento A",description:"",category:"kart",location:"",starts_at:null,status:"open",created_by:other},{id:eventB,room_slug:"outra",title:"Evento B",status:"open"}];state.interests=[{event_id:eventB,user_id:other}];});
   it("reads photos only for this room's event interests and supplies null for non-Google URLs",async()=>{
     const {GET}=await import("@/app/api/rooms/[slug]/events/route");
     state.interests.push({event_id:eventA,user_id:actor});
@@ -61,7 +61,9 @@ describe("room events API",()=>{
     expect(await (await GET(req(),ctx())).json()).toMatchObject({events:[{id:eventA,interestCount:0}]});
     expect((await POST(req("POST",{title:"Kart",room_slug:"outra",created_by:other}),ctx())).status).toBe(201);
     expect(state.events.at(-1)).toMatchObject({room_slug:"amigos",created_by:actor});
-    expect((await POST(req("POST",{title:"Kart"}),ctx("outra"))).status).toBe(403);
+    // A member of both groups may create in both, but does not inherit MOD there.
+    expect((await POST(req("POST",{title:"Kart"}),ctx("outra"))).status).toBe(201);
+    expect(state.events.at(-1)).toMatchObject({room_slug:"outra",created_by:actor});
     state.loggedIn=false;expect((await GET(req(),ctx())).status).toBe(401);
   });
   it("refuses foreign event IDs and management in another room",async()=>{

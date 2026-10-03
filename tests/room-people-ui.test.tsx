@@ -5,7 +5,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-libra
 import { RoomPeople } from "@/components/rooms/room-people";
 
 const users = [{ userId: "ana", name: "Ana Silva", avatar: "a", online: true }, { userId: "bruno", name: "Bruno Lima", avatar: "f", online: true }, { userId: "eva", name: "Eva Souza", avatar: "r", online: false }];
-const profile = { userId: "ana", name: "Ana Silva", avatar: "a", role: "owner", title: "Infra", bio: "Cuido das redes", birthDayMonth: "02/10", whatsapp: "5561999999999", instagram: "ana.silva" };
+const profile = { userId: "ana", name: "Ana Silva", avatar: "a", role: "owner", title: "Infra", bio: "Cuido das redes", birthDayMonth: "02/10", whatsapp: "5561999999999", instagram: "ana.silva",joinedAt:"2025-10-03T15:00:00Z",joinDateQuality:"recorded" };
 const transport = vi.fn();
 const response = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status });
 function Harness({ currentUserId = "ana", roomSlug = "amigos", initial = null }: { currentUserId?: string | null; roomSlug?: string; initial?: string | null }) {
@@ -32,7 +32,7 @@ it("enriches the list for a logged-in member with scoped ADM/MOD and optional ti
   render(<Harness />);
   fireEvent.click(screen.getByRole("button", { name: "2 online" }));
   expect(await screen.findByText("[Infra]")).toBeTruthy();
-  expect(screen.getByRole("button", { name: /ADM Ana Silva/ })).toBeTruthy();
+  expect(screen.getByRole("button", { name: /Ana Silva ADM/ })).toBeTruthy();
   expect(screen.getByRole("button", { name: /Bruno Lima MOD/ })).toBeTruthy();
   expect(transport.mock.calls.every(([url]) => url.startsWith("/api/rooms/amigos/"))).toBe(true);
 });
@@ -40,6 +40,7 @@ it("opens a lightweight current-avatar profile with DD/MM and optional contact l
   render(<Harness initial="ana" />);
   expect(await screen.findByText("Cuido das redes")).toBeTruthy();
   expect(screen.getByText("02/10")).toBeTruthy();
+  expect(screen.getByText("Membro desde 03/10/2025")).toBeTruthy();
   expect(screen.getByRole("link", { name: "WhatsApp" }).getAttribute("href")).toBe("https://wa.me/5561999999999");
   expect(screen.getByRole("link", { name: "Instagram" }).getAttribute("href")).toBe("https://www.instagram.com/ana.silva/");
   const dialog = screen.getByRole("dialog");
@@ -51,8 +52,15 @@ it("drops private details immediately when the Google session ends", async () =>
   expect(await screen.findByText("Cuido das redes")).toBeTruthy();
   view.rerender(<Harness initial="ana" currentUserId={null} />);
   expect(screen.queryByText("Cuido das redes")).toBeNull();
+  expect(screen.queryByText("Membro desde 03/10/2025")).toBeNull();
   expect(screen.queryByRole("link", { name: "WhatsApp" })).toBeNull();
   expect(screen.getByRole("link", { name: "Entrar com Google" })).toBeTruthy();
+});
+it("shows unknown original entry honestly for legacy room members",async()=>{
+  transport.mockImplementation(()=>Promise.resolve(response({user:{...profile,joinedAt:null,joinDateQuality:"legacy_unknown"}})));
+  render(<Harness initial="ana"/>);
+  expect(await screen.findByText("Membro desde: data original não registrada")).toBeTruthy();
+  expect(screen.queryByText("Membro desde 03/10/2025")).toBeNull();
 });
 it("ignores old profile responses after changing rooms", async () => {
   let finish!: (response: Response) => void;
@@ -117,7 +125,8 @@ it("lets only the room ADM confirm appointment/removal and updates the MOD badge
   expect(screen.getByText(/Confirmar MOD para Bruno Lima/)).toBeTruthy();
   fireEvent.click(screen.getByRole("button", { name: "Confirmar designação" }));
   expect(await screen.findByRole("button", { name: "Remover MOD" })).toBeTruthy();
-  expect(screen.getByRole("heading", { name: /Bruno Lima MOD/ })).toBeTruthy();
+  expect(screen.getByRole("heading", { name: "Bruno Lima" })).toBeTruthy();
+  expect(screen.getByRole("img", {name:"MOD"})).toBeTruthy();
   expect(transport).toHaveBeenCalledWith("/api/rooms/amigos/staff", expect.objectContaining({ method: "POST", body: JSON.stringify({ userId: "bruno" }) }));
   fireEvent.click(screen.getByRole("button", { name: "Remover MOD" }));
   fireEvent.click(screen.getByRole("button", { name: "Confirmar remoção" }));

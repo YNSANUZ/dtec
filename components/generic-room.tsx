@@ -4,7 +4,13 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import React, { useEffect, useRef, useState, type FormEvent } from "react";
 import { useDtecAuth } from "@/hooks/use-dtec-auth";
-import { RoomBoard } from "@/components/rooms/room-board";
+import { RoomExplorer } from "@/components/rooms/room-explorer";
+import { WelcomeBell } from "@/components/rooms/welcome-bell";
+import { useRoomBoard } from "@/hooks/use-room-board";
+import { RoomSettings } from "@/components/rooms/room-settings";
+import { RoomJoinRequest } from "@/components/rooms/room-join-request";
+import { useRoomIdentity } from "@/hooks/use-room-identity";
+import { useRoomMembership } from "@/hooks/use-room-membership";
 import { AccountControls } from "@/components/profile/account-controls";
 import { RoomPeople } from "@/components/rooms/room-people";
 import { useRoomChatViewport } from "@/hooks/use-room-chat-viewport";
@@ -13,10 +19,15 @@ import styles from "@/components/rooms/room-chat.module.css";
 const OfficeScene = dynamic(() => import("@/components/office-scene"), { ssr: false });
 const roomStart = { x: 0, z: 5 };
 type ChatMessage = { id: string; authorId: string; name: string; text: string; createdAt: string };
-type RoomCharacter = { userId: string; name: string; avatar: string; x: number; z: number; action: string; online: boolean; birthdayToday: boolean; message: string };
+type RoomCharacter = { role?: "owner"|"leader"|"member"; userId: string; name: string; avatar: string; x: number; z: number; action: string; online: boolean; birthdayToday: boolean; message: string };
 
 export default function GenericRoom({ room }: { room: { slug: string; title: string; description: string } }) {
   const auth = useDtecAuth();
+  const identity=useRoomIdentity(room.slug,room);
+  const membership=useRoomMembership(room.slug,auth.state==="ready"?auth.user?.id??null:null);
+  const board=useRoomBoard(room.slug,membership.active?auth.user?.id??null:null);
+  const [activePanel,setActivePanel]=useState<string|null>(null);
+  const [settingsOpen,setSettingsOpen]=useState(false);
   const [boardOpen, setBoardOpen] = useState(false);
   const [selectedPerson, setSelectedPerson] = useState<{ scope: string; id: string } | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -57,7 +68,7 @@ export default function GenericRoom({ room }: { room: { slug: string; title: str
       setChatError("");
       setBubble("");
     };
-  }, [chatUrl, auth.user?.id, auth.state]);
+  }, [chatUrl, auth.user?.id, auth.state,membership.active]);
 
   useEffect(() => {
     let active = true;
@@ -112,17 +123,17 @@ export default function GenericRoom({ room }: { room: { slug: string; title: str
   }, [auth.user, presenceUrl, positionKey]);
 
   useEffect(() => {
-    if (auth.state !== "ready" || !presenceReady) return;
+    if (auth.state !== "ready" || !membership.active || !presenceReady) return;
     const publish = () => void fetch(presenceUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(ownPosition.current), keepalive: true }).catch(() => {});
     publish();
     const timer = window.setInterval(publish, 2500);
     return () => window.clearInterval(timer);
-  }, [auth.state, presenceUrl, presenceReady]);
+  }, [auth.state, presenceUrl, presenceReady,membership.active]);
 
   const sendMessage = async (event: FormEvent) => {
     event.preventDefault();
     const scope = sendScope.current;
-    if (auth.state !== "ready" || !scope?.active || scope.sending || !chatText.trim() || sending) return;
+    if (auth.state !== "ready" || !membership.active || !scope?.active || scope.sending || !chatText.trim() || sending) return;
     scope.sending = true;
     setSending(true); setChatError("");
     try {
@@ -144,15 +155,16 @@ export default function GenericRoom({ room }: { room: { slug: string; title: str
     } finally { scope.sending = false; if (scope.active) setSending(false); }
   };
   return <main ref={chatRootRef} className={`lobby-shell ${styles.shell}`}>
-    <OfficeScene environment="lobby" name={auth.profile?.displayName ?? "Visitante"} avatar={auth.profile?.avatarId ?? "r"} action="idle" message={bubble} created={auth.state === "ready" && presenceReady} initialPosition={sceneStart} remoteUsers={visibleCharacters} birthdayToday={ownBirthdayToday} positionOwnerId={positionKey} onStateChange={(x, z, action) => { ownPosition.current = { x, z, action: action === "dance" ? "dance" : ["walk", "sit"].includes(action) ? action : "idle" }; }} onCharacterClick={(id) => setSelectedPerson({ scope: peopleScope, id: id ?? auth.user?.id ?? "visitor" })} onMuralClick={() => {}} />
+    <OfficeScene roomIdentity={identity.identity} role={membership.role} environment="lobby" name={auth.profile?.displayName ?? "Visitante"} avatar={auth.profile?.avatarId ?? "r"} action="idle" message={bubble} created={auth.state === "ready" && membership.active && presenceReady} initialPosition={sceneStart} remoteUsers={visibleCharacters} birthdayToday={ownBirthdayToday} positionOwnerId={positionKey} onStateChange={(x, z, action) => { ownPosition.current = { x, z, action: action === "dance" ? "dance" : ["walk", "sit"].includes(action) ? action : "idle" }; }} onCharacterClick={(id) => setSelectedPerson({ scope: peopleScope, id: id ?? auth.user?.id ?? "visitor" })} onMuralClick={() => {setActivePanel(null);setBoardOpen(true);}} panels={board.panels} onPanelClick={(id)=>{setActivePanel(id);setBoardOpen(true);}} />
     <div className="shade" aria-hidden="true" />
-    {boardOpen && <RoomBoard roomSlug={room.slug} currentUserId={auth.state === "ready" ? auth.user?.id ?? null : null} onClose={() => setBoardOpen(false)} />}
-    <button type="button" className="room-board-open" onClick={() => setBoardOpen(true)}>Quadro de avisos</button>
-    <header className="lobby-header"><Link href="/" className="lobby-brand">CuboChat</Link><RoomPeople roomSlug={room.slug} currentUserId={auth.state === "ready" ? auth.user?.id ?? null : null} characters={characters} selectedUserId={selectedPerson?.scope === peopleScope ? selectedPerson.id : null} onSelect={(id) => setSelectedPerson({ scope: peopleScope, id })} onClose={() => setSelectedPerson(null)} /><AccountControls auth={auth} loginNext={`/${room.slug}`} /></header>
+    {settingsOpen&&membership.active&&["owner","leader"].includes(membership.role)&&<RoomSettings onIdentitySaved={identity.refresh} key={positionKey} roomSlug={room.slug} onClose={()=>setSettingsOpen(false)}/>}
+    {boardOpen && <RoomExplorer key={activePanel??"root"} roomSlug={room.slug} currentUserId={membership.active?auth.user?.id??null:null} initialNodeId={activePanel} board={board} onClose={() => setBoardOpen(false)} />}
+    <button type="button" className="room-board-open" onClick={() => {setActivePanel(null);setBoardOpen(true);}}>Quadro de avisos</button>
+    <header className="lobby-header"><Link href="/" className="lobby-brand">CuboChat</Link><RoomPeople roomSlug={room.slug} currentUserId={auth.state === "ready" && membership.active ? auth.user?.id ?? null : null} characters={characters} selectedUserId={selectedPerson?.scope === peopleScope ? selectedPerson.id : null} onSelect={(id) => setSelectedPerson({ scope: peopleScope, id })} onClose={() => setSelectedPerson(null)} /><WelcomeBell/><AccountControls auth={auth} loginNext={`/${room.slug}`} onRoomSettings={membership.active&&["owner","leader"].includes(membership.role)?()=>setSettingsOpen(true):undefined} onLeaveRoom={membership.active?async()=>{if(window.confirm(membership.role==="owner"?"Sair definitivamente deste grupo? O MOD mais antigo, ou o membro mais antigo, assumirá a administração. Sem participantes elegíveis, a sala ficará sem proprietário.":"Sair deste grupo? Seus registros serão preservados.")&&await membership.leave())window.location.assign("/");}:undefined} /></header>
     <section className={styles.panel} aria-labelledby="room-title">
       <div className={styles.header}><h1 id="room-title" title={room.title}>{room.title}</h1><button type="button" aria-expanded={historyOpen} aria-controls={`chat-history-${room.slug}`} onClick={() => setHistoryOpen((open) => !open)}>{historyOpen ? "Ocultar mensagens" : "Mostrar mensagens"}</button></div>
       <div id={`chat-history-${room.slug}`} className={styles.history} aria-label="Últimas mensagens" hidden={!historyOpen}>{messages.length ? messages.map((message) => <p key={message.id}><strong>{message.name}:</strong> {message.text}</p>) : <small>Nenhuma mensagem nesta sala.</small>}</div>
-      {auth.state === "ready" ? <form className={styles.form} onSubmit={(event) => void sendMessage(event)}><input value={chatText} onChange={(event) => setChatText(event.target.value)} onFocus={chatOnFocus} onBlur={chatOnBlur} maxLength={100} placeholder="Escreva uma mensagem" aria-label="Mensagem" autoComplete="off" enterKeyHint="send" /><button disabled={sending || !chatText.trim()}>{sending ? "…" : "Enviar"}</button></form> : <small>Entre com Google para conversar.</small>}
+      {auth.state === "ready" && membership.active ? <form className={styles.form} onSubmit={(event) => void sendMessage(event)}><input value={chatText} onChange={(event) => setChatText(event.target.value)} onFocus={chatOnFocus} onBlur={chatOnBlur} maxLength={100} placeholder="Escreva uma mensagem" aria-label="Mensagem" autoComplete="off" enterKeyHint="send" /><button disabled={sending || !chatText.trim()}>{sending ? "…" : "Enviar"}</button></form> : auth.state==="ready"?<RoomJoinRequest key={positionKey} membership={membership}/>:<small>Entre com Google para conversar.</small>}
       {chatError && <small role="alert">{chatError}</small>}
       <details className={styles.info}><summary>Sobre a sala /{room.slug}</summary><p>{room.description || "Um espaço para reunir pessoas."}</p><Link href="/">Voltar à entrada</Link></details>
     </section>
