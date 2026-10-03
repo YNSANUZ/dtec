@@ -11,6 +11,14 @@ Data: 02/10/2026. Escopo ampliado estimado em 90%; não é percentual de testes.
 
 ## Escopo congelado e preparativos de lançamento
 
+### Perfil incompleto: correção autorizada e validada localmente
+
+Em03/10/2026, após a proposta delimitada acima enviada ao humano, Ynsan respondeu “continue”. Implementada somente a validação canônica `normalizeProfile` no guard comum, com a mesma projeção/mapeamento do onboarding. Perfil completo continua aceito; perfil legado incompleto retorna401 antes de leitura interna ou escrita. Campos opcionais ausentes e29fevereiro continuam válidos. Não altera dados existentes, provider, papéis, RLS, migrações, transporte ou GET público do chat; produção/DNS intactos. Publicação limitada ao preview autorizado.
+
+Regressão permanente `tests/mural-profile-contract.test.ts`: transport Supabase simulado, guard/handlers reais e projeção das colunas solicitadas. Antes da correção:9RED/8GREEN; depois:17GREEN, incluindo genérica/DTEC, sete campos inválidos, chat/recado sem escrita, identidade autenticada, perfil completo e falhas fechadas.44testes direcionados passaram. Suíte nova433testes/77arquivos com dois workers, build/TypeScript, ESLint helper/teste e diffcheck passaram. Dois erros OAuth anchors DTEC baseline não alterados, lint geral não declarado limpo.
+
+Uma tentativa inicial usou equivocadamente ferramentas de `../../node_modules`: não encontrou happy-dom nos workers e falhou ao prerenderizar _not-found, embora compile/TypeScript passassem. Repetição com ferramentas de `node_modules` da worktree resolveu ambos sem instalação, mudança de dependências ou supressão. Não registrar a tentativa anterior como suíte aprovada. QA/deployment desta correção ainda pendentes neste registro; estimativa90%, duas Google/concorrência/aparelho físico e lançamento continuam pendentes.
+
 ### Revisão residual: perfil incompleto confirmado, alteração aguardando decisão
 
 Contrato aprovado exige perfil completo antes das APIs internas. Em 9a97602, `GET /api/profile` valida com `normalizeProfile` e devolve `profile:null` para um perfil legado fictício com nome único “Ana”; porém `getMuralUserContext` só verifica existência de perfil e a rota real `GET /api/rooms/amigos/fundraisers` devolve200 para a mesma sessão. A migração de nomes tem constraint NOT VALID e preserva registros antigos; não assumir que o banco elimina esse caso. O problema não concede ADM/MOD, não cruza salas e não libera leitura anônima: é desvio da exigência de concluir o cadastro.
