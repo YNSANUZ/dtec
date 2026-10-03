@@ -1,6 +1,6 @@
 # CuboChat — validação de isolamento por sala
 
-Data: 02/10/2026. Escopo ampliado estimado em 89%; não é percentual de testes.
+Data: 02/10/2026. Escopo ampliado estimado em 90%; não é percentual de testes.
 
 ## Destinos
 
@@ -11,11 +11,23 @@ Data: 02/10/2026. Escopo ampliado estimado em 89%; não é percentual de testes.
 
 ## Escopo congelado e preparativos de lançamento
 
+### Migração016 aplicada e verificada no staging
+
+Atualização posterior à etapa local: aplicada SOMENTE `202610030016_fundraiser_cycle_boundary.sql` no projeto `dtec-staging`/`grbanfuzzrlyapxyhjzc`, confirmado no cabeçalho e URL. Não reaplicar016,003 ou006–015. A produção permanece intacta. Pré-checagem mostrou16tabelas/16RLS, owner postgres, EXECUTE apenas postgres/authenticated; fronteiras antigas retornavam2026-10-02/2028-02-29. Agora retornam2026-11-02/2028-03-31.
+
+Transação de aplicação `docs/qa/sql/2026-10-02-apply016-verified.sql` validou calendário, acesso anônimo negado e execução autenticada permitida; comparou checksums integrais de perfis, campanhas, participantes, contribuições, auditoria e eventos, além de owner/ACL da função, antes/depois. COMMIT só após todas as assertivas. Resultado `migration016_verified`. Nenhum dado dessas tabelas foi alterado pela migração.
+
+Smoke `docs/qa/sql/2026-10-02-smoke016-rollback.sql` usa o relógio real do PostgreSQL/São Paulo e somente fixture fictícia sem Pix/sem transferência. Perfil staging já existente, sala/campanha temporárias, ciclo anterior pago e novo pendente; RPC autenticado recusa ciclo antigo com22023, aceita o novo, repetição retornafalse e há exatamente uma auditoria. ROLLBACK integral confirmou1perfil/1campanha/1contribuição/1auditoria originais. Nenhum papel MOD real concedido/removido; inclusive sala/staff automático da fixture não persistiram. Não equivale a duas contas Google nem concorrência entre sessões.
+
+Primeiro envio pelo editor Monaco conservou prefixo da consulta anterior; PostgreSQL recusou com42601 antes do BEGIN/alteração. Recuperação: Ctrl+A/Backspace, campo vazio observado, colagem integral e início do SQL conferido antes de executar. Não usar fill isoladamente para substituir documento Monaco existente. Aba temporária fechada; original qa20261002 preservada. Provas `outputs/qa/staging-migration016-verified.png` e `staging-smoke016-rollback.png`.
+
+Validação local nova:16testes direcionados,416testes/76arquivos com dois workers, build/TypeScript, ESLint do teste alterado e diff check passaram. Dois erros baseline de OAuth anchors DTEC continuam; lint geral não declarado limpo. Scripts de aplicação/smoke também exercitados no PGlite. Estimativa90%: defeito já corrigido no banco de testes, sem novos recursos. Revisão ampla incompleta, duas Google distintas, concorrência independente, teclado/toque físico, domínio e aprovação de produção continuam pendentes.
+
 ### Correção local da virada mensal da vaquinha
 
 Revisão de pré-publicação identificou um defeito concreto do contrato já aprovado, não uma regra nova: a função SQL da migração003 usava `p_as_of <= v_due_date`, enquanto o plano mensal e `getUpcomingDueDate` passam ao próximo ciclo no próprio dia do vencimento. Reproduzido localmente com sete falhas esperadas: virada normal, meia-noite de São Paulo, fim de fevereiro comum/bissexto, virada de ano e inicialização de contribuições nas salas genérica/DTEC.
 
-Correção aditiva em `202610030016_fundraiser_cycle_boundary.sql`: substitui somente a função de calendário com comparação estrita `<`; não reescreve a migração003 aplicada, contribuições, auditoria, políticas, permissões ou RPCs de pagamento. Os privilégios existentes são preservados por CREATE OR REPLACE. A migração016 ainda NÃO foi aplicada em staging ou produção nesta execução; o preview continua com o cálculo antigo até a aplicação e verificação explícita no staging.
+Correção aditiva em `202610030016_fundraiser_cycle_boundary.sql`: substitui somente a função de calendário com comparação estrita `<`; não reescreve a migração003 aplicada, contribuições, auditoria, políticas, permissões ou RPCs de pagamento. Os privilégios existentes são preservados por CREATE OR REPLACE. Na etapa local anterior a migração016 ainda não havia sido aplicada; a atualização acima registra aplicação e verificação posteriores somente no staging.
 
 Testes PostgreSQL local/PGlite executam migrações e RPCs reais. Nos dois testes de virada de ciclo, apenas `statement_timestamp()` é substituído por um relógio controlado no SQL carregado em memória: calendário, autorização, locks, contribuições e auditoria não são simulados. Verificam ciclo novo pendente, ciclo anterior pago preservado, pagamento obsoleto negado com SQLSTATE22023, wrappers DTEC, idempotência e auditoria sem duplicação; também calendário SQL/TypeScript, inválidos e bloqueio anônimo. Não equivalem a concorrência entre sessões ou pagamentos reais.
 

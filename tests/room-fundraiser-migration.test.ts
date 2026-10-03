@@ -42,6 +42,17 @@ async function actAs(db:PGlite,id:string,role="authenticated"){await db.exec("re
 async function cycle(db:PGlite,room:string,id:string){return (await db.query<{due:string}>("select public.ensure_room_fundraiser_current_cycle($1,$2)::text as due",[room,id])).rows[0].due;}
 afterEach(async()=>Promise.all(databases.splice(0).map(db=>db.close())));
 describe("room fundraiser storage and payments",()=>{
+  it("verifies the staged application transaction preserves data and function access",async()=>{
+    const db=await database();
+    await db.exec(readFileSync(join(process.cwd(),"docs/qa/sql/2026-10-02-apply016-verified.sql"),"utf8"));
+    expect((await db.query<{due:string}>("select public.fundraiser_cycle_due_date(2,'2026-10-02')::text as due")).rows[0].due).toBe("2026-11-02");
+  });
+  it("runs the real-clock staging smoke with all fixtures rolled back",async()=>{
+    const db=await database();
+    const before=(await db.query("select id from public.fundraisers order by id")).rows;
+    await db.exec(readFileSync(join(process.cwd(),"docs/qa/sql/2026-10-02-smoke016-rollback.sql"),"utf8"));
+    expect((await db.query("select id from public.fundraisers order by id")).rows).toEqual(before);
+  });
   it("preserves restricted execution grants and rejects invalid dates",async()=>{
     const db=await database();await actAs(db,member);
     for(const args of [[0,"2026-10-02"],[32,"2026-10-02"],[null,"2026-10-02"],[2,null]]){
