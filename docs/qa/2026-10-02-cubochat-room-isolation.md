@@ -11,6 +11,12 @@ Data: 02/10/2026. Escopo ampliado estimado em 90%; não é percentual de testes.
 
 ## Escopo congelado e preparativos de lançamento
 
+### Retorno OAuth: correção autorizada e validação local concluída
+
+Em03/10/2026, humano respondeu “continue” após a proposta específica. Correção delimitada somente em `lib/auth/redirects.ts`: após normalizar com URL, recusa pathname iniciado por `//`, antes de retornar pathname/query/hash para resolução pelo callback. Mantém bloqueios iniciais/origem, retorno normal às salas, parâmetros e âncoras, cancellation/missing-code/exchange-error; não muda handlers, configuração Google/OAuth, contas, banco, RLS, produção ou domínio.
+
+Regressões permanentes: novo `tests/auth-callback-redirect.test.ts` usa helper/handler reais com exchange Supabase simulado e valores fictícios `.invalid`; amplia tabela já existente de redirects com dot-segments comum/codificado/misto, caminho codificado não externo, sala normalizada e URL apenas como query. Antes:7RED/15GREEN em22testes; depois:27focadosGREEN incluindo estado auth, suíte445testes/78arquivos/doisworkers, build/TypeScript, ESLint helper/testes e diffcheck passaram. Dez entradas verificadas separadamente para mesma origem ao resolver retorno e idempotência. Não é login OAuth real com next manipulado, prova de ausência de todo defeito de auth, duas Google, concorrência ou aparelho físico. Dois erros OAuth anchors DTEC baseline inalterados. Publicação/QA preview desta correção pendentes neste registro; estimativa90% mantida. Aprovação específica cumprida, entrada anterior aguardando decisão é histórica.
+
 ### Revisão residual: retorno OAuth normalizado pode sair da origem — decisão pendente
 
 Em03/10/2026, revisão somente leitura de `safeReturnPath`/callback encontrou defeito concreto: `/a/..//outside.invalid` e `/a/%2e%2e//outside.invalid` passam pelo teste inicial de caminho local, mas `new URL` elimina os segmentos e devolve pathname `//outside.invalid`. A validação compara a origem antes de retornar esse pathname; o callback resolve o retorno novamente e transforma-o em URL externa. Reprodução usa somente domínio reservado `.invalid`, código fictício e transporte de troca OAuth simulado; helper e handler reais. Quatro RED (duas normalizações e dois Location após exchange simulado aceito), dois controles GREEN (retorno de sala com query/hash e erro de exchange local). Fixture arquivada em `docs/qa/fixtures/oauth-return-normalization.test.ts.txt`, fora da descoberta automática; temporário em tests removido.

@@ -12,7 +12,10 @@ export function safeReturnPath(value: string | null): string {
   try {
     decodeURI(value);
     const parsed = new URL(value, "https://dtec.local");
-    return parsed.origin === "https://dtec.local" ? `${parsed.pathname}${parsed.search}${parsed.hash}` : "/";
+    // Dot-segment normalization can turn a local input into a //host path.
+    // The returned path is resolved again by the callback, so validate it too.
+    if (parsed.origin !== "https://dtec.local" || parsed.pathname.startsWith("//")) return "/";
+    return `${parsed.pathname}${parsed.search}${parsed.hash}`;
   } catch {
     return "/";
   }

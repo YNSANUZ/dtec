@@ -10,6 +10,12 @@ describe("safeReturnPath", () => {
     ["//evil.example/steal", "/"],
     ["not-a-path", "/"],
     ["/%E0%A4%A", "/"],
+    ["/a/..//outside.invalid", "/"],
+    ["/a/%2e%2e//outside.invalid", "/"],
+    ["/a/.%2E///outside.invalid/path", "/"],
+    ["/a/../%2foutside.invalid", "/%2foutside.invalid"],
+    ["/a/../qa20261002?panel=chat#history", "/qa20261002?panel=chat#history"],
+    ["/dtec?next=https://outside.invalid/#history", "/dtec?next=https://outside.invalid/#history"],
   ])("maps %s to %s", (input, expected) => {
     expect(safeReturnPath(input)).toBe(expected);
   });
