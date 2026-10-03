@@ -9,7 +9,22 @@ Data: 02/10/2026. Escopo ampliado estimado em 89%; não é percentual de testes.
 - Branch de teste: `codex/dtec-implementation`; não promover para `main`.
 - DNS/domínio cubochat.be: não alterado.
 
-## Migrações aplicadas
+## Escopo congelado e preparativos de lançamento
+
+Em 02/10/2026 Ynsan decidiu manter o comportamento atual e priorizar conclusão/publicação, sem adicionar presença compartilhada de visitantes. Visitante anônimo continua local e temporário; membros Google mantêm personagem persistido. Os dois prints simultâneos enviados mostram UMA conta Google no computador e visitante anônimo no celular (botão Entrar), não duas contas distintas. O Gestor aparece nas duas telas; diferenças de câmera/zoom são locais. Não há prova de falha de sincronização entre duas identidades nesses prints. O histórico recente do chat é público no desenho atual: GET anônimo retorna200 e a migração007 concede leitura a anon; envio exige login. Não alterar essa regra sem nova decisão.
+
+Pré-checagem SOMENTE de leitura: DNS local de cubochat.be/A e www/CNAME retornou nome inexistente; Google DNS público retornou Status3/NXDOMAIN tanto para NS quanto A, com SOA da zona be. Vercel domains inspect não encontrou cubochat.be no escopo ynsanuzs-projects. Hostinger conectada mostrou domínio Ativo, SSL em configuração, nameservers horizon.dns-parking.com/orbit.dns-parking.com, aviso de propagação pendente e registros A @→2.57.91.91/TTL50 e CNAME www→cubochat.be/TTL300. Não concluir perda da compra nem causa definitiva apenas dessa divergência; validar resolução pública antes de lançar. Nenhuma compra, suporte externo, credencial, DNS, associação Vercel ou configuração de produção alterada.
+
+Portas de lançamento ainda abertas, em ordem:
+
+- [ ] QA com duas contas Google distintas e teclado/toque em celular físico, incluindo chat, posição/avatar, offline persistente, isolamento e pagamento fictício concorrente/auditoria sem transferência.
+- [ ] Confirmar resolução pública/delegação do domínio; se continuar NXDOMAIN após a janela informada pelo registrador, obter diagnóstico da Hostinger, sem compras ou troca de nameservers às cegas.
+- [ ] Revisão final e aprovação específica do lote de produção, com inventário atual, backup recuperável e preservação de perfis/histórico; não transferir staging automaticamente nem tratar snapshot público como backup completo.
+- [ ] Após autorização de produção/DNS, associar domínio ao deploy aprovado, usar valores DNS indicados pela Vercel para este projeto, validar HTTPS e login Google/retorno correto e executar smoke final. Não publicar staging como produção para contornar a validação.
+
+Estimativa mantida89%; somente preparação/documentação, sem novo build/testes ou implementação nesta execução. A validação anterior404testes e build é histórica, não uma nova execução.
+
+## Histórico das migrações aplicadas
 
 As nove migrações anteriores já estavam instaladas. Foram observadas 12 tabelas públicas com RLS e ausência de rooms/room_staff antes do lote.
 
